@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
 private val ALTURA_BARRA_FLUTUANTE = 70.dp
 
 /** Respiro extra para o último item nunca ficar colado na barra. */
-private val RESPIRO_EXTRA = 6.dp
+private val RESPIRO_EXTRA = 0.5.dp
 
 /**
  * Espaço padrão que toda lista/coluna rolável deve reservar no final do seu
