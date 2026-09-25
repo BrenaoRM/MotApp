@@ -14,6 +14,7 @@ import com.example.financacelular.ui.AppNavigation
 import com.example.financacelular.ui.ConfiguracoesViewModel
 import com.example.financacelular.ui.theme.FinanceAPPTheme
 import com.example.financacelular.worker.LembreteFaturaWorker
+import com.example.financacelular.worker.AutoBackupWorker // <-- Import adicionado
 import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
@@ -28,6 +29,14 @@ class MainActivity : ComponentActivity() {
             "LembreteFatura",
             ExistingPeriodicWorkPolicy.KEEP,
             workRequest
+        )
+
+        // Agendar backup automático diário para o Google Drive
+        val backupRequest = PeriodicWorkRequestBuilder<AutoBackupWorker>(1, TimeUnit.DAYS).build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "AutoBackupGoogleDrive",
+            ExistingPeriodicWorkPolicy.KEEP,
+            backupRequest
         )
 
         setContent {

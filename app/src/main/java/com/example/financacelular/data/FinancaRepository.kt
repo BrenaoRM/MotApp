@@ -4,8 +4,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
+import java.util.Locale
 
-class FinancaRepository(private val database: AppDatabase) {
+class FinancaRepository(database: AppDatabase) {
     private val dao = database.transacaoDao()
     private val categoriaDao = database.categoriaDao()
     private val metaDao = database.metaDao()
@@ -13,23 +14,14 @@ class FinancaRepository(private val database: AppDatabase) {
     private val orcamentoDao = database.orcamentoDao()
     private val investimentoDao = database.investimentoDao()
     private val afazerDao = database.afazerDao()
-
-    // --- ADICIONADO ---
     private val cartaoDao = database.cartaoDao()
 
     fun obterCartao(id: Long): Flow<CartaoEntity?> = cartaoDao.obterPorId(id)
     suspend fun obterCartaoSync(id: Long): CartaoEntity? = cartaoDao.obterPorIdSync(id)
-    suspend fun salvarCartao(cartao: CartaoEntity) { cartaoDao.inserir(cartao) } // <-- LINHA ADICIONADA AQUI!
-    // ------------------
-
-    fun listarTransacoesPorMes(anoMes: String): Flow<List<Transacao>> =
-        dao.listarTransacoesPorMes(anoMes)
+    suspend fun salvarCartao(cartao: CartaoEntity) { cartaoDao.inserir(cartao) }
 
     fun listarTransacoes(): Flow<List<Transacao>> =
         dao.listarTransacoes()
-
-    fun listarTransacoesDashboard(anoMes: String): Flow<List<Transacao>> =
-        dao.listarTransacoesDashboard(anoMes)
 
     fun listarTransacoesFatura(cartaoId: Long, anoMes: String): Flow<List<Transacao>> =
         dao.listarTransacoesFatura(cartaoId, anoMes)
@@ -52,9 +44,9 @@ class FinancaRepository(private val database: AppDatabase) {
         dao.excluirTransacao(transacao)
     }
 
-    suspend fun pagarFatura(cartaoId: Long, anoMes: String, valorTotal: Double) {
+    suspend fun pagarFatura(anoMes: String, valorTotal: Double) {
         val categorias = categoriaDao.listarTodas().first()
-        var categoriaFatura = categorias.find { it.nome.equals("Fatura", ignoreCase = true) }
+        val categoriaFatura = categorias.find { it.nome.equals("Fatura", ignoreCase = true) }
 
         val catId = if (categoriaFatura != null) {
             categoriaFatura.id
@@ -78,7 +70,7 @@ class FinancaRepository(private val database: AppDatabase) {
         dao.inserirTransacao(transacaoPagamento)
     }
 
-    fun verificarFaturaPaga(cartaoId: Long, anoMes: String): Flow<Boolean> =
+    fun verificarFaturaPaga(anoMes: String): Flow<Boolean> =
         dao.listarTransacoesPorMes(anoMes).map { lista ->
             lista.any { it.cartaoId == null && it.descricao == "Pagamento de Fatura - $anoMes" }
         }
@@ -108,7 +100,7 @@ class FinancaRepository(private val database: AppDatabase) {
         val listaTransacoes = mutableListOf<Transacao>()
 
         for (i in 1..numeroParcelas) {
-            val anoMesStr = String.format("%d-%02d", anoAtual, mesAtual)
+            val anoMesStr = String.format(Locale.getDefault(), "%d-%02d", anoAtual, mesAtual)
             val diaReal = minOf(diaVencimento, LocalDate.of(anoAtual, mesAtual, 1).lengthOfMonth())
             val dataTransacao = LocalDate.of(anoAtual, mesAtual, diaReal)
 
@@ -163,8 +155,8 @@ class FinancaRepository(private val database: AppDatabase) {
         var dataAtual = dataInicio
         val listaTransacoes = mutableListOf<Transacao>()
 
-        for (i in 0 until 12) {
-            val anoMesStr = String.format("%d-%02d", dataAtual.year, dataAtual.monthValue)
+        repeat(12) {
+            val anoMesStr = String.format(Locale.getDefault(), "%d-%02d", dataAtual.year, dataAtual.monthValue)
             val diaReal = minOf(diaDoMes, dataAtual.lengthOfMonth())
             val dataTransacao = LocalDate.of(dataAtual.year, dataAtual.monthValue, diaReal)
 
@@ -221,13 +213,9 @@ class FinancaRepository(private val database: AppDatabase) {
     suspend fun atualizarInvestimento(investimento: InvestimentoEntity) = investimentoDao.atualizar(investimento)
     suspend fun deletarInvestimento(investimento: InvestimentoEntity) = investimentoDao.deletar(investimento)
 
-    fun totalDespesasDoMes(anoMes: String): Flow<Double> = dao.totalDespesasDoMes(anoMes).map { it ?: 0.0 }
-    fun totalReceitasDoMes(anoMes: String): Flow<Double> = dao.totalReceitasDoMes(anoMes).map { it ?: 0.0 }
     fun gastoPorCategoriaNoMes(anoMes: String): Flow<List<GastoCategoria>> = dao.gastoPorCategoriaNoMes(anoMes)
-    fun evolucaoMensal(limite: Int): Flow<List<TotalMensal>> = dao.evolucaoMensal(limite)
 
-    fun listarTransacoesExtrato(): Flow<List<Transacao>> = dao.listarTransacoes()
-    suspend fun listarTransacoesUmaVez(): List<Transacao> = emptyList()
+    fun listarTransacoesUmaVez(): List<Transacao> = emptyList()
 
     companion object {
         @Volatile
@@ -239,6 +227,10 @@ class FinancaRepository(private val database: AppDatabase) {
                 INSTANCE = instance
                 instance
             }
+        }
+
+        fun destruirInstancia() {
+            INSTANCE = null
         }
     }
 }

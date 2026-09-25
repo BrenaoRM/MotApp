@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
         AfazerEntity::class,
         CartaoEntity::class
     ],
-    version = 8, // <-- Incrementei a versão para forçar o Room a atualizar a estrutura
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -36,6 +36,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun cartaoDao(): CartaoDao
 
     companion object {
+        const val NOME_ARQUIVO_BANCO = "financa_celular.db"
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -44,7 +46,7 @@ abstract class AppDatabase : RoomDatabase() {
                 Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "financa_celular.db"
+                    NOME_ARQUIVO_BANCO
                 )
                     .fallbackToDestructiveMigration(true)
                     .addCallback(object : RoomDatabase.Callback() {
@@ -66,6 +68,13 @@ abstract class AppDatabase : RoomDatabase() {
                     .build()
                     .also { INSTANCE = it }
             }
+        }
+
+        fun destruirInstancia() {
+            if (INSTANCE?.isOpen == true) {
+                INSTANCE?.close()
+            }
+            INSTANCE = null
         }
     }
 }

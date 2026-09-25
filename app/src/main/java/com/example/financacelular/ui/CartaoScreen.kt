@@ -40,10 +40,10 @@ fun CartaoScreen(viewModel: CartaoViewModel = viewModel()) {
     var mesSelecionado by remember { mutableStateOf(YearMonth.now()) }
     val anoMesStr = remember(mesSelecionado) { mesSelecionado.format(DateTimeFormatter.ofPattern("yyyy-MM")) }
     val nomeMesAno = remember(mesSelecionado) {
-        mesSelecionado.month.getDisplayName(TextStyle.FULL, Locale("pt", "BR"))
+        mesSelecionado.month.getDisplayName(TextStyle.FULL, Locale.forLanguageTag("pt-BR"))
             .replaceFirstChar { it.uppercase() } + " / " + mesSelecionado.year
     }
-    val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale("pt", "BR")) }
+    val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.forLanguageTag("pt-BR")) }
 
     var transacoesFatura by remember { mutableStateOf<List<Transacao>>(emptyList()) }
     var faturaPaga by remember { mutableStateOf(false) }
@@ -58,13 +58,13 @@ fun CartaoScreen(viewModel: CartaoViewModel = viewModel()) {
     }
 
     LaunchedEffect(mesSelecionado) {
-        repository.verificarFaturaPaga(1L, anoMesStr).collect { paga ->
+        repository.verificarFaturaPaga(anoMesStr).collect { paga ->
             faturaPaga = paga
         }
     }
 
     val valorTotalFatura = transacoesFatura.sumOf { it.valor }
-    val diaVencimentoSalvo = cartao?.diaVencimento ?: 25 // Padrão se não configurado
+    val diaVencimentoSalvo = cartao?.diaVencimento ?: 25
 
     LazyColumn(
         modifier = Modifier
@@ -138,7 +138,7 @@ fun CartaoScreen(viewModel: CartaoViewModel = viewModel()) {
                             onClick = {
                                 if (valorTotalFatura > 0.0) {
                                     scope.launch {
-                                        repository.pagarFatura(1L, anoMesStr, valorTotalFatura)
+                                        repository.pagarFatura(anoMesStr, valorTotalFatura)
                                         Toast.makeText(context, "Fatura paga e descontada do saldo!", Toast.LENGTH_SHORT).show()
                                     }
                                 } else {

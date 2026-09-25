@@ -4,10 +4,10 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.fadeIn
@@ -36,14 +36,14 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Savings
-import androidx.compose.material.icons.filled.TrendingDown
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -70,7 +70,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -88,7 +87,6 @@ private val AuroraVioleta = Color(0xFF8B5CF6)
 private val AuroraIndigo = Color(0xFF6366F1)
 private val AuroraAzul = Color(0xFF3B82F6)
 
-/** Gera uma variação mais clara de [cor], usada como topo dos gradientes. */
 private fun tomClaro(cor: Color, mistura: Float = 0.35f) = lerp(cor, Color.White, mistura)
 
 @Composable
@@ -132,6 +130,17 @@ private const val ROTA_CONFIGURACOES = "configuracoes"
 @Composable
 fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     val navController = rememberNavController()
+
+    // EXIBE AS BOAS-VINDAS DIRETAMENTE SE AINDA NÃO FOR CONCLUÍDO
+    if (!configuracoesViewModel.completouBoasVindas) {
+        WelcomeScreen(
+            viewModel = configuracoesViewModel,
+            aoConcluir = {
+                configuracoesViewModel.marcarBoasVindasComoConcluida()
+            }
+        )
+        return
+    }
 
     var isFabExpanded by remember { mutableStateOf(false) }
     var acionarNovoInvestimento by remember { mutableStateOf(false) }
@@ -367,7 +376,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            IconeCircular(Icons.Filled.TrendingDown)
+                                            IconeCircular(Icons.AutoMirrored.Filled.TrendingDown)
                                             Spacer(modifier = Modifier.width(10.dp))
                                             Text("Gasto", color = Color.White, fontWeight = FontWeight.Bold)
                                         }
@@ -396,7 +405,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            IconeCircular(Icons.Filled.TrendingUp)
+                                            IconeCircular(Icons.AutoMirrored.Filled.TrendingUp)
                                             Spacer(modifier = Modifier.width(10.dp))
                                             Text("Ganho", color = Color.White, fontWeight = FontWeight.Bold)
                                         }
@@ -427,7 +436,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                     }
                 }
             }
-        } // CORREÇÃO: Faltava fechar este bloco antes de abrir o de baixo
+        }
     ) { paddingValues ->
         val navigationBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         val paddingInferiorDinamico = if (emTelaDeFormulario) {
@@ -436,7 +445,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
             50.dp + 5.dp + navigationBarBottom
         }
 
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             NavHost(
                 navController = navController,
                 startDestination = DestinoPrincipal.INICIO.rota,

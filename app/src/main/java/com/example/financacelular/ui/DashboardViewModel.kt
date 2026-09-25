@@ -44,7 +44,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
     val alertaFaturaPendente: StateFlow<Boolean> = combine(
         repository.obterCartao(1L),
-        repository.verificarFaturaPaga(1L, YearMonth.now().format(DateTimeFormatter.ofPattern("yyyy-MM"))),
+        repository.verificarFaturaPaga(YearMonth.now().format(DateTimeFormatter.ofPattern("yyyy-MM"))),
         _triggerVerificacao
     ) { cartao, faturaPaga, _ ->
         if (faturaPaga || cartao == null) return@combine false
@@ -106,7 +106,6 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         .map { lista -> lista.filter { it.tipo == TipoTransacao.RECEITA }.sumOf { it.valor } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
-    // NOVO: Calcula apenas o total investido no mês selecionado
     @OptIn(ExperimentalCoroutinesApi::class)
     val totalInvestidoDoMes: StateFlow<Double> = combine(
         anoMesTexto,
@@ -117,14 +116,6 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
     val metas: StateFlow<List<Meta>> = repository.listarMetas()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val progressoMetas: StateFlow<Float> = metas
-        .map { lista ->
-            val totalAlvo = lista.sumOf { it.valorAlvo }
-            val totalAtual = lista.sumOf { it.valorAtual }
-            if (totalAlvo > 0) (totalAtual / totalAlvo).toFloat().coerceIn(0f, 1f) else 0f
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0f)
 
     val categorias: StateFlow<List<com.example.financacelular.data.Categoria>> = repository.listarCategorias()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
