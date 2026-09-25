@@ -1,0 +1,22 @@
+# Tarefas: Redesign FinanceAPP (Estilo Paguei)
+
+- `[x]` Atualizar Tema e Estilos
+    - `[x]` Ajustar cores em `Color.kt`
+    - `[x]` Refinar tipografia em `Type.kt`
+- `[x]` Desenvolver Kit de Componentes "Paguei"
+    - `[x]` Criar `PagueiComponents.kt`
+    - `[x]` Implementar `PagueiSummaryCard`
+    - `[x]` Implementar `PagueiTransactionItem`
+    - `[x]` Implementar `PagueiSegmentedControl`
+- `[x]` Atualizar Lógica de Dados (ViewModels e Repositories)
+    - `[x]` Atualizar `Transacao` e `TransacaoDao`
+    - `[x]` Adaptar `FinancaRepository`
+    - `[x]` Adaptar `DashboardViewModel` para novas métricas e metas
+    - `[x]` Atualizar `NovaTransacaoViewModel` com status de pagamento
+- `[x]` Refatorar Telas
+    - `[x]` `DashboardScreen.kt` (Home)
+    - `[x]` `NovaTransacaoScreen.kt` (Fluxo de entrada)
+    - `[x]` Criar `CalendarioScreen.kt`
+- `[x]` Ajustar Navegação Geral
+    - `[x]` Customizar `AppNavigation.kt` com FAB e BottomSheet
+- `[x]` Verificação e Ajustes Finais
