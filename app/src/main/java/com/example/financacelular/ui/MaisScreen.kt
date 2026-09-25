@@ -1,7 +1,9 @@
 package com.example.financacelular.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -29,10 +31,10 @@ fun MaisScreen(
 ) {
     LazyColumn(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(20.dp)
+            .fillMaxSize()
             .statusBarsPadding()
-            .padding(bottom = 80.dp)
+            .padding(horizontal = 20.dp),
+        contentPadding = PaddingValues(top = 20.dp, bottom = espacoParaBarraFlutuante())
     ) {
         item {
             Text(

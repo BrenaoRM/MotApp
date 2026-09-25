@@ -36,7 +36,7 @@ fun ParceladosScreen(viewModel: ParceladosViewModel = viewModel()) {
             .fillMaxSize()
             .statusBarsPadding()
             .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp),
+        contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {

@@ -48,7 +48,7 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel = viewModel()) {
             .fillMaxSize()
             .statusBarsPadding()
             .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp)
+        contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
     ) {
         item {
             Text(

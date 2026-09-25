@@ -126,7 +126,7 @@ fun AnaliseScreen(viewModel: AnaliseViewModel = viewModel()) {
             .padding(horizontal = 20.dp),
         contentPadding = PaddingValues(
             top = 16.dp,
-            bottom = 30.dp
+            bottom = espacoParaBarraFlutuante()
         )
     ) {
         item {

@@ -110,7 +110,7 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
             .padding(horizontal = 20.dp),
         contentPadding = PaddingValues(
             top = 16.dp,
-            bottom = 22.dp
+            bottom = espacoParaBarraFlutuante()
         )
     ) {
         item {

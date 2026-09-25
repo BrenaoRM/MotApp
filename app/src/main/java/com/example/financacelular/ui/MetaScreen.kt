@@ -34,7 +34,7 @@ fun MetaScreen(viewModel: MetaViewModel = viewModel()) {
             .fillMaxSize()
             .statusBarsPadding()
             .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp)
+        contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
     ) {
         item {
             Row(

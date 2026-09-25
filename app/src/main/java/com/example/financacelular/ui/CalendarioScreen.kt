@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CheckCircle
@@ -36,7 +35,11 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CalendarioScreen(viewModel: CalendarioViewModel = viewModel()) {
+fun CalendarioScreen(
+    viewModel: CalendarioViewModel = viewModel(),
+    acionarNovaAgendaExterno: Boolean = false,
+    aoNovaAgendaAcionada: () -> Unit = {}
+) {
     val transacoesCalendario by viewModel.transacoesCalendario.collectAsState()
     val categorias by viewModel.categorias.collectAsState()
     val listaAfazeres by viewModel.afazeres.collectAsState()
@@ -59,6 +62,17 @@ fun CalendarioScreen(viewModel: CalendarioViewModel = viewModel()) {
     val transacoesDoDia = transacoesCalendario.filter { it.transacao.data == dataSelecionada }
     val afazeresDoDia = listaAfazeres.filter { it.data == dataSelecionada }
 
+    // O "+" central da barra de navegação assume a função de adicionar à
+    // agenda quando estamos nesta tela (mesmo padrão do Investimento).
+    LaunchedEffect(acionarNovaAgendaExterno) {
+        if (acionarNovaAgendaExterno) {
+            abaAtiva = 1
+            textoNovoAfazer = ""
+            mostrarSheetNovoAfazer = true
+            aoNovaAgendaAcionada()
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier
@@ -67,7 +81,7 @@ fun CalendarioScreen(viewModel: CalendarioViewModel = viewModel()) {
                 .padding(horizontal = 20.dp),
             contentPadding = PaddingValues(
                 top = 16.dp,
-                bottom = if (abaAtiva == 1) 100.dp else 22.dp // Margem extra para o FAB se estiver na Agenda
+                bottom = espacoParaBarraFlutuante()
             )
         ) {
             item {
@@ -349,21 +363,6 @@ fun CalendarioScreen(viewModel: CalendarioViewModel = viewModel()) {
                         }
                     }
                 }
-            }
-        }
-
-        // Floating Action Button (FAB) para Adicionar Afazer na aba Agenda
-        if (abaAtiva == 1) {
-            FloatingActionButton(
-                onClick = { mostrarSheetNovoAfazer = true },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(bottom = 24.dp, end = 20.dp)
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = "Novo Afazer")
             }
         }
     }

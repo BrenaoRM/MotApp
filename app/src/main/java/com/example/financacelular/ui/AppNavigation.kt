@@ -22,17 +22,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -65,7 +63,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -82,6 +81,9 @@ import com.example.financacelular.ui.theme.Verde
 
 private val AmareloInvestimento = Color(0xFFF2A93B)
 private val AmareloClaro = Color(0xFFFFC75F)
+
+private val AzulAgenda = Color(0xFF3B82F6)
+private val AzulAgendaClaro = Color(0xFF7EA6F7)
 
 private val AuroraVioleta = Color(0xFF8B5CF6)
 private val AuroraIndigo = Color(0xFF6366F1)
@@ -131,7 +133,6 @@ private const val ROTA_CONFIGURACOES = "configuracoes"
 fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     val navController = rememberNavController()
 
-    // EXIBE AS BOAS-VINDAS DIRETAMENTE SE AINDA NÃO FOR CONCLUÍDO
     if (!configuracoesViewModel.completouBoasVindas) {
         WelcomeScreen(
             viewModel = configuracoesViewModel,
@@ -144,20 +145,24 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
 
     var isFabExpanded by remember { mutableStateOf(false) }
     var acionarNovoInvestimento by remember { mutableStateOf(false) }
+    var acionarNovaAgenda by remember { mutableStateOf(false) }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val emTelaDeFormulario = currentDestination?.route?.startsWith(ROTA_NOVA_TRANSACAO_BASE) == true
     val emTelaInvestimento = currentDestination?.route == ROTA_INVESTIMENTO
+    val emTelaCalendario = currentDestination?.route == DestinoPrincipal.CALENDARIO.rota
 
+    @Suppress("UnusedMaterial3ScaffoldPaddingParameter")
     Scaffold(
         bottomBar = {
             if (!emTelaDeFormulario) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.navigationBars)
-                        .padding(horizontal = 20.dp, vertical = 20.dp),
+                        .background(MaterialTheme.colorScheme.background)
+                        .navigationBarsPadding()
+                        .padding(horizontal = 20.dp, vertical = 10.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     NavigationBar(
@@ -255,8 +260,9 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         }
                     }
 
-                    val configuration = LocalConfiguration.current
-                    val screenWidth = configuration.screenWidthDp.dp
+                    val density = LocalDensity.current
+                    val windowInfo = LocalWindowInfo.current
+                    val screenWidth = with(density) { windowInfo.containerSize.width.toDp() }
 
                     val liquidSpring = spring<Dp>(
                         dampingRatio = 0.7f,
@@ -270,7 +276,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         label = "fabWidth"
                     ) { expanded ->
                         if (expanded) {
-                            if (emTelaInvestimento) (screenWidth - 80.dp) else (screenWidth - 40.dp)
+                            if (emTelaInvestimento || emTelaCalendario) (screenWidth - 80.dp) else (screenWidth - 40.dp)
                         } else 52.dp
                     }
 
@@ -303,19 +309,27 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                     val corPadraoClara = Color(0xFF5CDBCF)
 
                     val gradienteCor1 by animateColorAsState(
-                        targetValue = if (emTelaInvestimento) AmareloInvestimento else corPadrao,
+                        targetValue = when {
+                            emTelaInvestimento -> AmareloInvestimento
+                            emTelaCalendario -> AzulAgenda
+                            else -> corPadrao
+                        },
                         animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing),
                         label = "gradiente1"
                     )
 
                     val gradienteCor2 by animateColorAsState(
-                        targetValue = if (emTelaInvestimento) AmareloClaro else corPadraoClara,
+                        targetValue = when {
+                            emTelaInvestimento -> AmareloClaro
+                            emTelaCalendario -> AzulAgendaClaro
+                            else -> corPadraoClara
+                        },
                         animationSpec = tween(durationMillis = 1100, easing = LinearOutSlowInEasing),
                         label = "gradiente2"
                     )
 
                     val rotacaoIcone by animateFloatAsState(
-                        targetValue = if (emTelaInvestimento) 180f else 0f,
+                        targetValue = if (emTelaInvestimento || emTelaCalendario) 180f else 0f,
                         animationSpec = spring(dampingRatio = 0.6f, stiffness = 150f),
                         label = "rotacaoIcone"
                     )
@@ -357,6 +371,27 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                             IconeCircular(Icons.Filled.Savings)
                                             Spacer(modifier = Modifier.width(10.dp))
                                             Text("Novo Aporte", color = Color.White, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                } else if (emTelaCalendario) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(
+                                                Brush.linearGradient(
+                                                    colors = listOf(tomClaro(AzulAgenda), AzulAgenda)
+                                                )
+                                            )
+                                            .clickable(enabled = isFabExpanded) {
+                                                isFabExpanded = false
+                                                acionarNovaAgenda = true
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            IconeCircular(Icons.Filled.CalendarMonth)
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Text("Nova Agenda", color = Color.White, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 } else {
@@ -438,20 +473,20 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
             }
         }
     ) { paddingValues ->
-        val navigationBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-        val paddingInferiorDinamico = if (emTelaDeFormulario) {
-            0.dp
-        } else {
-            50.dp + 5.dp + navigationBarBottom
-        }
-
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+        // Não usamos o paddingValues do Scaffold aqui: como não há topBar, ele
+        // devolveria a inset da status bar "solta" (sem barra nenhuma consumindo
+        // ela), e cada tela já aplica .statusBarsPadding() na sua própria raiz —
+        // aplicar de novo aqui duplicava o espaço no topo. O padding de baixo
+        // também fica de fora de propósito, para o NavHost ocupar o ecrã até o
+        // fundo e o conteúdo passar por trás da barra flutuante.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
             NavHost(
                 navController = navController,
                 startDestination = DestinoPrincipal.INICIO.rota,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = paddingInferiorDinamico),
+                modifier = Modifier.fillMaxSize(),
                 enterTransition = { fadeIn(tween(300)) + scaleIn(initialScale = 0.95f, animationSpec = tween(300)) },
                 exitTransition = { fadeOut(tween(300)) },
                 popEnterTransition = { fadeIn(tween(300)) + scaleIn(initialScale = 0.95f, animationSpec = tween(300)) },
@@ -470,10 +505,13 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                     )
                 }
                 composable(DestinoPrincipal.ANALISE.rota) { AnaliseScreen() }
-                composable(DestinoPrincipal.CALENDARIO.rota) { CalendarioScreen() }
-                composable(DestinoPrincipal.CONTAS.rota) {
-                    ContasScreen()
+                composable(DestinoPrincipal.CALENDARIO.rota) {
+                    CalendarioScreen(
+                        acionarNovaAgendaExterno = acionarNovaAgenda,
+                        aoNovaAgendaAcionada = { acionarNovaAgenda = false }
+                    )
                 }
+                composable(DestinoPrincipal.CONTAS.rota) { ContasScreen() }
                 composable(ROTA_MAIS) { MaisScreen(aoNavegar = { rota -> navController.navigate(rota) }) }
                 composable(ROTA_CONFIGURACOES) { ConfiguracoesScreen(viewModel = configuracoesViewModel) }
                 composable(

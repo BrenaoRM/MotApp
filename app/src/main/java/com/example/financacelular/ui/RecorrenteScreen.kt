@@ -48,7 +48,7 @@ fun RecorrenteScreen(viewModel: RecorrenteViewModel = viewModel()) {
             .fillMaxSize()
             .statusBarsPadding()
             .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp)
+        contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
     ) {
         item {
             Text("Recorrentes e Assinaturas", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
