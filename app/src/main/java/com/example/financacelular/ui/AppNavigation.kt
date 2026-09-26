@@ -171,6 +171,26 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                             .height(35.dp)
                     )
 
+                    // Escurece a faixa de fundo inferior junto com o restante da tela ao expandir o FAB
+                    AnimatedVisibility(
+                        visible = isFabExpanded,
+                        enter = fadeIn(),
+                        exit = fadeOut(),
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.Black.copy(alpha = 0.4f))
+                                .navigationBarsPadding()
+                                .height(35.dp)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) { isFabExpanded = false }
+                        )
+                    }
+
                     // Conteúdo da barra de navegação e FAB
                     Box(
                         modifier = Modifier
