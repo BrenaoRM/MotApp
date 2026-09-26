@@ -57,8 +57,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -69,6 +71,41 @@ import com.example.financacelular.ui.theme.Verde
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+
+/**
+ * Formata o texto inserido no padrão brasileiro de moeda.
+ * Exemplo:
+ * "" -> ""
+ * "1" -> "0,01"
+ * "12" -> "0,12"
+ * "1200" -> "12,00"
+ * "120000" -> "1.200,00"
+ */
+private fun formatarValorMoeda(entrada: String): String {
+    val digitos = entrada.filter { it.isDigit() }
+    if (digitos.isEmpty()) return ""
+
+    val digitosLimitados = digitos.take(9)
+    val valorLong = digitosLimitados.toLongOrNull() ?: 0L
+
+    val centavos = (valorLong % 100).toString().padStart(2, '0')
+    val reaisStr = (valorLong / 100).toString()
+
+    // Monta os reais manualmente, inserindo "." a cada 3 dígitos a partir da direita.
+    // Isso garante vírgula fixa nos centavos e ponto só como separador de milhar,
+    // sem depender do Locale/ICU do dispositivo (que é o que causava a troca aleatória).
+    val reaisFormatado = buildString {
+        for ((indice, caractere) in reaisStr.withIndex()) {
+            val posicaoDaDireita = reaisStr.length - indice
+            append(caractere)
+            if (posicaoDaDireita > 1 && posicaoDaDireita % 3 == 1) {
+                append('.')
+            }
+        }
+    }
+
+    return "$reaisFormatado,$centavos"
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -124,7 +161,7 @@ fun NovaTransacaoScreen(
                     )
                 }
 
-                // Conteúdo estático sem rolagem desnecessária
+                // Conteúdo da tela
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -147,23 +184,41 @@ fun NovaTransacaoScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(4.dp))
+
+                            val valorExibido = if (viewModel.valor.isEmpty()) "0,00" else viewModel.valor
+                            val corTexto = if (viewModel.valor.isEmpty()) {
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                            } else {
+                                corTema
+                            }
+
+                            // Mantém o texto centralizado com a seleção/cursor travado no final (à direita do número)
+                            var textFieldValue by remember(valorExibido) {
+                                mutableStateOf(
+                                    TextFieldValue(
+                                        text = valorExibido,
+                                        selection = TextRange(valorExibido.length)
+                                    )
+                                )
+                            }
+
                             OutlinedTextField(
-                                value = viewModel.valor,
-                                onValueChange = viewModel::onValorChange,
-                                placeholder = {
-                                    Text(
-                                        "0,00",
-                                        textAlign = TextAlign.Center,
-                                        style = MaterialTheme.typography.displaySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                value = textFieldValue,
+                                onValueChange = { novoTfv ->
+                                    val valorFormatado = formatarValorMoeda(novoTfv.text)
+                                    viewModel.onValorChange(valorFormatado)
+                                    val textoFinal = if (valorFormatado.isEmpty()) "0,00" else valorFormatado
+                                    textFieldValue = TextFieldValue(
+                                        text = textoFinal,
+                                        selection = TextRange(textoFinal.length)
                                     )
                                 },
                                 textStyle = MaterialTheme.typography.displaySmall.copy(
                                     textAlign = TextAlign.Center,
                                     fontWeight = FontWeight.Bold,
-                                    color = corTema
+                                    color = corTexto
                                 ),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 singleLine = true,
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = Color.Transparent,

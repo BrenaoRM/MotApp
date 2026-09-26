@@ -65,7 +65,7 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun onValorChange(novoValor: String) {
-        valor = novoValor.replace(',', '.')
+        valor = novoValor
     }
 
     fun onDataChange(novaData: LocalDate) {
@@ -113,7 +113,7 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun salvar(nomeCategoriaDigitada: String, aoSalvarComSucesso: () -> Unit) {
-        val valorNumerico = valor.toDoubleOrNull() ?: 0.0
+        val valorNumerico = valor.replace(".", "").replace(',', '.').toDoubleOrNull() ?: 0.0
         if (valorNumerico <= 0.0) return
 
         viewModelScope.launch {

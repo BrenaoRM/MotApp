@@ -2,6 +2,8 @@ package com.example.financacelular.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +24,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -29,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
@@ -61,6 +65,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -91,6 +96,25 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
     var transacaoEmEdicao by remember { mutableStateOf<Transacao?>(null) }
     val formato = remember { NumberFormat.getCurrencyInstance(Locale("pt", "BR")) }
     val mesAtual = remember { LocalDate.now().let { "%04d-%02d".format(it.year, it.monthValue) } }
+    val formatoDataFiltro = remember { DateTimeFormatter.ofPattern("dd/MM/yyyy") }
+
+    // --- Filtros (tipo, categoria, mês, período) consolidados em um único bottom sheet ---
+    var mostrarFiltros by remember { mutableStateOf(false) }
+    var dataInicioFiltro by remember { mutableStateOf<LocalDate?>(null) }
+    var dataFimFiltro by remember { mutableStateOf<LocalDate?>(null) }
+    var mostrarDatePickerInicio by remember { mutableStateOf(false) }
+    var mostrarDatePickerFim by remember { mutableStateOf(false) }
+
+    val algumFiltroAtivo = filtroTipo != null || filtroCategoria != null || apenasEsteMes ||
+            dataInicioFiltro != null || dataFimFiltro != null
+
+    fun passaPeriodo(data: LocalDate): Boolean {
+        val inicio = dataInicioFiltro
+        val fim = dataFimFiltro
+        val depoisDoInicio = inicio == null || !data.isBefore(inicio)
+        val antesDoFim = fim == null || !data.isAfter(fim)
+        return depoisDoInicio && antesDoFim
+    }
 
     val transacoesFiltradas = transacoes.filter { t ->
         val categoria = categorias.find { it.id == t.categoriaId }
@@ -100,8 +124,10 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
                 (t.descricao?.contains(busca, ignoreCase = true) == true) ||
                 (categoria?.nome?.contains(busca, ignoreCase = true) == true)
         val passaMes = !apenasEsteMes || t.data.toString().startsWith(mesAtual)
-        passaTipo && passaCategoria && passaBusca && passaMes
-    }
+        passaTipo && passaCategoria && passaBusca && passaMes && passaPeriodo(t.data)
+    }.sortedByDescending { it.data }
+
+    val futurosFiltrados = futuros.filter { passaPeriodo(it.data) }
 
     LazyColumn(
         modifier = Modifier
@@ -114,7 +140,48 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
         )
     ) {
         item {
-            Text("Extrato", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Extrato", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+
+                // Botão único de filtros (mesmo estilo do Dashboard)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                        .clickable { mostrarFiltros = true }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box {
+                            Icon(
+                                Icons.Filled.FilterList,
+                                contentDescription = "Filtros",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            if (algumFiltroAtivo) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .align(Alignment.TopEnd)
+                                        .background(MaterialTheme.colorScheme.error, CircleShape)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            "Filtros",
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(16.dp))
             OutlinedTextField(
                 value = busca,
@@ -124,60 +191,6 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(modifier = Modifier.height(12.dp))
-            Row {
-                FilterChip(selected = filtroTipo == null, onClick = { filtroTipo = null }, label = { Text("Todas") })
-                Spacer(modifier = Modifier.width(8.dp))
-                FilterChip(
-                    selected = filtroTipo == TipoTransacao.DESPESA,
-                    onClick = { filtroTipo = TipoTransacao.DESPESA },
-                    label = { Text("Despesas") }
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                FilterChip(
-                    selected = filtroTipo == TipoTransacao.RECEITA,
-                    onClick = { filtroTipo = TipoTransacao.RECEITA },
-                    label = { Text("Receitas") }
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                FilterChip(
-                    selected = apenasEsteMes,
-                    onClick = { apenasEsteMes = !apenasEsteMes },
-                    label = { Text("Este mês") }
-                )
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            ExposedDropdownMenuBox(
-                expanded = menuCategoriaExpandido,
-                onExpandedChange = { menuCategoriaExpandido = it }
-            ) {
-                OutlinedTextField(
-                    value = filtroCategoria?.nome ?: "Todas as categorias",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Categoria") },
-                    shape = RoundedCornerShape(14.dp),
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuCategoriaExpandido) },
-                    modifier = Modifier
-                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                        .fillMaxWidth()
-                )
-                ExposedDropdownMenu(
-                    expanded = menuCategoriaExpandido,
-                    onDismissRequest = { menuCategoriaExpandido = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Todas as categorias") },
-                        onClick = { filtroCategoria = null; menuCategoriaExpandido = false }
-                    )
-                    categorias.forEach { categoria ->
-                        DropdownMenuItem(
-                            text = { Text(categoria.nome) },
-                            onClick = { filtroCategoria = categoria; menuCategoriaExpandido = false }
-                        )
-                    }
-                }
-            }
             Spacer(modifier = Modifier.height(20.dp))
             Text("Lançamentos Realizados", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
@@ -192,7 +205,14 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
             }
         }
 
-        items(transacoesFiltradas) { transacao ->
+        itemsIndexed(transacoesFiltradas) { index, transacao ->
+            val diaMudou = index > 0 && transacoesFiltradas[index - 1].data != transacao.data
+            if (diaMudou) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                )
+            }
             val categoria = categorias.find { it.id == transacao.categoriaId }
             val cor = if (transacao.tipo == TipoTransacao.DESPESA) Coral else Verde
             Row(
@@ -239,7 +259,7 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
             }
         }
 
-        if (futuros.isNotEmpty()) {
+        if (futurosFiltrados.isNotEmpty()) {
             item {
                 Spacer(modifier = Modifier.height(24.dp))
                 HorizontalDivider()
@@ -248,7 +268,14 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            items(futuros) { transacao ->
+            itemsIndexed(futurosFiltrados) { index, transacao ->
+                val diaMudou = index > 0 && futurosFiltrados[index - 1].data != transacao.data
+                if (diaMudou) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                    )
+                }
                 val categoria = categorias.find { it.id == transacao.categoriaId }
                 val cor = if (transacao.tipo == TipoTransacao.DESPESA) Coral else Verde
                 Row(
@@ -311,6 +338,218 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
                 transacaoEmEdicao = null
             }
         )
+    }
+
+    // --- BOTTOM SHEET: FILTROS (tipo, categoria, mês e período) ---
+    if (mostrarFiltros) {
+        val sheetStateFiltros = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+        ModalBottomSheet(
+            onDismissRequest = { mostrarFiltros = false },
+            sheetState = sheetStateFiltros,
+            containerColor = MaterialTheme.colorScheme.surface,
+            dragHandle = { BottomSheetDefaults.DragHandle() },
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp)
+            ) {
+                Text(
+                    text = "Filtros",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text("Tipo de movimentação", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row {
+                    FilterChip(selected = filtroTipo == null, onClick = { filtroTipo = null }, label = { Text("Todas") })
+                    Spacer(modifier = Modifier.width(8.dp))
+                    FilterChip(
+                        selected = filtroTipo == TipoTransacao.DESPESA,
+                        onClick = { filtroTipo = TipoTransacao.DESPESA },
+                        label = { Text("Despesas") }
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    FilterChip(
+                        selected = filtroTipo == TipoTransacao.RECEITA,
+                        onClick = { filtroTipo = TipoTransacao.RECEITA },
+                        label = { Text("Receitas") }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Text("Período rápido", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(modifier = Modifier.height(8.dp))
+                FilterChip(
+                    selected = apenasEsteMes,
+                    onClick = { apenasEsteMes = !apenasEsteMes },
+                    label = { Text("Este mês") }
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Text("Categoria", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(modifier = Modifier.height(8.dp))
+                ExposedDropdownMenuBox(
+                    expanded = menuCategoriaExpandido,
+                    onExpandedChange = { menuCategoriaExpandido = it }
+                ) {
+                    OutlinedTextField(
+                        value = filtroCategoria?.nome ?: "Todas as categorias",
+                        onValueChange = {},
+                        readOnly = true,
+                        shape = RoundedCornerShape(12.dp),
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuCategoriaExpandido) },
+                        modifier = Modifier
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = menuCategoriaExpandido,
+                        onDismissRequest = { menuCategoriaExpandido = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Todas as categorias") },
+                            onClick = { filtroCategoria = null; menuCategoriaExpandido = false }
+                        )
+                        categorias.forEach { categoria ->
+                            DropdownMenuItem(
+                                text = { Text(categoria.nome) },
+                                onClick = { filtroCategoria = categoria; menuCategoriaExpandido = false }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Text("Período (de / até)", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Campo: data inicial
+                val interactionInicio = remember { MutableInteractionSource() }
+                LaunchedEffect(interactionInicio) {
+                    interactionInicio.interactions.collect {
+                        if (it is PressInteraction.Release) mostrarDatePickerInicio = true
+                    }
+                }
+                OutlinedTextField(
+                    value = dataInicioFiltro?.format(formatoDataFiltro) ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("De") },
+                    placeholder = { Text("Data inicial") },
+                    shape = RoundedCornerShape(12.dp),
+                    trailingIcon = { Icon(Icons.Filled.CalendarToday, contentDescription = "Selecionar data inicial", tint = MaterialTheme.colorScheme.primary) },
+                    interactionSource = interactionInicio,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Campo: data final
+                val interactionFim = remember { MutableInteractionSource() }
+                LaunchedEffect(interactionFim) {
+                    interactionFim.interactions.collect {
+                        if (it is PressInteraction.Release) mostrarDatePickerFim = true
+                    }
+                }
+                OutlinedTextField(
+                    value = dataFimFiltro?.format(formatoDataFiltro) ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Até") },
+                    placeholder = { Text("Data final") },
+                    shape = RoundedCornerShape(12.dp),
+                    trailingIcon = { Icon(Icons.Filled.CalendarToday, contentDescription = "Selecionar data final", tint = MaterialTheme.colorScheme.primary) },
+                    interactionSource = interactionFim,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            filtroTipo = null
+                            filtroCategoria = null
+                            apenasEsteMes = false
+                            dataInicioFiltro = null
+                            dataFimFiltro = null
+                        },
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Text("Limpar filtros", fontWeight = FontWeight.Bold)
+                    }
+                    Button(
+                        onClick = { mostrarFiltros = false },
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Text("Aplicar", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+
+    // Calendário para a data inicial do filtro
+    if (mostrarDatePickerInicio) {
+        val estadoPicker = rememberDatePickerState(
+            initialSelectedDateMillis = (dataInicioFiltro ?: LocalDate.now())
+                .atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli()
+        )
+        DatePickerDialog(
+            onDismissRequest = { mostrarDatePickerInicio = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    estadoPicker.selectedDateMillis?.let { millis ->
+                        dataInicioFiltro = Instant.ofEpochMilli(millis).atZone(ZoneId.of("UTC")).toLocalDate()
+                    }
+                    mostrarDatePickerInicio = false
+                }) { Text("Confirmar", fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDatePickerInicio = false }) { Text("Cancelar") }
+            }
+        ) {
+            DatePicker(state = estadoPicker)
+        }
+    }
+
+    // Calendário para a data final do filtro
+    if (mostrarDatePickerFim) {
+        val estadoPicker = rememberDatePickerState(
+            initialSelectedDateMillis = (dataFimFiltro ?: LocalDate.now())
+                .atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli()
+        )
+        DatePickerDialog(
+            onDismissRequest = { mostrarDatePickerFim = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    estadoPicker.selectedDateMillis?.let { millis ->
+                        dataFimFiltro = Instant.ofEpochMilli(millis).atZone(ZoneId.of("UTC")).toLocalDate()
+                    }
+                    mostrarDatePickerFim = false
+                }) { Text("Confirmar", fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDatePickerFim = false }) { Text("Cancelar") }
+            }
+        ) {
+            DatePicker(state = estadoPicker)
+        }
     }
 }
 

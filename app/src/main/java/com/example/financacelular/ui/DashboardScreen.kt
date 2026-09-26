@@ -67,7 +67,7 @@ private val AmareloInvestimento = Color(0xFFF2A93B)
 fun DashboardScreen(
     viewModel: DashboardViewModel = viewModel(),
     investimentoViewModel: InvestimentoViewModel = viewModel(),
-    aoAbrirMais: () -> Unit = {},
+    aoAbrirConfiguracoes: () -> Unit = {},
     aoAbrirExtrato: () -> Unit = {},
     aoAbrirInvestimento: () -> Unit = {},
     aoAbrirCartao: () -> Unit = {},
@@ -138,8 +138,8 @@ fun DashboardScreen(
                     IconButton(onClick = { viewModel.mesSeguinte() }) {
                         Icon(Icons.Filled.ChevronRight, contentDescription = "Próximo mês")
                     }
-                    IconButton(onClick = aoAbrirMais) {
-                        Icon(Icons.Filled.Settings, contentDescription = "Mais opções")
+                    IconButton(onClick = aoAbrirConfiguracoes) {
+                        Icon(Icons.Filled.Settings, contentDescription = "Configurações")
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))

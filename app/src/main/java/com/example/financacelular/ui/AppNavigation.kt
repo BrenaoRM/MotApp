@@ -125,7 +125,6 @@ private const val ROTA_EXPORTAR = "exportar"
 private const val ROTA_EXTRATO = "extrato"
 private const val ROTA_INVESTIMENTO = "investimento"
 private const val ROTA_CATEGORIAS = "categorias"
-private const val ROTA_MAIS = "mais"
 private const val ROTA_CONFIGURACOES = "configuracoes"
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -523,7 +522,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
             ) {
                 composable(DestinoPrincipal.INICIO.rota) {
                     DashboardScreen(
-                        aoAbrirMais = { navController.navigate(ROTA_MAIS) },
+                        aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) },
                         aoAbrirExtrato = { navController.navigate(ROTA_EXTRATO) },
                         aoAbrirInvestimento = { navController.navigate(ROTA_INVESTIMENTO) },
                         aoAbrirCartao = { navController.navigate(ROTA_CARTAO) },
@@ -541,7 +540,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                     )
                 }
                 composable(DestinoPrincipal.CONTAS.rota) { ContasScreen() }
-                composable(ROTA_MAIS) { MaisScreen(aoNavegar = { rota -> navController.navigate(rota) }) }
                 composable(ROTA_CONFIGURACOES) { ConfiguracoesScreen(viewModel = configuracoesViewModel) }
                 composable(
                     route = ROTA_NOVA_TRANSACAO,
