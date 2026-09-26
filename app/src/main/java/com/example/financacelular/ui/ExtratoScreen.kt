@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -94,7 +93,7 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
     var busca by remember { mutableStateOf("") }
     var apenasEsteMes by remember { mutableStateOf(false) }
     var transacaoEmEdicao by remember { mutableStateOf<Transacao?>(null) }
-    val formato = remember { NumberFormat.getCurrencyInstance(Locale("pt", "BR")) }
+    val formato = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
     val mesAtual = remember { LocalDate.now().let { "%04d-%02d".format(it.year, it.monthValue) } }
     val formatoDataFiltro = remember { DateTimeFormatter.ofPattern("dd/MM/yyyy") }
 
@@ -712,7 +711,7 @@ private fun BottomSheetEditarTransacao(
                         val categoria = categoriaSelecionada
                         if (valorDouble != null && categoria != null) {
                             // Atualiza o anoMes caso o utilizador tenha alterado o mês do lançamento
-                            val novoAnoMes = String.format("%04d-%02d", dataSelecionada.year, dataSelecionada.monthValue)
+                            val novoAnoMes = String.format(Locale.ROOT, "%04d-%02d", dataSelecionada.year, dataSelecionada.monthValue)
 
                             onSalvar(
                                 transacao.copy(

@@ -10,6 +10,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -19,12 +22,9 @@ import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.TrendingDown
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
@@ -66,7 +66,6 @@ private val AmareloInvestimento = Color(0xFFF2A93B)
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel = viewModel(),
-    investimentoViewModel: InvestimentoViewModel = viewModel(),
     aoAbrirConfiguracoes: () -> Unit = {},
     aoAbrirExtrato: () -> Unit = {},
     aoAbrirInvestimento: () -> Unit = {},
@@ -81,7 +80,7 @@ fun DashboardScreen(
     val mesSelecionado by viewModel.mesSelecionado.collectAsState()
     val resumoDoMes by viewModel.resumoDoMes.collectAsState()
     val totalInvestido by viewModel.totalInvestidoDoMes.collectAsState()
-    val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale("pt", "BR")) }
+    val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
     val saldo = totalReceitas - totalDespesas
     var saldoVisivel by remember { mutableStateOf(true) }
 
@@ -97,7 +96,7 @@ fun DashboardScreen(
     val alertaFaturaPendente by viewModel.alertaFaturaPendente.collectAsState()
 
     val nomeMes = remember(mesSelecionado) {
-        mesSelecionado.month.getDisplayName(TextStyle.FULL, Locale("pt", "BR"))
+        mesSelecionado.month.getDisplayName(TextStyle.FULL, Locale.Builder().setLanguage("pt").setRegion("BR").build())
             .replaceFirstChar { it.uppercase() } + " " + mesSelecionado.year
     }
 
@@ -184,11 +183,11 @@ fun DashboardScreen(
                         ) {
                             LinhaIndicador(
                                 "ENTRADAS", formatoMoeda.format(totalReceitas), Verde,
-                                Icons.Filled.TrendingUp, Modifier.weight(1f)
+                                Icons.AutoMirrored.Filled.TrendingUp, Modifier.weight(1f)
                             )
                             LinhaIndicador(
                                 "SAÍDAS", formatoMoeda.format(totalDespesas), MaterialTheme.colorScheme.onSurface,
-                                Icons.Filled.TrendingDown, Modifier.weight(1f)
+                                Icons.AutoMirrored.Filled.TrendingDown, Modifier.weight(1f)
                             )
                             LinhaIndicador(
                                 "INVESTIDO", formatoMoeda.format(totalInvestido), AmareloInvestimento,
@@ -203,7 +202,7 @@ fun DashboardScreen(
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
                         ) {
-                            Icon(Icons.Filled.ReceiptLong, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.AutoMirrored.Filled.ReceiptLong, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Ver Extrato Completo", style = MaterialTheme.typography.labelLarge)
                         }
@@ -220,7 +219,7 @@ fun DashboardScreen(
                 ) {
                     AtalhoRapidoCard("Fatura", Icons.Filled.CreditCard, Color(0xFF5B8DEF), aoAbrirCartao)
                     AtalhoRapidoCard("Assinaturas", Icons.Filled.Repeat, Color(0xFFB07CE8), aoAbrirAssinaturas)
-                    AtalhoRapidoCard("Parcelados", Icons.Filled.ReceiptLong, Color(0xFF2EC4B6), aoAbrirParcelados)
+                    AtalhoRapidoCard("Parcelados", Icons.AutoMirrored.Filled.ReceiptLong, Color(0xFF2EC4B6), aoAbrirParcelados)
                     AtalhoRapidoCard("Investir", Icons.Filled.Savings, AmareloInvestimento, aoAbrirInvestimento)
                     AtalhoRapidoCard("Orçamento", Icons.Filled.PieChart, Color(0xFFF2A93B), aoAbrirOrcamento)
                     AtalhoRapidoCard("Metas", Icons.Filled.Flag, Verde, aoAbrirMetas)

@@ -1,6 +1,7 @@
 package com.example.financacelular.ui
 
 import android.app.Application
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.util.Locale
 
 class NovaTransacaoViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: FinancaRepository
@@ -107,6 +109,7 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
             try {
                 repository.excluirCategoria(categoria)
             } catch (e: Exception) {
+                Log.e("NovaTransacaoViewModel", "Erro ao excluir categoria", e)
                 onError()
             }
         }
@@ -146,7 +149,7 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
 
             val anoBase = dataFaturaAjustada.year
             val mesBase = dataFaturaAjustada.monthValue
-            val anoMesFormatado = String.format("%04d-%02d", anoBase, mesBase)
+            val anoMesFormatado = String.format(Locale.ROOT, "%04d-%02d", anoBase, mesBase)
             // --------------------------------------
 
             if (ehRecorrente) {

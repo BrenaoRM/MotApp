@@ -506,7 +506,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                 }
             }
         }
-    ) { paddingValues ->
+    ) { _ ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
