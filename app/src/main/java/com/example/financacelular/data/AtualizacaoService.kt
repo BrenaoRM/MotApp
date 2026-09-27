@@ -67,8 +67,8 @@ object AtualizacaoService {
     }
 
     /** Compara versões tipo "1.4.0" pedaço a pedaço. Retorna true se `remota` > `atual`. */
+    /** Compara versões. Retorna true apenas se `remota` for estritamente MAIOR que `atual`. */
     private fun versaoEhMaisNova(remota: String, atual: String): Boolean {
-        // Remove 'v' ou qualquer caractere que não seja número ou ponto das duas versões
         val remotaLimpa = remota.replace(Regex("[^0-9.]"), "")
         val atualLimpa = atual.replace(Regex("[^0-9.]"), "")
 
@@ -79,8 +79,9 @@ object AtualizacaoService {
         for (i in 0 until tamanho) {
             val r = partesRemota.getOrElse(i) { 0 }
             val a = partesAtual.getOrElse(i) { 0 }
-            if (r != a) return r > a
+            if (r > a) return true      // Se a parte remota for maior, tem atualização
+            if (r < a) return false     // Se a parte remota for menor, está atualizado (ou com versão adiantada)
         }
-        return false
+        return false // Se forem exatamente iguais (ex: 1.0.20 e 1.0.20), retorna false e não mostra o aviso!
     }
 }
