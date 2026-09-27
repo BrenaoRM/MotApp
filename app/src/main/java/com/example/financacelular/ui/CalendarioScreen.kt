@@ -41,7 +41,7 @@ fun CalendarioScreen(
     val transacoesCalendario by viewModel.transacoesCalendario.collectAsState()
     val categorias by viewModel.categorias.collectAsState()
     val listaAfazeres by viewModel.afazeres.collectAsState()
-    val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale("pt", "BR")) }
+    val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
 
     var mesAnoSelecionado by remember { mutableStateOf(YearMonth.now()) }
     var dataSelecionada by remember { mutableStateOf(LocalDate.now()) }
@@ -52,7 +52,7 @@ fun CalendarioScreen(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val nomeMesAno = remember(mesAnoSelecionado) {
-        mesAnoSelecionado.month.getDisplayName(TextStyle.FULL, Locale("pt", "BR"))
+        mesAnoSelecionado.month.getDisplayName(TextStyle.FULL, Locale.Builder().setLanguage("pt").setRegion("BR").build())
             .replaceFirstChar { it.uppercase() } + " " + mesAnoSelecionado.year
     }
 

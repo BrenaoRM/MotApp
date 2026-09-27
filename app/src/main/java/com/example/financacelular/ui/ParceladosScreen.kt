@@ -67,7 +67,7 @@ fun ParceladosScreen(viewModel: ParceladosViewModel = viewModel()) {
 @Composable
 fun ItemCompraParcelada(compra: CompraParceladaAgrupada, viewModel: ParceladosViewModel) {
     var expandido by remember { mutableStateOf(false) }
-    val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale("pt", "BR")) }
+    val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
 
     val progresso = if (compra.totalParcelas > 0) compra.parcelasPagas.toFloat() / compra.totalParcelas else 0f
     val progressoAnimado by animateFloatAsState(targetValue = progresso, label = "ProgressoParcelas")

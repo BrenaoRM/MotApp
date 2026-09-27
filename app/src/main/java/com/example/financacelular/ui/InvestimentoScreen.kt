@@ -30,7 +30,7 @@ import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Savings
-import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -84,7 +84,7 @@ fun InvestimentoScreen(
     acionarNovoAporteExterno: Boolean = false,
     aoAporteAcionado: () -> Unit = {}
 ) {
-    val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale("pt", "BR")) }
+    val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
     val listaAtivos by viewModel.investimentos.collectAsState()
 
     var mostrarSheetNovoAporte by remember { mutableStateOf(false) }
@@ -150,7 +150,7 @@ fun InvestimentoScreen(
                                     .background(AmareloInvestimento.copy(alpha = 0.15f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Filled.TrendingUp, contentDescription = null, tint = AmareloInvestimento, modifier = Modifier.size(24.dp))
+                                Icon(Icons.AutoMirrored.Filled.TrendingUp, contentDescription = null, tint = AmareloInvestimento, modifier = Modifier.size(24.dp))
                             }
                             Spacer(modifier = Modifier.width(16.dp))
                             Column {

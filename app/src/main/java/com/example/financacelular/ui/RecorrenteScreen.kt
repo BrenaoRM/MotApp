@@ -16,8 +16,8 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.TrendingDown
-import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,7 +38,7 @@ import java.util.Locale
 @Composable
 fun RecorrenteScreen(viewModel: RecorrenteViewModel = viewModel()) {
     val recorrentes by viewModel.recorrentes.collectAsState(initial = emptyList())
-    val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale("pt", "BR")) }
+    val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
 
     val receitasRecorrentes = recorrentes.filter { it.tipo == TipoTransacao.RECEITA }
     val despesasRecorrentes = recorrentes.filter { it.tipo == TipoTransacao.DESPESA }
@@ -176,7 +176,7 @@ fun ItemRecorrenteCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (item.tipo == TipoTransacao.RECEITA) Icons.Filled.TrendingUp else Icons.Filled.TrendingDown,
+                        imageVector = if (item.tipo == TipoTransacao.RECEITA) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
                         contentDescription = null,
                         tint = corTema
                     )

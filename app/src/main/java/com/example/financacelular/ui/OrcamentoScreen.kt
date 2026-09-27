@@ -23,7 +23,7 @@ import java.util.Locale
 @Composable
 fun OrcamentoScreen(viewModel: OrcamentoViewModel = viewModel()) {
     val itens by viewModel.itens.collectAsState(initial = emptyList())
-    val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale("pt", "BR")) }
+    val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
 
     // Estado para controlar qual categoria está sendo editada no momento
     var categoriaEmEdicao by remember { mutableStateOf<ItemOrcamento?>(null) }

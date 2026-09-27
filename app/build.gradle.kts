@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.financacelular"
-    compileSdk = 34 // Reduzido para a versão estável
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.example.financacelular"

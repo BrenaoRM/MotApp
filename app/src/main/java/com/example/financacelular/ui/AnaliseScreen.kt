@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -74,9 +73,9 @@ private val CoresCategoriaGanhos = listOf(
 private fun formatarEixoY(valor: Double): String {
     if (valor == 0.0) return "0"
     return when {
-        valor >= 1_000_000 -> String.format(Locale("pt", "BR"), "%.1fM", valor / 1_000_000)
-        valor >= 1_000 -> String.format(Locale("pt", "BR"), "%.1fk", valor / 1_000)
-        else -> String.format(Locale("pt", "BR"), "%.0f", valor)
+        valor >= 1_000_000 -> String.format(Locale.Builder().setLanguage("pt").setRegion("BR").build(), "%.1fM", valor / 1_000_000)
+        valor >= 1_000 -> String.format(Locale.Builder().setLanguage("pt").setRegion("BR").build(), "%.1fk", valor / 1_000)
+        else -> String.format(Locale.Builder().setLanguage("pt").setRegion("BR").build(), "%.0f", valor)
     }
 }
 
@@ -91,12 +90,12 @@ fun AnaliseScreen(viewModel: AnaliseViewModel = viewModel()) {
     val totalDespesasMes by viewModel.totalDespesasMes.collectAsState()
     val totalReceitasMes by viewModel.totalReceitasMes.collectAsState()
 
-    val formato = remember { NumberFormat.getCurrencyInstance(Locale("pt", "BR")) }
+    val formato = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
     val saldoMes = totalReceitasMes - totalDespesasMes
     val corSaldo = if (saldoMes >= 0) Verde else Coral
 
     val nomeMes = remember(mesSelecionado) {
-        mesSelecionado.month.getDisplayName(TextStyle.FULL, Locale("pt", "BR"))
+        mesSelecionado.month.getDisplayName(TextStyle.FULL, Locale.Builder().setLanguage("pt").setRegion("BR").build())
             .replaceFirstChar { it.uppercase() } + " " + mesSelecionado.year
     }
 

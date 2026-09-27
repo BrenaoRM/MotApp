@@ -25,7 +25,7 @@ import java.util.Locale
 @Composable
 fun MetaScreen(viewModel: MetaViewModel = viewModel()) {
     val metas by viewModel.metas.collectAsState()
-    val formato = remember { NumberFormat.getCurrencyInstance(Locale("pt", "BR")) }
+    val formato = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
     var mostrarDialogoNovaMeta by remember { mutableStateOf(false) }
     var metaParaAdicionarValor by remember { mutableStateOf<Meta?>(null) }
 
