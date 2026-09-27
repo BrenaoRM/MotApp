@@ -1,5 +1,7 @@
 package com.example.financacelular.ui
 
+import android.content.Intent
+import androidx.core.net.toUri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -50,12 +52,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
@@ -75,6 +79,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.financacelular.data.AtualizacaoDisponivel
+import com.example.financacelular.data.AtualizacaoService
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.Verde
@@ -145,6 +151,17 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     var isFabExpanded by remember { mutableStateOf(false) }
     var acionarNovoInvestimento by remember { mutableStateOf(false) }
     var acionarNovaAgenda by remember { mutableStateOf(false) }
+    var atualizacaoDisponivel by remember { mutableStateOf<AtualizacaoDisponivel?>(null) }
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        val versaoAtual = try {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0"
+        } catch (_: Exception) { // Alterado aqui de "e" para "_" para remover o warning
+            "1.0"
+        }
+        atualizacaoDisponivel = AtualizacaoService.verificarAtualizacao(versaoAtual)
+    }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -584,5 +601,17 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                 )
             }
         }
+    }
+
+    atualizacaoDisponivel?.let { atualizacao ->
+        AtualizacaoDialog(
+            atualizacao = atualizacao,
+            aoAtualizar = {
+                val urlParaAbrir = atualizacao.urlApk.ifBlank { atualizacao.urlPagina }
+                context.startActivity(Intent(Intent.ACTION_VIEW, urlParaAbrir.toUri()))
+                atualizacaoDisponivel = null
+            },
+            aoFechar = { atualizacaoDisponivel = null }
+        )
     }
 }

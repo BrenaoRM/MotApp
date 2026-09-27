@@ -6,10 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.financacelular"
-    compileSdk {
-        version = release(37) {
-        }
-    }
+    compileSdk = 36 // Ajustado para corresponder ao targetSdk
 
     defaultConfig {
         applicationId = "com.example.financacelular"
@@ -34,6 +31,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
