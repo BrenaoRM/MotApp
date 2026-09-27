@@ -40,7 +40,10 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel = viewModel()) {
     }
 
     LaunchedEffect(viewModel.pedidoAutorizacaoDrive) {
-        viewModel.pedidoAutorizacaoDrive?.let { authorizationLauncher.launch(it) }
+        viewModel.pedidoAutorizacaoDrive?.let {
+            authorizationLauncher.launch(it)
+            viewModel.limparPedidoAutorizacao()
+        }
     }
 
     LazyColumn(
@@ -87,7 +90,6 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel = viewModel()) {
                             fontWeight = FontWeight.Bold
                         )
                     }
-
                     Spacer(modifier = Modifier.height(12.dp))
 
                     listOf(
@@ -115,7 +117,6 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel = viewModel()) {
                     }
                 }
             }
-
             Spacer(modifier = Modifier.height(24.dp))
         }
 
@@ -159,7 +160,6 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel = viewModel()) {
                             )
                         }
                     }
-
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Última data de backup
@@ -188,7 +188,6 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel = viewModel()) {
                             )
                         }
                     }
-
                     Spacer(modifier = Modifier.height(16.dp))
 
                     if (!viewModel.estaLogadoGoogle) {
@@ -212,9 +211,7 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel = viewModel()) {
                         ) {
                             Text("Fazer Backup Agora", fontWeight = FontWeight.Bold)
                         }
-
                         Spacer(modifier = Modifier.height(10.dp))
-
                         Button(
                             onClick = {
                                 viewModel.restaurarBackupDaNuvem(activity)

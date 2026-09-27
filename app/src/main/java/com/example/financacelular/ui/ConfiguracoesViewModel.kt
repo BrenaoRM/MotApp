@@ -46,22 +46,16 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
 
     var temaAtual: TemaPreferencia by mutableStateOf(TemaPreferencia.SISTEMA)
         private set
-
     var estaLogadoGoogle: Boolean by mutableStateOf(false)
         private set
-
     var statusBackupMessage: String by mutableStateOf("")
         private set
-
     var emailUtilizador: String by mutableStateOf("")
         private set
-
     var completouBoasVindas: Boolean by mutableStateOf(false)
         private set
-
     var ultimaDataBackup: String by mutableStateOf("Nunca")
         private set
-
     var pedidoAutorizacaoDrive: IntentSenderRequest? by mutableStateOf(null)
         private set
 
@@ -81,10 +75,8 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         val completouSalvo = prefs.getBoolean("completou_boas_vindas", false)
         completouBoasVindas = completouSalvo && (emailSalvo.isNotBlank() || dbExiste)
 
-        // Carregar última data de backup guardada
         ultimaDataBackup = prefs.getString("ultima_data_backup", "Nunca") ?: "Nunca"
 
-        // Carregar tema guardado anteriormente
         val temaSalvo = prefs.getString("tema", TemaPreferencia.SISTEMA.name)
         temaAtual = try {
             TemaPreferencia.valueOf(temaSalvo ?: TemaPreferencia.SISTEMA.name)
@@ -101,6 +93,10 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
     fun marcarBoasVindasComoConcluida() {
         prefs.edit().putBoolean("completou_boas_vindas", true).apply()
         completouBoasVindas = true
+    }
+
+    fun limparPedidoAutorizacao() {
+        pedidoAutorizacaoDrive = null
     }
 
     private fun registarBackupRealizado() {
@@ -152,7 +148,6 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         estaLogadoGoogle = true
         emailUtilizador = emailObtido
         prefs.edit().putString("email_utilizador", emailObtido).apply()
-
         statusBackupMessage = "Conta ligada com sucesso!"
         onResult(true, emailObtido)
     }
@@ -160,7 +155,6 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
     fun realizarBackupNaNuvem(activity: Activity) {
         viewModelScope.launch {
             statusBackupMessage = "A preparar o backup local..."
-
             val context = getApplication<Application>()
             val ficheiroBackup = BackupManager.exportarBaseDeDadosParaFicheiro(context)
 
@@ -197,6 +191,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         File(dbFile.absolutePath + "-wal").delete()
         File(dbFile.absolutePath + "-shm").delete()
         File(dbFile.absolutePath + "-journal").delete()
+
         dbFile.parentFile?.mkdirs()
 
         val encontrouBackup = GoogleDriveService.restaurarBackup(accessToken, dbFile)
@@ -240,8 +235,8 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
             try {
                 val resultado = Identity.getAuthorizationClient(activity)
                     .getAuthorizationResultFromIntent(dataIntent)
-                val token = resultado.accessToken
 
+                val token = resultado.accessToken
                 if (token == null) {
                     statusBackupMessage = "Não foi possível obter permissão do Google Drive."
                     return@launch
@@ -281,20 +276,17 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
 
     private suspend fun continuarRestauroComToken(accessToken: String) {
         statusBackupMessage = "A descarregar backup da nuvem..."
-
         val context = getApplication<Application>()
         val dbFile = context.getDatabasePath(AppDatabase.NOME_ARQUIVO_BANCO)
 
         FinancaRepository.destruirInstancia()
         AppDatabase.destruirInstancia()
-
         File(dbFile.absolutePath + "-wal").delete()
         File(dbFile.absolutePath + "-shm").delete()
         File(dbFile.absolutePath + "-journal").delete()
         dbFile.parentFile?.mkdirs()
 
         val sucesso = GoogleDriveService.restaurarBackup(accessToken, dbFile)
-
         if (sucesso) {
             statusBackupMessage = "Backup restaurado com sucesso!"
             registarBackupRealizado()
@@ -314,7 +306,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
     }
 
     private suspend fun obterAccessTokenDrive(activity: Activity, acaoSeNaoAutorizado: AcaoPendenteDrive): String? {
-        if (emailUtilizador.isBlank() || emailUtilizador == "Conta Conectada") {
+        if (emailUtilizador.isBlank()) {
             statusBackupMessage = "Erro: Nenhuma conta Google conectada."
             return null
         }

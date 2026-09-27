@@ -10,7 +10,6 @@ import java.net.URL
 import java.net.URLEncoder
 
 object GoogleDriveService {
-
     private const val TAG = "GoogleDriveService"
     private const val NOME_BACKUP = "backup_financa.db"
 
@@ -22,7 +21,7 @@ object GoogleDriveService {
         val query = URLEncoder.encode("name='$NOME_BACKUP' and trashed=false", "UTF-8")
         val url = URL(
             "https://www.googleapis.com/drive/v3/files" +
-                    "?q=$query&orderBy=modifiedTime desc&pageSize=1&fields=files(id)"
+                    "?q=$query&orderBy=modifiedTime%20desc&pageSize=1&fields=files(id)"
         )
         val connection = url.openConnection() as HttpURLConnection
         connection.requestMethod = "GET"
@@ -44,8 +43,7 @@ object GoogleDriveService {
 
     /**
      * Envia o backup para o Drive. Se já existir um backup anterior, atualiza o
-     * conteúdo dele (PATCH) em vez de criar um ficheiro novo a cada chamada —
-     * antes disso não acontecia e os backups iam se acumulando duplicados.
+     * conteúdo dele (PATCH) em vez de criar um ficheiro novo a cada chamada.
      */
     suspend fun uploadBackup(tokenAcesso: String, arquivoDb: File): Boolean = withContext(Dispatchers.IO) {
         try {
@@ -55,7 +53,6 @@ object GoogleDriveService {
             }
 
             val idExistente = procurarIdBackupExistente(tokenAcesso)
-
             val boundary = "Boundary_${System.currentTimeMillis()}"
             val url = if (idExistente != null) {
                 URL("https://www.googleapis.com/upload/drive/v3/files/$idExistente?uploadType=multipart")
@@ -64,15 +61,17 @@ object GoogleDriveService {
             }
 
             val connection = url.openConnection() as HttpURLConnection
-            connection.requestMethod = if (idExistente != null) "PATCH" else "POST"
+            connection.requestMethod = "POST"
+            if (idExistente != null) {
+                connection.setRequestProperty("X-HTTP-Method-Override", "PATCH")
+            }
+
             connection.setRequestProperty("Authorization", "Bearer $tokenAcesso")
             connection.setRequestProperty("Content-Type", "multipart/related; boundary=$boundary")
             connection.connectTimeout = 15_000
-            connection.readTimeout = 60_000 // upload do .db pode demorar mais em rede lenta
+            connection.readTimeout = 60_000
             connection.doOutput = true
 
-            // Ao atualizar um ficheiro existente não reenviamos "name" (nem precisa);
-            // ao criar um novo, definimos nome e tipo.
             val metadata = if (idExistente != null) {
                 "{}"
             } else {
@@ -83,7 +82,6 @@ object GoogleDriveService {
             bodyStream.write("--$boundary\r\n".toByteArray())
             bodyStream.write("Content-Type: application/json; charset=UTF-8\r\n\r\n".toByteArray())
             bodyStream.write("$metadata\r\n".toByteArray())
-
             bodyStream.write("--$boundary\r\n".toByteArray())
             bodyStream.write("Content-Type: application/x-sqlite3\r\n\r\n".toByteArray())
 
@@ -115,7 +113,6 @@ object GoogleDriveService {
                 Log.e(TAG, "Token de acesso vazio ou inválido para restauro.")
                 return@withContext false
             }
-
             val fileId = procurarIdBackupExistente(tokenAcesso)
             if (fileId == null) {
                 Log.w(TAG, "Ficheiro '$NOME_BACKUP' não encontrado no Google Drive.")
@@ -137,11 +134,11 @@ object GoogleDriveService {
                 }
                 true
             } else {
-                Log.e(TAG, "Erro HTTP ao descarregar conteúdo do Drive: ${downloadConnection.responseCode}")
+                Log.e(TAG, "Erro HTTP ao descarregar do Drive: ${downloadConnection.responseCode}")
                 false
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exceção durante o restauro do Drive", e)
+            Log.e(TAG, "Exceção durante o restauro", e)
             false
         }
     }
