@@ -308,9 +308,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                             transitionSpec = { liquidSpring },
                             label = "fabWidth"
                         ) { expanded ->
-                            if (expanded) {
-                                if (emTelaInvestimento || emTelaCalendario) (screenWidth - 80.dp) else (screenWidth - 40.dp)
-                            } else 52.dp
+                            if (expanded) (screenWidth - 80.dp) else 52.dp
                         }
 
                         val fabHeight by transition.animateDp(

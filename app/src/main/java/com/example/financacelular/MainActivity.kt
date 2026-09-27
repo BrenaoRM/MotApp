@@ -15,6 +15,7 @@ import com.example.financacelular.ui.ConfiguracoesViewModel
 import com.example.financacelular.ui.theme.FinanceAPPTheme
 import com.example.financacelular.worker.LembreteFaturaWorker
 import com.example.financacelular.worker.AutoBackupWorker // <-- Import adicionado
+import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
@@ -31,11 +32,13 @@ class MainActivity : ComponentActivity() {
             workRequest
         )
 
-        // Agendar backup automático diário para o Google Drive
-        val backupRequest = PeriodicWorkRequestBuilder<AutoBackupWorker>(1, TimeUnit.DAYS).build()
+        // Agendar backup automático diário para o Google Drive, sempre às 2h da manhã
+        val backupRequest = PeriodicWorkRequestBuilder<AutoBackupWorker>(1, TimeUnit.DAYS)
+            .setInitialDelay(calcularDelayAte2h(), TimeUnit.MILLISECONDS)
+            .build()
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             "AutoBackupGoogleDrive",
-            ExistingPeriodicWorkPolicy.KEEP,
+            ExistingPeriodicWorkPolicy.UPDATE,
             backupRequest
         )
 
@@ -52,5 +55,19 @@ class MainActivity : ComponentActivity() {
                 AppNavigation(configuracoesViewModel = configuracoesViewModel)
             }
         }
+    }
+
+    private fun calcularDelayAte2h(): Long {
+        val agora = Calendar.getInstance()
+        val proximaExecucao = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 2)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+            if (before(agora)) {
+                add(Calendar.DAY_OF_YEAR, 1) // já passou das 2h hoje, agenda pra amanhã
+            }
+        }
+        return proximaExecucao.timeInMillis - agora.timeInMillis
     }
 }
