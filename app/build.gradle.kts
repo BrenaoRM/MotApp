@@ -4,6 +4,47 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+/**
+ * Resolve o versionName no momento do build, em vez de depender de alguém
+ * lembrar de editar esse arquivo toda vez que uma release é publicada.
+ * Ordem de prioridade:
+ *   1) GITHUB_REF_NAME — preenchida automaticamente pelo GitHub Actions
+ *      quando o workflow é disparado por push de uma tag (ex.: "v1.0.21").
+ *   2) APP_VERSION_NAME — variável que o workflow pode definir manualmente,
+ *      útil se a tag for criada por uma etapa do próprio workflow em vez de
+ *      disparar o build diretamente. Ajuste o workflow pra exportar essa
+ *      variável com o número certo antes da etapa de build, se for o caso.
+ *   3) `git describe --tags` — cobre builds locais feitas a partir de um
+ *      checkout com tags (ex.: testando localmente uma tag já publicada).
+ *   4) Valor fixo de fallback — só usado em builds de desenvolvimento sem
+ *      CI e sem tags no histórico local; marcado com "-dev" pra nunca ser
+ *      confundido com uma release de verdade.
+ */
+fun resolverVersionName(): String {
+    System.getenv("GITHUB_REF_NAME")
+        ?.takeIf { it.startsWith("v") && it.getOrNull(1)?.isDigit() == true }
+        ?.let { return it.removePrefix("v") }
+
+    System.getenv("APP_VERSION_NAME")
+        ?.takeIf { it.isNotBlank() }
+        ?.let { return it.removePrefix("v") }
+
+    try {
+        val processo = ProcessBuilder("git", "describe", "--tags", "--abbrev=0")
+            .redirectErrorStream(true)
+            .start()
+        val saida = processo.inputStream.bufferedReader().readText().trim()
+        processo.waitFor()
+        if (processo.exitValue() == 0 && saida.startsWith("v")) {
+            return saida.removePrefix("v")
+        }
+    } catch (_: Exception) {
+        // git indisponível nesse ambiente de build — ignora e cai no padrão abaixo
+    }
+
+    return "1.0.19-dev"
+}
+
 android {
     namespace = "com.example.financacelular"
     compileSdk = 37
@@ -27,7 +68,12 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = 1
-        versionName = "1.0.19"
+        // Antes era um texto fixo ("1.0.19") que nunca acompanhava as releases
+        // publicadas pelo GitHub Actions — por isso o app sempre reportava a
+        // mesma versão antiga pro checador de atualização, não importa qual
+        // .apk tivesse sido realmente instalado. Agora ela é resolvida a
+        // partir da tag do release/git no momento do build (função abaixo).
+        versionName = resolverVersionName()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

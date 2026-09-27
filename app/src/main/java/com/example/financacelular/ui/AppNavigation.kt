@@ -160,7 +160,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
         } catch (_: Exception) { // Alterado aqui de "e" para "_" para remover o warning
             "1.0"
         }
-        atualizacaoDisponivel = AtualizacaoService.verificarAtualizacao(versaoAtual)
+        atualizacaoDisponivel = AtualizacaoService.verificarAtualizacao(context, versaoAtual)
     }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
