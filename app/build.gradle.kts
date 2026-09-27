@@ -8,10 +8,24 @@ android {
     namespace = "com.example.financacelular"
     compileSdk = 37
 
+    // --- NOVO: CONFIGURAÇÃO DA ASSINATURA OFICIAL ---
+    signingConfigs {
+        create("release") {
+            // Lê as variáveis de ambiente que o GitHub Actions vai injetar
+            val storeFileEnv = System.getenv("SIGNING_STORE_FILE")
+            if (!storeFileEnv.isNullOrBlank()) {
+                storeFile = file(storeFileEnv)
+                storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+                keyAlias = System.getenv("SIGNING_KEY_ALIAS")
+                keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = "com.example.financacelular"
         minSdk = 26
-        targetSdk = 34 // Reduzido para a versão estável
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
 
@@ -20,6 +34,9 @@ android {
 
     buildTypes {
         release {
+            // --- ATRIBUI A ASSINATURA À RELEASE ---
+            signingConfig = signingConfigs.getByName("release")
+
             optimization {
                 enable = false
             }
