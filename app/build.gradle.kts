@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "com.example.financacelular"
-    compileSdk = 36 // Ajustado para corresponder ao targetSdk
+    compileSdk = 34 // Reduzido para a versão estável
 
     defaultConfig {
         applicationId = "com.example.financacelular"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 34 // Reduzido para a versão estável
         versionCode = 1
         versionName = "1.0"
 
