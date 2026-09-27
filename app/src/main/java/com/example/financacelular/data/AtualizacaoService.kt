@@ -18,8 +18,8 @@ object AtualizacaoService {
 
     private const val TAG = "AtualizacaoService"
 
-    private const val GITHUB_OWNER = "seu-usuario"
-    private const val GITHUB_REPO = "financacelular"
+    private const val GITHUB_OWNER = "BrenaoRM"
+    private const val GITHUB_REPO = "MotApp"
 
     suspend fun verificarAtualizacao(versaoAtual: String): AtualizacaoDisponivel? = withContext(Dispatchers.IO) {
         try {
