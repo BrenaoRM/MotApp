@@ -68,10 +68,14 @@ object AtualizacaoService {
 
     /** Compara versões tipo "1.4.0" pedaço a pedaço. Retorna true se `remota` > `atual`. */
     private fun versaoEhMaisNova(remota: String, atual: String): Boolean {
-        val partesRemota = remota.split(".").map { it.toIntOrNull() ?: 0 }
-        val partesAtual = atual.split(".").map { it.toIntOrNull() ?: 0 }
-        val tamanho = maxOf(partesRemota.size, partesAtual.size)
+        // Remove 'v' ou qualquer caractere que não seja número ou ponto das duas versões
+        val remotaLimpa = remota.replace(Regex("[^0-9.]"), "")
+        val atualLimpa = atual.replace(Regex("[^0-9.]"), "")
 
+        val partesRemota = remotaLimpa.split(".").mapNotNull { it.toIntOrNull() }
+        val partesAtual = atualLimpa.split(".").mapNotNull { it.toIntOrNull() }
+
+        val tamanho = maxOf(partesRemota.size, partesAtual.size)
         for (i in 0 until tamanho) {
             val r = partesRemota.getOrElse(i) { 0 }
             val a = partesAtual.getOrElse(i) { 0 }
