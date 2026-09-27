@@ -14,8 +14,6 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.ErrorOutline
@@ -27,22 +25,7 @@ import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -83,16 +66,12 @@ fun DashboardScreen(
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
     val saldo = totalReceitas - totalDespesas
     var saldoVisivel by remember { mutableStateOf(true) }
-
     var mostrarFiltros by remember { mutableStateOf(false) }
     var filtroTipo by remember { mutableStateOf<TipoTransacao?>(null) }
     var ordemFiltro by remember { mutableStateOf("VALOR") }
-
     var categoriaDetalheSelecionada by remember { mutableStateOf<ResumoMovimentacao?>(null) }
-
     val sheetStateDetalhes = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val sheetStateFiltros = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
     val alertaFaturaPendente by viewModel.alertaFaturaPendente.collectAsState()
 
     val nomeMes = remember(mesSelecionado) {
@@ -122,25 +101,29 @@ fun DashboardScreen(
         ) {
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(40.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        nomeMes,
+                        "Olá, Breno",
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f)
                     )
-                    IconButton(onClick = { viewModel.mesAnterior() }) {
-                        Icon(Icons.Filled.ChevronLeft, contentDescription = "Mês anterior")
-                    }
-                    IconButton(onClick = { viewModel.mesSeguinte() }) {
-                        Icon(Icons.Filled.ChevronRight, contentDescription = "Próximo mês")
-                    }
-                    IconButton(onClick = aoAbrirConfiguracoes) {
-                        Icon(Icons.Filled.Settings, contentDescription = "Configurações")
+                    IconButton(
+                        onClick = aoAbrirConfiguracoes,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(Icons.Filled.Settings, contentDescription = "Configurações", tint = MaterialTheme.colorScheme.primary)
                     }
                 }
+                Spacer(modifier = Modifier.height(16.dp))
+
+                MesSelectorCard(
+                    nomeMes = nomeMes,
+                    onMesAnterior = { viewModel.mesAnterior() },
+                    onMesSeguinte = { viewModel.mesSeguinte() }
+                )
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Card(
@@ -170,13 +153,12 @@ fun DashboardScreen(
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            if (saldoVisivel) formatoMoeda.format(saldo) else "R$ ••••••",
+                            if (saldoVisivel) formatoMoeda.format(saldo) else "R$ •••••",
                             style = MaterialTheme.typography.displayLarge
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         HorizontalDivider()
                         Spacer(modifier = Modifier.height(16.dp))
-
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -194,7 +176,6 @@ fun DashboardScreen(
                                 Icons.Filled.Savings, Modifier.weight(1f)
                             )
                         }
-
                         Spacer(modifier = Modifier.height(16.dp))
                         OutlinedButton(
                             onClick = aoAbrirExtrato,
@@ -208,9 +189,7 @@ fun DashboardScreen(
                         }
                     }
                 }
-
                 Spacer(modifier = Modifier.height(16.dp))
-
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -224,7 +203,6 @@ fun DashboardScreen(
                     AtalhoRapidoCard("Orçamento", Icons.Filled.PieChart, Color(0xFFF2A93B), aoAbrirOrcamento)
                     AtalhoRapidoCard("Metas", Icons.Filled.Flag, Verde, aoAbrirMetas)
                 }
-
                 Spacer(modifier = Modifier.height(24.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -232,8 +210,6 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("Resumo do mês por Categoria", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-
-                    // Botão de filtro modernizado
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
@@ -267,7 +243,6 @@ fun DashboardScreen(
                     )
                 }
             }
-
             items(resumosFiltrados) { resumo ->
                 val nomeCategoria = resumo.titulo
                 val cor = if (resumo.tipo == TipoTransacao.DESPESA) Coral else Verde
@@ -322,10 +297,8 @@ fun DashboardScreen(
             }
         }
 
-        // --- BOTTOM SHEET: DETALHES DA CATEGORIA ---
         categoriaDetalheSelecionada?.let { resumo ->
             val corCategoria = if (resumo.tipo == TipoTransacao.DESPESA) Coral else Verde
-
             ModalBottomSheet(
                 onDismissRequest = { categoriaDetalheSelecionada = null },
                 sheetState = sheetStateDetalhes,
@@ -384,7 +357,6 @@ fun DashboardScreen(
                             }
                         }
                     }
-
                     if (resumo.transacoes.isEmpty()) {
                         Box(
                             modifier = Modifier
@@ -407,7 +379,6 @@ fun DashboardScreen(
                             items(resumo.transacoes) { transacao ->
                                 val corItem = if (transacao.tipo == TipoTransacao.DESPESA) Coral else Verde
                                 val sinalItem = if (transacao.tipo == TipoTransacao.DESPESA) "- " else "+ "
-
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -443,7 +414,6 @@ fun DashboardScreen(
             }
         }
 
-        // --- BOTTOM SHEET: FILTROS MODERNOS ---
         if (mostrarFiltros) {
             ModalBottomSheet(
                 onDismissRequest = { mostrarFiltros = false },
@@ -464,11 +434,8 @@ fun DashboardScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(24.dp))
-
                     Text("Exibir tipo de movimentação", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(12.dp))
-
-                    // Segmented Button Customizado (Estilo Pílula)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -495,12 +462,9 @@ fun DashboardScreen(
                             modifier = Modifier.weight(1f)
                         )
                     }
-
                     Spacer(modifier = Modifier.height(24.dp))
-
                     Text("Ordenar categorias por", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(12.dp))
-
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -521,9 +485,7 @@ fun DashboardScreen(
                             modifier = Modifier.weight(1f)
                         )
                     }
-
                     Spacer(modifier = Modifier.height(32.dp))
-
                     Button(
                         onClick = { mostrarFiltros = false },
                         modifier = Modifier.fillMaxWidth().height(50.dp),
@@ -535,10 +497,9 @@ fun DashboardScreen(
             }
         }
 
-        // Pop-up de Alerta de Fatura
         if (alertaFaturaPendente) {
             AlertDialog(
-                onDismissRequest = { /* Não faz nada ao clicar fora */ },
+                onDismissRequest = { },
                 shape = RoundedCornerShape(24.dp),
                 containerColor = MaterialTheme.colorScheme.surface,
                 title = {
@@ -567,7 +528,6 @@ fun DashboardScreen(
     }
 }
 
-// Componente para o Botão Segmentado (Estilo Pílula)
 @Composable
 private fun SegmentedButton(
     text: String,
@@ -577,7 +537,6 @@ private fun SegmentedButton(
 ) {
     val backgroundColor = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent
     val textColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))

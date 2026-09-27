@@ -24,13 +24,9 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,7 +54,6 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 private val AmareloInvestimento = Color(0xFFF2A93B)
-
 private val CoresCategoria = listOf(
     Coral,
     Color(0xFF5B8DEF),
@@ -67,7 +62,6 @@ private val CoresCategoria = listOf(
     Verde,
     Color(0xFF2EC4B6)
 )
-
 private val CoresCategoriaGanhos = listOf(
     Verde,
     Color(0xFF2EC4B6),
@@ -96,12 +90,10 @@ fun AnaliseScreen(viewModel: AnaliseViewModel = viewModel()) {
     val mesSelecionado by viewModel.mesSelecionado.collectAsState()
     val totalDespesasMes by viewModel.totalDespesasMes.collectAsState()
     val totalReceitasMes by viewModel.totalReceitasMes.collectAsState()
-    val formato = remember { NumberFormat.getCurrencyInstance(Locale("pt", "BR")) }
 
-    // --- CÁLCULO DO SALDO E COR ---
+    val formato = remember { NumberFormat.getCurrencyInstance(Locale("pt", "BR")) }
     val saldoMes = totalReceitasMes - totalDespesasMes
     val corSaldo = if (saldoMes >= 0) Verde else Coral
-    // ------------------------------
 
     val nomeMes = remember(mesSelecionado) {
         mesSelecionado.month.getDisplayName(TextStyle.FULL, Locale("pt", "BR"))
@@ -111,10 +103,9 @@ fun AnaliseScreen(viewModel: AnaliseViewModel = viewModel()) {
     val diasNoMes = mesSelecionado.lengthOfMonth()
     val mediaDiaria = if (totalDespesasMes > 0) totalDespesasMes / diasNoMes else 0.0
     val maiorCategoriaDespesa = despesasPorCategoria.maxByOrNull { it.total }
-
     val pagerState = rememberPagerState(pageCount = { 2 })
-
     var graficosProntos by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
         graficosProntos = true
     }
@@ -130,33 +121,27 @@ fun AnaliseScreen(viewModel: AnaliseViewModel = viewModel()) {
         )
     ) {
         item {
-            Text("Análise Financeira", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-
-        item {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            Row(
+                modifier = Modifier.fillMaxWidth().height(40.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(nomeMes, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    IconButton(onClick = { viewModel.mesAnterior() }) {
-                        Icon(Icons.Filled.ChevronLeft, contentDescription = "Mês anterior")
-                    }
-                    IconButton(onClick = { viewModel.mesSeguinte() }) {
-                        Icon(Icons.Filled.ChevronRight, contentDescription = "Próximo mês")
-                    }
-                }
+                Text(
+                    "Análise Financeira",
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
             }
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
-
+        item {
+            MesSelectorCard(
+                nomeMes = nomeMes,
+                onMesAnterior = { viewModel.mesAnterior() },
+                onMesSeguinte = { viewModel.mesSeguinte() }
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+        }
         item {
             Card(
                 shape = RoundedCornerShape(24.dp),
@@ -167,7 +152,6 @@ fun AnaliseScreen(viewModel: AnaliseViewModel = viewModel()) {
                     Text("Resumo do Período", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // --- LINHA 1: GANHOS E GASTOS ---
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -183,10 +167,8 @@ fun AnaliseScreen(viewModel: AnaliseViewModel = viewModel()) {
                             Text(formato.format(totalDespesasMes), style = MaterialTheme.typography.titleMedium, color = Coral, fontWeight = FontWeight.Bold)
                         }
                     }
-
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // --- LINHA 2: SALDO DO MÊS E MÉDIA DIÁRIA ---
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -202,7 +184,6 @@ fun AnaliseScreen(viewModel: AnaliseViewModel = viewModel()) {
                             Text(formato.format(mediaDiaria), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         }
                     }
-
                     Spacer(modifier = Modifier.height(20.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -214,7 +195,6 @@ fun AnaliseScreen(viewModel: AnaliseViewModel = viewModel()) {
                     }
                 }
             }
-
             Spacer(modifier = Modifier.height(12.dp))
             Text("Top 5 Maiores Gastos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(12.dp))
@@ -301,7 +281,6 @@ fun AnaliseScreen(viewModel: AnaliseViewModel = viewModel()) {
                             }
                         }
                         Spacer(modifier = Modifier.height(20.dp))
-
                         HorizontalPager(
                             state = pagerState,
                             verticalAlignment = Alignment.Top
@@ -309,7 +288,6 @@ fun AnaliseScreen(viewModel: AnaliseViewModel = viewModel()) {
                             val dados = if (page == 0) despesasPorCategoria else receitasPorCategoria
                             val total = if (page == 0) totalDespesasMes else totalReceitasMes
                             val paletaCores = if (page == 0) CoresCategoria else CoresCategoriaGanhos
-
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 if (dados.isEmpty()) {
                                     Text(
@@ -367,12 +345,10 @@ fun AnaliseScreen(viewModel: AnaliseViewModel = viewModel()) {
                         }
                     }
                 }
-
             } else {
                 PlaceholderGrafico(altura = 260.dp)
             }
         }
-
         item { Spacer(modifier = Modifier.height(12.dp)) }
 
         item {
@@ -406,7 +382,6 @@ fun AnaliseScreen(viewModel: AnaliseViewModel = viewModel()) {
                             )
                         } else {
                             val maiorValor = evolucaoMensal.maxOfOrNull { maxOf(it.totalReceitas, it.totalDespesas) }?.coerceAtLeast(1.0) ?: 1.0
-
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.Top
@@ -422,19 +397,16 @@ fun AnaliseScreen(viewModel: AnaliseViewModel = viewModel()) {
                                     Text(formatarEixoY(maiorValor / 2), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text("0", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-
                                 Column(modifier = Modifier.weight(1f)) {
                                     Box(modifier = Modifier.fillMaxWidth().height(120.dp)) {
                                         Canvas(modifier = Modifier.fillMaxSize()) {
                                             val strokeW = 1.dp.toPx()
                                             val dashEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
                                             val lineColor = Color.Gray.copy(alpha = 0.3f)
-
                                             drawLine(lineColor, Offset(0f, 0f), Offset(size.width, 0f), strokeWidth = strokeW, pathEffect = dashEffect)
                                             drawLine(lineColor, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), strokeWidth = strokeW, pathEffect = dashEffect)
                                             drawLine(lineColor, Offset(0f, size.height), Offset(size.width, size.height), strokeWidth = strokeW, pathEffect = dashEffect)
                                         }
-
                                         Row(
                                             modifier = Modifier.fillMaxSize(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -455,9 +427,7 @@ fun AnaliseScreen(viewModel: AnaliseViewModel = viewModel()) {
                                             }
                                         }
                                     }
-
                                     Spacer(modifier = Modifier.height(8.dp))
-
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween
@@ -473,12 +443,10 @@ fun AnaliseScreen(viewModel: AnaliseViewModel = viewModel()) {
                         }
                     }
                 }
-
             } else {
                 PlaceholderGrafico(altura = 230.dp)
             }
         }
-
         item { Spacer(modifier = Modifier.height(12.dp)) }
 
         item {
@@ -505,7 +473,6 @@ fun AnaliseScreen(viewModel: AnaliseViewModel = viewModel()) {
                             )
                         } else {
                             val maiorInv = evolucaoInvestimentos.maxOfOrNull { it.total }?.coerceAtLeast(1.0) ?: 1.0
-
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.Top
@@ -521,19 +488,16 @@ fun AnaliseScreen(viewModel: AnaliseViewModel = viewModel()) {
                                     Text(formatarEixoY(maiorInv / 2), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text("0", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-
                                 Column(modifier = Modifier.weight(1f)) {
                                     Box(modifier = Modifier.fillMaxWidth().height(120.dp)) {
                                         Canvas(modifier = Modifier.fillMaxSize()) {
                                             val strokeW = 1.dp.toPx()
                                             val dashEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
                                             val lineColor = Color.Gray.copy(alpha = 0.3f)
-
                                             drawLine(lineColor, Offset(0f, 0f), Offset(size.width, 0f), strokeWidth = strokeW, pathEffect = dashEffect)
                                             drawLine(lineColor, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), strokeWidth = strokeW, pathEffect = dashEffect)
                                             drawLine(lineColor, Offset(0f, size.height), Offset(size.width, size.height), strokeWidth = strokeW, pathEffect = dashEffect)
                                         }
-
                                         Row(
                                             modifier = Modifier.fillMaxSize(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -555,9 +519,7 @@ fun AnaliseScreen(viewModel: AnaliseViewModel = viewModel()) {
                                             }
                                         }
                                     }
-
                                     Spacer(modifier = Modifier.height(8.dp))
-
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween

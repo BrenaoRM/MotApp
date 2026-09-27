@@ -7,8 +7,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -36,7 +34,6 @@ fun CartaoScreen(viewModel: CartaoViewModel = viewModel()) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val repository = remember { FinancaRepository.getInstance(AppDatabase.getInstance(context)) }
-
     var mesSelecionado by remember { mutableStateOf(YearMonth.now()) }
     val anoMesStr = remember(mesSelecionado) { mesSelecionado.format(DateTimeFormatter.ofPattern("yyyy-MM")) }
     val nomeMesAno = remember(mesSelecionado) {
@@ -44,10 +41,8 @@ fun CartaoScreen(viewModel: CartaoViewModel = viewModel()) {
             .replaceFirstChar { it.uppercase() } + " / " + mesSelecionado.year
     }
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.forLanguageTag("pt-BR")) }
-
     var transacoesFatura by remember { mutableStateOf<List<Transacao>>(emptyList()) }
     var faturaPaga by remember { mutableStateOf(false) }
-
     val cartao by viewModel.cartao.collectAsState()
     var mostrarConfig by remember { mutableStateOf(false) }
 
@@ -56,7 +51,6 @@ fun CartaoScreen(viewModel: CartaoViewModel = viewModel()) {
             transacoesFatura = lista
         }
     }
-
     LaunchedEffect(mesSelecionado) {
         repository.verificarFaturaPaga(anoMesStr).collect { paga ->
             faturaPaga = paga
@@ -75,30 +69,29 @@ fun CartaoScreen(viewModel: CartaoViewModel = viewModel()) {
     ) {
         item {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth().height(40.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Fatura do Cartão", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-                IconButton(onClick = { mostrarConfig = true }) {
+                Text(
+                    "Fatura do Cartão",
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(
+                    onClick = { mostrarConfig = true },
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Icon(Icons.Filled.Settings, contentDescription = "Configurar Fatura", tint = MaterialTheme.colorScheme.primary)
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { mesSelecionado = mesSelecionado.minusMonths(1) }) {
-                    Icon(Icons.Filled.ChevronLeft, contentDescription = "Mês anterior")
-                }
-                Text(nomeMesAno, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                IconButton(onClick = { mesSelecionado = mesSelecionado.plusMonths(1) }) {
-                    Icon(Icons.Filled.ChevronRight, contentDescription = "Mês seguinte")
-                }
-            }
+            MesSelectorCard(
+                nomeMes = nomeMesAno,
+                onMesAnterior = { mesSelecionado = mesSelecionado.minusMonths(1) },
+                onMesSeguinte = { mesSelecionado = mesSelecionado.plusMonths(1) }
+            )
             Spacer(modifier = Modifier.height(16.dp))
 
             Card(
@@ -132,7 +125,6 @@ fun CartaoScreen(viewModel: CartaoViewModel = viewModel()) {
                         color = if (faturaPaga) Verde else MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-
                     if (!faturaPaga) {
                         Button(
                             onClick = {
@@ -171,7 +163,6 @@ fun CartaoScreen(viewModel: CartaoViewModel = viewModel()) {
             Text("Lançamentos na Fatura", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(12.dp))
         }
-
         items(transacoesFatura) { transacao ->
             Card(
                 shape = RoundedCornerShape(14.dp),
@@ -242,7 +233,6 @@ fun CartaoScreen(viewModel: CartaoViewModel = viewModel()) {
                     onClick = {
                         val fechamentoInt = diaFechamento.toIntOrNull()?.coerceIn(1, 31)
                         val vencimentoInt = diaVencimento.toIntOrNull()?.coerceIn(1, 31)
-
                         if (fechamentoInt != null && vencimentoInt != null) {
                             viewModel.atualizarDatasCartao(fechamentoInt, vencimentoInt)
                             mostrarConfig = false

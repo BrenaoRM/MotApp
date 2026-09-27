@@ -8,8 +8,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Circle
@@ -43,11 +41,10 @@ fun CalendarioScreen(
     val transacoesCalendario by viewModel.transacoesCalendario.collectAsState()
     val categorias by viewModel.categorias.collectAsState()
     val listaAfazeres by viewModel.afazeres.collectAsState()
-
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale("pt", "BR")) }
+
     var mesAnoSelecionado by remember { mutableStateOf(YearMonth.now()) }
     var dataSelecionada by remember { mutableStateOf(LocalDate.now()) }
-
     var abaAtiva by remember { mutableStateOf(0) }
 
     var mostrarSheetNovoAfazer by remember { mutableStateOf(false) }
@@ -62,8 +59,6 @@ fun CalendarioScreen(
     val transacoesDoDia = transacoesCalendario.filter { it.transacao.data == dataSelecionada }
     val afazeresDoDia = listaAfazeres.filter { it.data == dataSelecionada }
 
-    // O "+" central da barra de navegação assume a função de adicionar à
-    // agenda quando estamos nesta tela (mesmo padrão do Investimento).
     LaunchedEffect(acionarNovaAgendaExterno) {
         if (acionarNovaAgendaExterno) {
             abaAtiva = 1
@@ -85,7 +80,24 @@ fun CalendarioScreen(
             )
         ) {
             item {
-                Text("Calendário & Agenda", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                Row(
+                    modifier = Modifier.fillMaxWidth().height(40.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Calendário & Agenda",
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+
+                MesSelectorCard(
+                    nomeMes = nomeMesAno,
+                    onMesAnterior = { mesAnoSelecionado = mesAnoSelecionado.minusMonths(1) },
+                    onMesSeguinte = { mesAnoSelecionado = mesAnoSelecionado.plusMonths(1) }
+                )
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Card(
@@ -94,22 +106,6 @@ fun CalendarioScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(onClick = { mesAnoSelecionado = mesAnoSelecionado.minusMonths(1) }) {
-                                Icon(Icons.Filled.ChevronLeft, contentDescription = "Mês anterior")
-                            }
-                            Text(nomeMesAno, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            IconButton(onClick = { mesAnoSelecionado = mesAnoSelecionado.plusMonths(1) }) {
-                                Icon(Icons.Filled.ChevronRight, contentDescription = "Mês seguinte")
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
                         Row(modifier = Modifier.fillMaxWidth()) {
                             val diasSemana = listOf("D", "S", "T", "Q", "Q", "S", "S")
                             diasSemana.forEach { dia ->
@@ -123,7 +119,6 @@ fun CalendarioScreen(
                                 )
                             }
                         }
-
                         Spacer(modifier = Modifier.height(12.dp))
 
                         val diasNoMes = mesAnoSelecionado.lengthOfMonth()
@@ -140,11 +135,9 @@ fun CalendarioScreen(
                                     for (diaIndex in 0 until 7) {
                                         val indiceGlobal = semanaIndex * 7 + diaIndex
                                         val diaMesReal = indiceGlobal - deslocamentoDias + 1
-
                                         if (diaMesReal in 1..diasNoMes) {
                                             val dataAtualGrid = mesAnoSelecionado.atDay(diaMesReal)
                                             val isSelecionado = dataAtualGrid == dataSelecionada
-
                                             val temDespesa = transacoesCalendario.any { it.transacao.data == dataAtualGrid && it.transacao.tipo == TipoTransacao.DESPESA }
                                             val temGanho = transacoesCalendario.any { it.transacao.data == dataAtualGrid && it.transacao.tipo == TipoTransacao.RECEITA }
                                             val temAfazer = listaAfazeres.any { it.data == dataAtualGrid && !it.concluido }
@@ -167,9 +160,7 @@ fun CalendarioScreen(
                                                         style = MaterialTheme.typography.bodyMedium,
                                                         fontWeight = if (isSelecionado) FontWeight.Bold else FontWeight.Medium
                                                     )
-
                                                     Spacer(modifier = Modifier.height(2.dp))
-
                                                     Row(
                                                         horizontalArrangement = Arrangement.spacedBy(3.dp),
                                                         verticalAlignment = Alignment.CenterVertically
@@ -190,7 +181,7 @@ fun CalendarioScreen(
                                                 }
                                             }
                                         } else {
-                                            Box(modifier = Modifier.size(46.dp)) // Espaço vazio para manter a grelha simétrica
+                                            Box(modifier = Modifier.size(46.dp))
                                         }
                                     }
                                 }
@@ -199,10 +190,7 @@ fun CalendarioScreen(
                         }
                     }
                 }
-
                 Spacer(modifier = Modifier.height(24.dp))
-
-                // Menu de Abas (Segmented Button Style)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -214,25 +202,20 @@ fun CalendarioScreen(
                         selecionado = abaAtiva == 0,
                         modifier = Modifier.weight(1f)
                     ) { abaAtiva = 0 }
-
                     TabPill(
                         texto = "Agenda (${afazeresDoDia.size})",
                         selecionado = abaAtiva == 1,
                         modifier = Modifier.weight(1f)
                     ) { abaAtiva = 1 }
                 }
-
                 Spacer(modifier = Modifier.height(24.dp))
-
                 Text(
                     text = if (abaAtiva == 0) "Lançamentos Financeiros" else "Afazeres do Dia",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-
                 Spacer(modifier = Modifier.height(12.dp))
             }
-
             if (abaAtiva == 0) {
                 if (transacoesDoDia.isEmpty()) {
                     item {
@@ -243,7 +226,6 @@ fun CalendarioScreen(
                         )
                     }
                 }
-
                 items(transacoesDoDia) { itemCalendario ->
                     val t = itemCalendario.transacao
                     val categoria = categorias.find { it.id == t.categoriaId }
@@ -254,7 +236,6 @@ fun CalendarioScreen(
                     } else {
                         Verde
                     }
-
                     val descricaoFinal = if (itemCalendario.ehFaturaNaoPaga) {
                         "${t.descricao ?: categoria?.nome} (Não paga)"
                     } else {
@@ -266,22 +247,22 @@ fun CalendarioScreen(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 6.dp) // Padrão Dashboard
+                            .padding(vertical = 6.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(14.dp), // Padrão Dashboard
+                                .padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(40.dp) // Padrão Dashboard
+                                    .size(40.dp)
                                     .background(cor.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    iconeParaCategoria(categoria?.nome ?: ""), // Trocado a Letra pelo Ícone Real
+                                    iconeParaCategoria(categoria?.nome ?: ""),
                                     contentDescription = null,
                                     tint = cor
                                 )
@@ -290,19 +271,19 @@ fun CalendarioScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     descricaoFinal,
-                                    style = MaterialTheme.typography.titleSmall, // Padrão Dashboard
+                                    style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     categoria?.nome ?: "Sem categoria",
-                                    style = MaterialTheme.typography.bodySmall, // Padrão Dashboard
+                                    style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             Text(
                                 (if (t.tipo == TipoTransacao.DESPESA) "- " else "+ ") + formatoMoeda.format(t.valor),
-                                style = MaterialTheme.typography.titleSmall, // Padrão Dashboard
+                                style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = cor
                             )
@@ -319,19 +300,18 @@ fun CalendarioScreen(
                         )
                     }
                 }
-
                 items(afazeresDoDia) { afazer ->
                     Card(
                         shape = RoundedCornerShape(18.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 6.dp) // Padrão Dashboard
+                            .padding(vertical = 6.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(14.dp), // Padrão Dashboard
+                                .padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             IconButton(
@@ -349,7 +329,7 @@ fun CalendarioScreen(
                             Text(
                                 text = afazer.titulo,
                                 modifier = Modifier.weight(1f),
-                                style = MaterialTheme.typography.titleSmall, // Padrão Dashboard
+                                style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 textDecoration = if (afazer.concluido) TextDecoration.LineThrough else TextDecoration.None,
                                 color = if (afazer.concluido) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
@@ -367,7 +347,6 @@ fun CalendarioScreen(
         }
     }
 
-    // Modal Bottom Sheet Moderno para Novo Afazer
     if (mostrarSheetNovoAfazer) {
         ModalBottomSheet(
             onDismissRequest = { mostrarSheetNovoAfazer = false },
@@ -395,18 +374,14 @@ fun CalendarioScreen(
                         Icon(Icons.Filled.Close, contentDescription = "Fechar")
                     }
                 }
-
                 Spacer(modifier = Modifier.height(8.dp))
-
                 Text(
                     "Agendado para: ${dataSelecionada.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Medium
                 )
-
                 Spacer(modifier = Modifier.height(24.dp))
-
                 OutlinedTextField(
                     value = textoNovoAfazer,
                     onValueChange = { textoNovoAfazer = it },
@@ -415,9 +390,7 @@ fun CalendarioScreen(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
-
                 Spacer(modifier = Modifier.height(32.dp))
-
                 Button(
                     onClick = {
                         if (textoNovoAfazer.isNotBlank()) {
@@ -440,7 +413,6 @@ fun CalendarioScreen(
 fun TabPill(texto: String, selecionado: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val backgroundColor = if (selecionado) MaterialTheme.colorScheme.primary else Color.Transparent
     val textColor = if (selecionado) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
