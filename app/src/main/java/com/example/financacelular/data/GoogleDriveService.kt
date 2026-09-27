@@ -27,6 +27,8 @@ object GoogleDriveService {
         val connection = url.openConnection() as HttpURLConnection
         connection.requestMethod = "GET"
         connection.setRequestProperty("Authorization", "Bearer $tokenAcesso")
+        connection.connectTimeout = 15_000
+        connection.readTimeout = 15_000
 
         if (connection.responseCode != HttpURLConnection.HTTP_OK) {
             Log.e(TAG, "Erro HTTP ao procurar ficheiro no Drive: ${connection.responseCode}")
@@ -65,6 +67,8 @@ object GoogleDriveService {
             connection.requestMethod = if (idExistente != null) "PATCH" else "POST"
             connection.setRequestProperty("Authorization", "Bearer $tokenAcesso")
             connection.setRequestProperty("Content-Type", "multipart/related; boundary=$boundary")
+            connection.connectTimeout = 15_000
+            connection.readTimeout = 60_000 // upload do .db pode demorar mais em rede lenta
             connection.doOutput = true
 
             // Ao atualizar um ficheiro existente não reenviamos "name" (nem precisa);
@@ -122,6 +126,8 @@ object GoogleDriveService {
             val downloadConnection = downloadUrl.openConnection() as HttpURLConnection
             downloadConnection.requestMethod = "GET"
             downloadConnection.setRequestProperty("Authorization", "Bearer $tokenAcesso")
+            downloadConnection.connectTimeout = 15_000
+            downloadConnection.readTimeout = 60_000
 
             if (downloadConnection.responseCode == HttpURLConnection.HTTP_OK) {
                 downloadConnection.inputStream.use { input ->
