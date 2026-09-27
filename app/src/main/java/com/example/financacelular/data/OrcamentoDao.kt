@@ -17,4 +17,10 @@ interface OrcamentoDao {
 
     @Query("SELECT * FROM orcamentos WHERE anoMes = :anoMes")
     fun listarDoMes(anoMes: String): Flow<List<Orcamento>>
+
+    // Histórico ordenado do mês mais recente pro mais antigo, ignorando limites zerados
+// (usado pra "herdar" o orçamento do mês anterior quando o mês atual não tem um definido)
+    @Query("SELECT * FROM orcamentos WHERE anoMes <= :anoMes AND valorLimite > 0 ORDER BY anoMes DESC")
+    fun listarHistoricoAteMes(anoMes: String): Flow<List<Orcamento>>
 }
+

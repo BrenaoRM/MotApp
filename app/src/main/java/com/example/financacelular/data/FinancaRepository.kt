@@ -205,6 +205,7 @@ class FinancaRepository(database: AppDatabase) {
         }
     }
 
+    fun listarHistoricoOrcamentos(anoMes: String): Flow<List<Orcamento>> = orcamentoDao.listarHistoricoAteMes(anoMes)
     fun listarOrcamentosDoMes(anoMes: String): Flow<List<Orcamento>> = orcamentoDao.listarDoMes(anoMes)
     suspend fun definirOrcamento(orcamento: Orcamento) = orcamentoDao.definir(orcamento)
 
