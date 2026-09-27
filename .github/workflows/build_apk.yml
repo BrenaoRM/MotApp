@@ -37,6 +37,10 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          # NOVO: mesmo número usado na tag/nome da release logo abaixo (v1.0.<run_number>).
+          # Sem isso, o build.gradle.kts caía no fallback local e o versionName embutido
+          # no APK nunca acompanhava a versão que estava sendo de fato publicada.
+          APP_VERSION_NAME: 1.0.${{ github.run_number }}
 
       # --- ALTERADO: O CAMINHO AGORA APONTA PARA A PASTA RELEASE ---
       - name: Renomear APK para MotApp
