@@ -105,13 +105,12 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         ultimaDataBackup = dataFormatada
         prefs.edit().putString("ultima_data_backup", dataFormatada).apply()
     }
-
     fun iniciarLoginGoogle(context: Context, onResult: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
             try {
                 val googleIdOption = GetGoogleIdOption.Builder()
                     .setFilterByAuthorizedAccounts(false)
-                    .setServerClientId("264232686854-urrjveem9l9a6da1vnd522f6cgtie2lr.apps.googleusercontent.com")
+                    .setServerClientId("264232686854-582tmu20ab5gt995lra0se94pdb6elts.apps.googleusercontent.com")
                     .setAutoSelectEnabled(false)
                     .build()
 
@@ -123,6 +122,16 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
                 val result = credentialManager.getCredential(context, request)
 
                 tratarResultadoLogin(result, onResult)
+            } catch (e: androidx.credentials.exceptions.GetCredentialCancellationException) {
+                // Utilizador fechou a janela de login
+                statusBackupMessage = "Login cancelado pelo utilizador."
+                onResult(false, null)
+            } catch (e: androidx.credentials.exceptions.NoCredentialException) {
+                // Caso especial: se o Credential Manager não encontrar sessões ativas no telemóvel,
+                // informamos claramente para adicionar uma conta nas definições do sistema.
+                e.printStackTrace()
+                statusBackupMessage = "Nenhuma conta Google encontrada. Adicione uma conta nas Definições do telemóvel."
+                onResult(false, null)
             } catch (e: Exception) {
                 e.printStackTrace()
                 statusBackupMessage = "Erro no login: ${e.localizedMessage ?: "Desconhecido"}"
@@ -130,6 +139,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
             }
         }
     }
+
 
     private fun tratarResultadoLogin(result: GetCredentialResponse, onResult: (Boolean, String?) -> Unit) {
         val credential = result.credential
