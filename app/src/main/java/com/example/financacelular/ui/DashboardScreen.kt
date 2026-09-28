@@ -200,8 +200,8 @@ fun DashboardScreen(
                     AtalhoRapidoCard("Assinaturas", Icons.Filled.Repeat, Color(0xFFB07CE8), aoAbrirAssinaturas)
                     AtalhoRapidoCard("Parcelados", Icons.AutoMirrored.Filled.ReceiptLong, Color(0xFF2EC4B6), aoAbrirParcelados)
                     AtalhoRapidoCard("Investir", Icons.Filled.Savings, AmareloInvestimento, aoAbrirInvestimento)
+                    AtalhoRapidoCard("Metas", Icons.Filled.Flag, Color(0xFF8B5CF6), aoAbrirMetas)
                     AtalhoRapidoCard("Orçamento", Icons.Filled.PieChart, Color(0xFFF2A93B), aoAbrirOrcamento)
-                    AtalhoRapidoCard("Metas", Icons.Filled.Flag, Verde, aoAbrirMetas)
                 }
                 Spacer(modifier = Modifier.height(24.dp))
                 Row(
