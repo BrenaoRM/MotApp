@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -90,6 +91,9 @@ private val AmareloClaro = Color(0xFFFFC75F)
 
 private val AzulAgenda = Color(0xFF3B82F6)
 private val AzulAgendaClaro = Color(0xFF7EA6F7)
+
+private val RoxoMeta = Color(0xFF8B5CF6)
+private val RoxoMetaClaro = Color(0xFFA78BFA)
 
 private val AuroraVioleta = Color(0xFF8B5CF6)
 private val AuroraIndigo = Color(0xFF6366F1)
@@ -151,13 +155,14 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     var isFabExpanded by remember { mutableStateOf(false) }
     var acionarNovoInvestimento by remember { mutableStateOf(false) }
     var acionarNovaAgenda by remember { mutableStateOf(false) }
+    var acionarNovaMeta by remember { mutableStateOf(false) }
     var atualizacaoDisponivel by remember { mutableStateOf<AtualizacaoDisponivel?>(null) }
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         val versaoAtual = try {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0"
-        } catch (_: Exception) { // Alterado aqui de "e" para "_" para remover o warning
+        } catch (_: Exception) {
             "1.0"
         }
         atualizacaoDisponivel = AtualizacaoService.verificarAtualizacao(context, versaoAtual)
@@ -168,6 +173,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     val emTelaDeFormulario = currentDestination?.route?.startsWith(ROTA_NOVA_TRANSACAO_BASE) == true
     val emTelaInvestimento = currentDestination?.route == ROTA_INVESTIMENTO
     val emTelaCalendario = currentDestination?.route == DestinoPrincipal.CALENDARIO.rota
+    val emTelaMetas = currentDestination?.route == ROTA_METAS
 
     @Suppress("UnusedMaterial3ScaffoldPaddingParameter")
     Scaffold(
@@ -177,7 +183,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.BottomCenter
                 ) {
-                    // Fundo cobrindo da metade da NavigationBar até o fim da tela
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -187,7 +192,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                             .height(35.dp)
                     )
 
-                    // Escurece a faixa de fundo inferior junto com o restante da tela ao expandir o FAB
                     AnimatedVisibility(
                         visible = isFabExpanded,
                         enter = fadeIn(),
@@ -207,7 +211,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         )
                     }
 
-                    // Conteúdo da barra de navegação e FAB
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -360,6 +363,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                             targetValue = when {
                                 emTelaInvestimento -> AmareloInvestimento
                                 emTelaCalendario -> AzulAgenda
+                                emTelaMetas -> RoxoMeta
                                 else -> corPadrao
                             },
                             animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing),
@@ -370,6 +374,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                             targetValue = when {
                                 emTelaInvestimento -> AmareloClaro
                                 emTelaCalendario -> AzulAgendaClaro
+                                emTelaMetas -> RoxoMetaClaro
                                 else -> corPadraoClara
                             },
                             animationSpec = tween(durationMillis = 1100, easing = LinearOutSlowInEasing),
@@ -377,7 +382,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         )
 
                         val rotacaoIcone by animateFloatAsState(
-                            targetValue = if (emTelaInvestimento || emTelaCalendario) 180f else 0f,
+                            targetValue = if (emTelaInvestimento || emTelaCalendario || emTelaMetas) 180f else 0f,
                             animationSpec = spring(dampingRatio = 0.6f, stiffness = 150f),
                             label = "rotacaoIcone"
                         )
@@ -440,6 +445,27 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                                 IconeCircular(Icons.Filled.CalendarMonth)
                                                 Spacer(modifier = Modifier.width(10.dp))
                                                 Text("Nova Agenda", color = Color.White, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    } else if (emTelaMetas) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(
+                                                    Brush.linearGradient(
+                                                        colors = listOf(tomClaro(RoxoMeta), RoxoMeta)
+                                                    )
+                                                )
+                                                .clickable(enabled = isFabExpanded) {
+                                                    isFabExpanded = false
+                                                    acionarNovaMeta = true
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                IconeCircular(Icons.Filled.Flag)
+                                                Spacer(modifier = Modifier.width(10.dp))
+                                                Text("Nova Meta", color = Color.White, fontWeight = FontWeight.Bold)
                                             }
                                         }
                                     } else {
@@ -568,7 +594,12 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                     )
                 }
                 composable(ROTA_ORCAMENTO) { OrcamentoScreen() }
-                composable(ROTA_METAS) { MetaScreen() }
+                composable(ROTA_METAS) {
+                    MetaScreen(
+                        acionarNovaMetaExterna = acionarNovaMeta,
+                        aoMetaAcionada = { acionarNovaMeta = false }
+                    )
+                }
                 composable(ROTA_RECORRENTES) { RecorrenteScreen() }
                 composable(ROTA_CARTAO) { CartaoScreen() }
                 composable(ROTA_EXPORTAR) { ExportarScreen() }

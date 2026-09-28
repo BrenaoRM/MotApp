@@ -25,6 +25,13 @@ class MetaViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun atualizar(meta: Meta) {
+        if (meta.nome.isBlank() || meta.valorAlvo <= 0) return
+        viewModelScope.launch {
+            repository.atualizarMeta(meta)
+        }
+    }
+
     fun adicionarValor(meta: Meta, valor: Double) {
         viewModelScope.launch {
             repository.atualizarMeta(meta.copy(valorAtual = meta.valorAtual + valor))

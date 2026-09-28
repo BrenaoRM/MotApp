@@ -1,196 +1,341 @@
 package com.example.financacelular.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.Meta
-import com.example.financacelular.ui.theme.Verde
 import java.text.NumberFormat
 import java.util.Locale
 
+private val RoxoMeta = Color(0xFF8B5CF6)
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MetaScreen(viewModel: MetaViewModel = viewModel()) {
+fun MetaScreen(
+    viewModel: MetaViewModel = viewModel(),
+    acionarNovaMetaExterna: Boolean = false,
+    aoMetaAcionada: () -> Unit = {}
+) {
     val metas by viewModel.metas.collectAsState()
     val formato = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
-    var mostrarDialogoNovaMeta by remember { mutableStateOf(false) }
-    var metaParaAdicionarValor by remember { mutableStateOf<Meta?>(null) }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
-    ) {
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Metas", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(4.dp))
+    var mostrarSheetNovaMeta by remember { mutableStateOf(false) }
+    var metaParaEditar by remember { mutableStateOf<Meta?>(null) }
+    var metaParaAdicionarValor by remember { mutableStateOf<Meta?>(null) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    var novoNome by remember { mutableStateOf("") }
+    var novoValorAlvo by remember { mutableStateOf("") }
+
+    val totalAcumulado = metas.sumOf { it.valorAtual }
+    val totalAlvo = metas.sumOf { it.valorAlvo }
+
+    LaunchedEffect(acionarNovaMetaExterna) {
+        if (acionarNovaMetaExterna) {
+            metaParaEditar = null
+            novoNome = ""
+            novoValorAlvo = ""
+            mostrarSheetNovaMeta = true
+            aoMetaAcionada()
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(horizontal = 20.dp),
+            contentPadding = PaddingValues(
+                top = 16.dp,
+                bottom = espacoParaBarraFlutuante()
+            )
+        ) {
+            item {
+                Text("Metas", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Card(
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(RoxoMeta.copy(alpha = 0.15f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Filled.Flag, contentDescription = null, tint = RoxoMeta, modifier = Modifier.size(24.dp))
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text("TOTAL ACUMULADO", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    "${formato.format(totalAcumulado)} / ${formato.format(totalAlvo)}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = RoxoMeta
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+                Text("Seus Objetivos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            if (metas.isEmpty()) {
+                item {
                     Text(
-                        "Acompanhe os seus objetivos e sonhos financeiros",
+                        "Nenhuma meta cadastrada ainda. Clique no '+' abaixo para criar o seu primeiro objetivo.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Button(
-                    onClick = { mostrarDialogoNovaMeta = true },
-                    shape = RoundedCornerShape(20.dp)
-                ) {
-                    Text("+ Nova")
-                }
-            }
-            Spacer(modifier = Modifier.height(24.dp))
+            } else {
+                items(metas) { meta ->
+                    val progresso = if (meta.valorAlvo > 0)
+                        (meta.valorAtual / meta.valorAlvo).toFloat().coerceIn(0f, 1f) else 0f
+                    val percentual = (progresso * 100).toInt()
 
-            if (metas.isEmpty()) {
-                Text(
-                    "Nenhuma meta cadastrada ainda.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-
-        items(metas) { meta ->
-            val progresso = if (meta.valorAlvo > 0)
-                (meta.valorAtual / meta.valorAlvo).toFloat().coerceIn(0f, 1f) else 0f
-            val percentual = (progresso * 100).toInt()
-
-            Card(
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 6.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .background(Verde.copy(alpha = 0.15f), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Filled.Flag, contentDescription = null, tint = Verde, modifier = Modifier.size(20.dp))
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(meta.nome, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text(
-                                "${formato.format(meta.valorAtual)} / ${formato.format(meta.valorAlvo)}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Text("$percentual%", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Verde)
-                    }
-                    Spacer(modifier = Modifier.height(14.dp))
-                    LinearProgressIndicator(
-                        progress = { progresso },
+                    Card(
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(8.dp),
-                        color = Verde,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
+                            .padding(vertical = 6.dp)
+                            .clickable {
+                                metaParaEditar = meta
+                                novoNome = meta.nome
+                                novoValorAlvo = meta.valorAlvo.toString()
+                                mostrarSheetNovaMeta = true
+                            }
                     ) {
-                        TextButton(onClick = { metaParaAdicionarValor = meta }) {
-                            Text("Adicionar valor")
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        TextButton(
-                            onClick = { viewModel.excluir(meta) },
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Text("Excluir")
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .background(RoxoMeta.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Filled.Flag, contentDescription = null, tint = RoxoMeta)
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(meta.nome, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        "${formato.format(meta.valorAtual)} / ${formato.format(meta.valorAlvo)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Text("$percentual%", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = RoxoMeta)
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            LinearProgressIndicator(
+                                progress = { progresso },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(8.dp),
+                                color = RoxoMeta,
+                                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                TextButton(onClick = { metaParaAdicionarValor = meta }) {
+                                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Adicionar Valor")
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-    }
 
-    if (mostrarDialogoNovaMeta) {
-        DialogoNovaMeta(
-            onDismiss = { mostrarDialogoNovaMeta = false },
-            onConfirmar = { nome, valorAlvo ->
-                viewModel.criar(nome, valorAlvo)
-                mostrarDialogoNovaMeta = false
+        // Bottom Sheet para Criar/Editar Meta
+        if (mostrarSheetNovaMeta) {
+            ModalBottomSheet(
+                onDismissRequest = { mostrarSheetNovaMeta = false },
+                sheetState = sheetState,
+                containerColor = MaterialTheme.colorScheme.surface,
+                dragHandle = { BottomSheetDefaults.DragHandle() },
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (metaParaEditar == null) "Nova Meta" else "Editar Meta",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        IconButton(
+                            onClick = { mostrarSheetNovaMeta = false },
+                            modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
+                        ) {
+                            Icon(Icons.Filled.Close, contentDescription = "Fechar")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    OutlinedTextField(
+                        value = novoNome,
+                        onValueChange = { novoNome = it },
+                        label = { Text("Nome da Meta (ex: Viagem de Férias)") },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    OutlinedTextField(
+                        value = novoValorAlvo,
+                        onValueChange = { novoValorAlvo = it },
+                        label = { Text("Valor Alvo (R$)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (metaParaEditar != null) {
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.excluir(metaParaEditar!!)
+                                    mostrarSheetNovaMeta = false
+                                },
+                                modifier = Modifier.weight(1f).height(50.dp),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                            ) {
+                                Icon(Icons.Filled.DeleteOutline, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("Excluir", fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                val valorDouble = novoValorAlvo.replace(",", ".").toDoubleOrNull() ?: 0.0
+                                if (novoNome.isNotBlank() && valorDouble > 0) {
+                                    if (metaParaEditar == null) {
+                                        viewModel.criar(novoNome, valorDouble)
+                                    } else {
+                                        viewModel.atualizar(metaParaEditar!!.copy(nome = novoNome, valorAlvo = valorDouble))
+                                    }
+                                    mostrarSheetNovaMeta = false
+                                }
+                            },
+                            modifier = Modifier.weight(1f).height(50.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = RoxoMeta)
+                        ) {
+                            Text(
+                                if (metaParaEditar == null) "Criar Meta" else "Salvar Meta",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
             }
-        )
-    }
-
-    metaParaAdicionarValor?.let { meta ->
-        DialogoAdicionarValor(
-            meta = meta,
-            onDismiss = { metaParaAdicionarValor = null },
-            onConfirmar = { valor ->
-                viewModel.adicionarValor(meta, valor)
-                metaParaAdicionarValor = null
-            }
-        )
-    }
-}
-
-@Composable
-private fun DialogoNovaMeta(onDismiss: () -> Unit, onConfirmar: (String, Double) -> Unit) {
-    var nome by remember { mutableStateOf("") }
-    var valorAlvo by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Nova meta", fontWeight = FontWeight.Bold) },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = nome,
-                    onValueChange = { nome = it },
-                    label = { Text("Nome da meta") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = valorAlvo,
-                    onValueChange = { valorAlvo = it },
-                    label = { Text("Valor alvo (R$)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                valorAlvo.replace(",", ".").toDoubleOrNull()?.let { onConfirmar(nome, it) }
-            }) { Text("Criar", fontWeight = FontWeight.Bold) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancelar") }
         }
-    )
+
+        metaParaAdicionarValor?.let { meta ->
+            DialogoAdicionarValor(
+                meta = meta,
+                onDismiss = { metaParaAdicionarValor = null },
+                onConfirmar = { valor ->
+                    viewModel.adicionarValor(meta, valor)
+                    metaParaAdicionarValor = null
+                }
+            )
+        }
+    }
 }
 
 @Composable
