@@ -58,6 +58,8 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         private set
     var pedidoAutorizacaoDrive: IntentSenderRequest? by mutableStateOf(null)
         private set
+    var nomeUtilizador: String by mutableStateOf("")
+        private set
 
     private var acaoPendente: AcaoPendenteDrive? = null
 
@@ -65,6 +67,8 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         val context = application.applicationContext
         val emailSalvo = prefs.getString("email_utilizador", "") ?: ""
         val dbExiste = context.getDatabasePath(AppDatabase.NOME_ARQUIVO_BANCO).exists()
+        val nomeSalvo = prefs.getString("nome_utilizador", "") ?: ""
+        nomeUtilizador = nomeSalvo
 
         if (emailSalvo.isNotBlank()) {
             emailUtilizador = emailSalvo
@@ -229,6 +233,11 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
             val accessToken = obterAccessTokenDrive(activity, AcaoPendenteDrive.RESTAURAR) ?: return@launch
             continuarRestauroComToken(accessToken)
         }
+    }
+
+    fun definirNomeUtilizador(nome: String) {
+        nomeUtilizador = nome.trim()
+        prefs.edit().putString("nome_utilizador", nomeUtilizador).apply()
     }
 
     fun aoReceberResultadoAutorizacaoDrive(activity: Activity, dataIntent: Intent?) {

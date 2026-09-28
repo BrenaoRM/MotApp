@@ -73,6 +73,7 @@ fun DashboardScreen(
     val sheetStateDetalhes = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val sheetStateFiltros = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val alertaFaturaPendente by viewModel.alertaFaturaPendente.collectAsState()
+    val nomeUsuario = viewModel.nomeUtilizador
 
     val nomeMes = remember(mesSelecionado) {
         mesSelecionado.month.getDisplayName(TextStyle.FULL, Locale.Builder().setLanguage("pt").setRegion("BR").build())
@@ -105,7 +106,7 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "Olá, Breno",
+                        "Olá, $nomeUsuario",
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f)

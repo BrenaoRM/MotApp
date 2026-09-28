@@ -15,6 +15,10 @@ import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,6 +34,7 @@ fun WelcomeScreen(
     aoConcluir: () -> Unit
 ) {
     val activity = LocalContext.current as? Activity
+    var nomeInput by remember { mutableStateOf(viewModel.nomeUtilizador) }
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
@@ -71,18 +76,14 @@ fun WelcomeScreen(
                 modifier = Modifier.size(50.dp)
             )
         }
-
         Spacer(modifier = Modifier.height(32.dp))
-
         Text(
             text = "Bem-vindo ao MotApp",
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
         )
-
         Spacer(modifier = Modifier.height(12.dp))
-
         Text(
             text = "Proteja as suas finanças. O aplicativo sincroniza automaticamente com o seu Google Drive e recupera dados anteriores se já os tiver.",
             style = MaterialTheme.typography.bodyLarge,
@@ -90,8 +91,18 @@ fun WelcomeScreen(
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
+        Spacer(modifier = Modifier.height(32.dp))
 
-        Spacer(modifier = Modifier.height(48.dp))
+        OutlinedTextField(
+            value = nomeInput,
+            onValueChange = { nomeInput = it },
+            label = { Text("Seu Nome") },
+            singleLine = true,
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
 
         if (viewModel.statusBackupMessage.isNotBlank()) {
             Text(
@@ -103,9 +114,11 @@ fun WelcomeScreen(
             )
         }
 
-        // ÚNICO BOTÃO INTELIGENTE DE ENTRADA E SINCRONIZAÇÃO
         Button(
             onClick = {
+                if (nomeInput.isNotBlank()) {
+                    viewModel.definirNomeUtilizador(nomeInput)
+                }
                 activity?.let { viewModel.sincronizarOuEntrarGoogle(it) }
             },
             modifier = Modifier.fillMaxWidth().height(56.dp),
@@ -116,10 +129,15 @@ fun WelcomeScreen(
             Spacer(modifier = Modifier.width(10.dp))
             Text("Entrar com Google e Sincronizar", fontWeight = FontWeight.Bold)
         }
-
         Spacer(modifier = Modifier.height(24.dp))
-
-        TextButton(onClick = { viewModel.marcarBoasVindasComoConcluida() }) {
+        TextButton(
+            onClick = {
+                if (nomeInput.isNotBlank()) {
+                    viewModel.definirNomeUtilizador(nomeInput)
+                }
+                viewModel.marcarBoasVindasComoConcluida()
+            }
+        ) {
             Text("Entrar sem fazer login (Apenas Local)", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
