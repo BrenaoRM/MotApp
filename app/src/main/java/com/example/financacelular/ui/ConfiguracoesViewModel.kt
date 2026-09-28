@@ -110,7 +110,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
             try {
                 val googleIdOption = GetGoogleIdOption.Builder()
                     .setFilterByAuthorizedAccounts(false)
-                    .setServerClientId("264232686854-582tmu20ab5gt995lra0se94pdb6elts.apps.googleusercontent.com")
+                    .setServerClientId("264232686854-22i568l7q1nop0tfr72i1vks9e699g0c.apps.googleusercontent.com")
                     .setAutoSelectEnabled(false)
                     .build()
 
