@@ -10,13 +10,16 @@ import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.Meta
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.data.Transacao
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
 import java.time.YearMonth
@@ -32,7 +35,6 @@ data class ResumoMovimentacao(
 
 class DashboardViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = FinancaRepository.getInstance(AppDatabase.getInstance(application))
-
     private val _mesSelecionado = MutableStateFlow(YearMonth.now())
     val mesSelecionado: StateFlow<YearMonth> = _mesSelecionado
 
@@ -54,12 +56,10 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     ) { cartao, faturaPaga, _ ->
         if (faturaPaga || cartao == null) return@combine false
         if (alertaJaExibidoNestaSessao) return@combine false
-
         val hoje = LocalDate.now()
         val diaVencimentoReal = minOf(cartao.diaVencimento, YearMonth.now().lengthOfMonth())
         val dataVencimento = YearMonth.now().atDay(diaVencimentoReal)
         val dataInicioAlerta = dataVencimento.minusDays(2)
-
         hoje in dataInicioAlerta..dataVencimento
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
@@ -75,20 +75,25 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         repository.listarCategorias()
     ) { anoMes, todas, categorias ->
         val hoje = LocalDate.now()
-        val faturaPaga = todas.any { it.cartaoId == null && it.anoMes == anoMes && it.descricao == "Pagamento de Fatura - $anoMes" }
+
+        val faturasPagas = todas.asSequence()
+            .filter { it.cartaoId == null && it.descricao?.startsWith("Pagamento de Fatura - ") == true }
+            .mapNotNull { it.anoMes }
+            .toSet()
+
         val categoriaFaturaId = categorias.find { it.nome.equals("Fatura", ignoreCase = true) }?.id ?: 1L
 
         todas.filter { t ->
-            val ehDoMes = t.data.toString().startsWith(anoMes)
+            val anoMesTransacao = t.anoMes ?: t.data.toString().take(7)
+            val ehDoMes = anoMesTransacao == anoMes
             if (!ehDoMes) return@filter false
 
             val ehPagamentoFatura = t.descricao?.startsWith("Pagamento de Fatura") == true
             if (ehPagamentoFatura) return@filter false
 
             val ehFuturo = t.data.isAfter(hoje)
-
             if (t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.cartaoId != null) {
-                faturaPaga
+                t.anoMes in faturasPagas
             } else {
                 !ehFuturo
             }
@@ -99,7 +104,8 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 t
             }
         }
-    }
+    }.flowOn(Dispatchers.Default)
+        .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val totalDespesas: StateFlow<Double> = transacoesFiltradasDoMes

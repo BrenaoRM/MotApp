@@ -2,8 +2,6 @@ package com.example.financacelular.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
@@ -24,9 +22,11 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Close
@@ -70,6 +70,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.Categoria
+import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.data.Transacao
 import com.example.financacelular.ui.theme.Coral
@@ -87,17 +88,18 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
     val transacoes by viewModel.todasTransacoes.collectAsState()
     val futuros by viewModel.futurosLancamentos.collectAsState()
     val categorias by viewModel.categorias.collectAsState()
+
     var filtroTipo by remember { mutableStateOf<TipoTransacao?>(null) }
     var filtroCategoria by remember { mutableStateOf<Categoria?>(null) }
     var menuCategoriaExpandido by remember { mutableStateOf(false) }
     var busca by remember { mutableStateOf("") }
     var apenasEsteMes by remember { mutableStateOf(false) }
     var transacaoEmEdicao by remember { mutableStateOf<Transacao?>(null) }
+
     val formato = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
     val mesAtual = remember { LocalDate.now().let { "%04d-%02d".format(it.year, it.monthValue) } }
     val formatoDataFiltro = remember { DateTimeFormatter.ofPattern("dd/MM/yyyy") }
 
-    // --- Filtros (tipo, categoria, mês, período) consolidados em um único bottom sheet ---
     var mostrarFiltros by remember { mutableStateOf(false) }
     var dataInicioFiltro by remember { mutableStateOf<LocalDate?>(null) }
     var dataFimFiltro by remember { mutableStateOf<LocalDate?>(null) }
@@ -107,12 +109,36 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
     val algumFiltroAtivo = filtroTipo != null || filtroCategoria != null || apenasEsteMes ||
             dataInicioFiltro != null || dataFimFiltro != null
 
-    fun passaPeriodo(data: LocalDate): Boolean {
+    // Função de verificação flexível para o período de datas
+    fun passaPeriodo(t: Transacao): Boolean {
         val inicio = dataInicioFiltro
         val fim = dataFimFiltro
-        val depoisDoInicio = inicio == null || !data.isBefore(inicio)
-        val antesDoFim = fim == null || !data.isAfter(fim)
-        return depoisDoInicio && antesDoFim
+        if (inicio == null && fim == null) return true
+
+        val dataReal = t.data
+        val dataFatura = if (t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.anoMes != null) {
+            try {
+                val partes = t.anoMes!!.split("-")
+                LocalDate.of(partes[0].toInt(), partes[1].toInt(), 1)
+            } catch (_: Exception) {
+                dataReal
+            }
+        } else {
+            dataReal
+        }
+
+        val realNoPeriodo = (inicio == null || !dataReal.isBefore(inicio)) && (fim == null || !dataReal.isAfter(fim))
+        val faturaNoPeriodo = (inicio == null || !dataFatura.isBefore(inicio)) && (fim == null || !dataFatura.isAfter(fim))
+
+        return realNoPeriodo || faturaNoPeriodo
+    }
+
+    // Função de verificação flexível para o mês atual
+    fun passaFiltroMes(t: Transacao): Boolean {
+        if (!apenasEsteMes) return true
+        val mesDataReal = t.data.toString().take(7)
+        val mesFatura = t.anoMes ?: mesDataReal
+        return mesDataReal == mesAtual || mesFatura == mesAtual
     }
 
     val transacoesFiltradas = transacoes.filter { t ->
@@ -122,11 +148,20 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
         val passaBusca = busca.isBlank() ||
                 (t.descricao?.contains(busca, ignoreCase = true) == true) ||
                 (categoria?.nome?.contains(busca, ignoreCase = true) == true)
-        val passaMes = !apenasEsteMes || t.data.toString().startsWith(mesAtual)
-        passaTipo && passaCategoria && passaBusca && passaMes && passaPeriodo(t.data)
+
+        passaTipo && passaCategoria && passaBusca && passaFiltroMes(t) && passaPeriodo(t)
     }.sortedByDescending { it.data }
 
-    val futurosFiltrados = futuros.filter { passaPeriodo(it.data) }
+    val futurosFiltrados = futuros.filter { t ->
+        val categoria = categorias.find { it.id == t.categoriaId }
+        val passaTipo = filtroTipo == null || t.tipo == filtroTipo
+        val passaCategoria = filtroCategoria == null || t.categoriaId == filtroCategoria?.id
+        val passaBusca = busca.isBlank() ||
+                (t.descricao?.contains(busca, ignoreCase = true) == true) ||
+                (categoria?.nome?.contains(busca, ignoreCase = true) == true)
+
+        passaTipo && passaCategoria && passaBusca && passaFiltroMes(t) && passaPeriodo(t)
+    }.sortedBy { it.data }
 
     LazyColumn(
         modifier = Modifier
@@ -145,8 +180,6 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Extrato", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-
-                // Botão único de filtros (mesmo estilo do Dashboard)
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
@@ -182,6 +215,7 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
+
             OutlinedTextField(
                 value = busca,
                 onValueChange = { busca = it },
@@ -191,6 +225,7 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(20.dp))
+
             Text("Lançamentos Realizados", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -214,10 +249,10 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
             }
             val categoria = categorias.find { it.id == transacao.categoriaId }
             val cor = if (transacao.tipo == TipoTransacao.DESPESA) Coral else Verde
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    // Desabilita clique se for uma transação projetada (id negativo)
                     .clickable(enabled = transacao.id >= 0) { transacaoEmEdicao = transacao }
                     .padding(vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -242,11 +277,32 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
-                    Text(
-                        "${categoria?.nome ?: "Sem categoria"}, ${transacao.data.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "${categoria?.nome ?: "Sem categoria"}, ${transacao.data.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (transacao.formaPagamento == FormaPagamento.CARTAO_CREDITO && transacao.anoMes != null) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(MaterialTheme.colorScheme.primaryContainer)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                val partesAnoMes = transacao.anoMes!!.split("-")
+                                val mesFatura = partesAnoMes.getOrNull(1) ?: ""
+                                val anoFatura = partesAnoMes.getOrNull(0)?.takeLast(2) ?: ""
+                                Text(
+                                    text = "Fatura $mesFatura/$anoFatura",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
                 }
                 Text(
                     (if (transacao.tipo == TipoTransacao.DESPESA) "- " else "+ ") +
@@ -263,7 +319,7 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
                 Spacer(modifier = Modifier.height(24.dp))
                 HorizontalDivider()
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Futuros Lançamentos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Futuros Lançamentos / Pendentes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
@@ -277,6 +333,7 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
                 }
                 val categoria = categorias.find { it.id == transacao.categoriaId }
                 val cor = if (transacao.tipo == TipoTransacao.DESPESA) Coral else Verde
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -304,11 +361,32 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
-                        Text(
-                            "${categoria?.nome ?: "Sem categoria"}, ${transacao.data.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))} (Previsto)",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "${categoria?.nome ?: "Sem categoria"}, ${transacao.data.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (transacao.formaPagamento == FormaPagamento.CARTAO_CREDITO && transacao.anoMes != null) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(MaterialTheme.colorScheme.secondaryContainer)
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    val partesAnoMes = transacao.anoMes!!.split("-")
+                                    val mesFatura = partesAnoMes.getOrNull(1) ?: ""
+                                    val anoFatura = partesAnoMes.getOrNull(0)?.takeLast(2) ?: ""
+                                    Text(
+                                        text = "Fatura $mesFatura/$anoFatura",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
                     }
                     Text(
                         (if (transacao.tipo == TipoTransacao.DESPESA) "- " else "+ ") +
@@ -322,7 +400,6 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
         }
     }
 
-    // Modal de Edição (Estilo Premium - Bottom Sheet)
     transacaoEmEdicao?.let { transacao ->
         BottomSheetEditarTransacao(
             transacao = transacao,
@@ -339,10 +416,8 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
         )
     }
 
-    // --- BOTTOM SHEET: FILTROS (tipo, categoria, mês e período) ---
     if (mostrarFiltros) {
         val sheetStateFiltros = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
         ModalBottomSheet(
             onDismissRequest = { mostrarFiltros = false },
             sheetState = sheetStateFiltros,
@@ -383,7 +458,6 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
-
                 Text("Período rápido", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(8.dp))
                 FilterChip(
@@ -393,7 +467,6 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
                 )
 
                 Spacer(modifier = Modifier.height(20.dp))
-
                 Text("Categoria", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(8.dp))
                 ExposedDropdownMenuBox(
@@ -428,11 +501,9 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
-
                 Text("Período (de / até)", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Campo: data inicial
                 val interactionInicio = remember { MutableInteractionSource() }
                 LaunchedEffect(interactionInicio) {
                     interactionInicio.interactions.collect {
@@ -453,7 +524,6 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Campo: data final
                 val interactionFim = remember { MutableInteractionSource() }
                 LaunchedEffect(interactionFim) {
                     interactionFim.interactions.collect {
@@ -473,7 +543,6 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -503,7 +572,6 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
         }
     }
 
-    // Calendário para a data inicial do filtro
     if (mostrarDatePickerInicio) {
         val estadoPicker = rememberDatePickerState(
             initialSelectedDateMillis = (dataInicioFiltro ?: LocalDate.now())
@@ -527,7 +595,6 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
         }
     }
 
-    // Calendário para a data final do filtro
     if (mostrarDatePickerFim) {
         val estadoPicker = rememberDatePickerState(
             initialSelectedDateMillis = (dataFimFiltro ?: LocalDate.now())
@@ -562,14 +629,12 @@ private fun BottomSheetEditarTransacao(
     onExcluir: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
     var valor by remember { mutableStateOf(transacao.valor.toString()) }
     var descricao by remember { mutableStateOf(transacao.descricao ?: "") }
     var dataSelecionada by remember { mutableStateOf(transacao.data) }
     var categoriaSelecionada by remember {
         mutableStateOf(categorias.find { it.id == transacao.categoriaId })
     }
-
     var menuExpandido by remember { mutableStateOf(false) }
     var mostrarDatePicker by remember { mutableStateOf(false) }
 
@@ -589,7 +654,6 @@ private fun BottomSheetEditarTransacao(
                 .padding(horizontal = 24.dp)
                 .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp)
         ) {
-            // Cabeçalho
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -607,10 +671,8 @@ private fun BottomSheetEditarTransacao(
                     Icon(Icons.Filled.Close, contentDescription = "Fechar")
                 }
             }
-
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Campo de Valor
             OutlinedTextField(
                 value = valor,
                 onValueChange = { valor = it },
@@ -619,10 +681,8 @@ private fun BottomSheetEditarTransacao(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             )
-
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Campo de Categoria
             ExposedDropdownMenuBox(
                 expanded = menuExpandido,
                 onExpandedChange = { menuExpandido = it }
@@ -653,10 +713,8 @@ private fun BottomSheetEditarTransacao(
                     }
                 }
             }
-
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Campo de Descrição
             OutlinedTextField(
                 value = descricao,
                 onValueChange = { descricao = it },
@@ -664,10 +722,8 @@ private fun BottomSheetEditarTransacao(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             )
-
             Spacer(modifier = Modifier.height(16.dp))
 
-            // NOVO: Campo de Data (Abre o calendário ao tocar)
             val interactionSource = remember { MutableInteractionSource() }
             LaunchedEffect(interactionSource) {
                 interactionSource.interactions.collect {
@@ -689,7 +745,6 @@ private fun BottomSheetEditarTransacao(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Botões de Ação
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -704,15 +759,12 @@ private fun BottomSheetEditarTransacao(
                     Spacer(Modifier.width(8.dp))
                     Text("Excluir", fontWeight = FontWeight.Bold)
                 }
-
                 Button(
                     onClick = {
                         val valorDouble = valor.replace(",", ".").toDoubleOrNull()
                         val categoria = categoriaSelecionada
                         if (valorDouble != null && categoria != null) {
-                            // Atualiza o anoMes caso o utilizador tenha alterado o mês do lançamento
                             val novoAnoMes = String.format(Locale.ROOT, "%04d-%02d", dataSelecionada.year, dataSelecionada.monthValue)
-
                             onSalvar(
                                 transacao.copy(
                                     valor = valorDouble,
@@ -733,7 +785,6 @@ private fun BottomSheetEditarTransacao(
         }
     }
 
-    // Modal do Calendário (DatePicker)
     if (mostrarDatePicker) {
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = dataSelecionada.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli()

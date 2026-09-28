@@ -5,14 +5,15 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.financacelular.data.AppDatabase
 import com.example.financacelular.data.Categoria
-import com.example.financacelular.data.DespesaRecorrente
 import com.example.financacelular.data.FinancaRepository
 import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.data.Transacao
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -23,33 +24,36 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
     val categorias: StateFlow<List<Categoria>> = repository.listarCategorias()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // 1. LANÇAMENTOS REALIZADOS
+    // 1. LANÇAMENTOS REALIZADOS (Débito/Dinheiro com data <= hoje OU Crédito cuja fatura já foi PAGA)
     val todasTransacoes: StateFlow<List<Transacao>> = combine(
         repository.listarTransacoes(),
         repository.listarTransacoes()
     ) { transacoes, todas ->
         val hoje = LocalDate.now()
+        val faturasPagas = todas.asSequence()
+            .filter { it.cartaoId == null && it.descricao?.startsWith("Pagamento de Fatura - ") == true }
+            .mapNotNull { it.anoMes }
+            .toSet()
 
         transacoes.filter { t ->
             val ehPagamentoFatura = t.descricao?.startsWith("Pagamento de Fatura") == true
             if (ehPagamentoFatura) return@filter false
 
             val anoMesStr = t.anoMes ?: String.format("%d-%02d", t.data.year, t.data.monthValue)
-            val faturaPaga = todas.any { it.cartaoId == null && it.anoMes == anoMesStr && it.descricao == "Pagamento de Fatura - $anoMesStr" }
+            val faturaPaga = anoMesStr in faturasPagas
             val ehCartao = t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.cartaoId != null
             val ehFuturo = t.data.isAfter(hoje)
 
             if (ehCartao) {
-                // CORREÇÃO: Se for cartão, só vira "Realizado" se a fatura foi paga (independente do dia do mês)
-                faturaPaga
+                faturaPaga // Compras no cartão entram em "Realizados" assim que a fatura do anoMes for paga
             } else {
-                // Se for dinheiro/débito, vira "Realizado" assim que a data chegar
-                !ehFuturo
+                !ehFuturo // Débito/Dinheiro entram em "Realizados" pela data de ocorrência
             }
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // 2. FUTUROS LANÇAMENTOS (PREVISTOS / PENDENTES)
+    // 2. FUTUROS LANÇAMENTOS / PENDENTES (Débito/Dinheiro futuro OU Crédito com Fatura PENDENTE)
     val futurosLancamentos: StateFlow<List<Transacao>> = combine(
         repository.listarTransacoes(),
         repository.listarRecorrentes(),
@@ -57,40 +61,40 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
     ) { transacoes, recorrentes, todas ->
         val hoje = LocalDate.now()
         val mesAtualStr = String.format("%04d-%02d", hoje.year, hoje.monthValue)
+        val faturasPagas = todas.asSequence()
+            .filter { it.cartaoId == null && it.descricao?.startsWith("Pagamento de Fatura - ") == true }
+            .mapNotNull { it.anoMes }
+            .toSet()
 
-        val faturaPaga = todas.any { it.cartaoId == null && it.anoMes == mesAtualStr && it.descricao == "Pagamento de Fatura - $mesAtualStr" }
-
-        // A. Filtra as transações reais do banco que ainda estão pendentes
+        // Transações de cartão com fatura em aberto OU dinheiro/débito futuros
         val transacoesFuturasBanco = transacoes.filter { t ->
-            val eDoMesAtual = t.data.toString().startsWith(mesAtualStr)
-            if (!eDoMesAtual) return@filter false
+            val ehPagamentoFatura = t.descricao?.startsWith("Pagamento de Fatura") == true
+            if (ehPagamentoFatura) return@filter false
 
-            val anoMesStr = t.anoMes ?: mesAtualStr
-            val faturaDesteMesPaga = todas.any { it.cartaoId == null && it.anoMes == anoMesStr && it.descricao == "Pagamento de Fatura - $anoMesStr" }
+            val anoMesStr = t.anoMes ?: String.format("%d-%02d", t.data.year, t.data.monthValue)
+            val faturaPaga = anoMesStr in faturasPagas
             val ehCartao = t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.cartaoId != null
             val ehFuturo = t.data.isAfter(hoje)
 
             if (ehCartao) {
-                // CORREÇÃO: Se for cartão, fica no "Futuro" apenas se a fatura NÃO foi paga. Pagou, ele some daqui.
-                !faturaDesteMesPaga
+                !faturaPaga
             } else {
-                // Se não for cartão, fica no "Futuro" apenas se a data ainda não chegou
                 ehFuturo
             }
         }
 
-        // B. Projeta as Assinaturas/Recorrentes que ainda não foram lançadas
+        // Projeta assinaturas/recorrentes do mês atual que ainda não foram lançadas
         val recorrentesPrevistas = recorrentes.mapNotNull { recorrente ->
-            val dataPrevista = LocalDate.of(hoje.year, hoje.month, recorrente.diaDoMes)
+            val diaSeguro = minOf(recorrente.diaDoMes, hoje.lengthOfMonth())
+            val dataPrevista = LocalDate.of(hoje.year, hoje.monthValue, diaSeguro)
 
-            // CORREÇÃO: Usar startsWith para reconhecer o sufixo "(Assinatura)" salvo no banco
             val jaLancada = transacoes.any {
                 it.data.toString().startsWith(mesAtualStr) &&
                         it.descricao?.startsWith(recorrente.nome) == true
             }
 
-            // Só cria a projeção se ela ainda não existe no banco e se a fatura ainda não foi paga
-            if (!jaLancada && (!faturaPaga || recorrente.tipo == TipoTransacao.RECEITA)) {
+            val faturaDesteMesPaga = mesAtualStr in faturasPagas
+            if (!jaLancada && (!faturaDesteMesPaga || recorrente.tipo == TipoTransacao.RECEITA)) {
                 Transacao(
                     id = -1,
                     valor = recorrente.valor,
@@ -105,10 +109,9 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
             } else null
         }
 
-        // Junta tudo e ordena por data
         (transacoesFuturasBanco + recorrentesPrevistas).sortedBy { it.data }
-
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun atualizar(transacao: Transacao) {
         if (transacao.id < 0) return

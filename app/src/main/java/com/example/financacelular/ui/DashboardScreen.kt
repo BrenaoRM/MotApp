@@ -63,15 +63,19 @@ fun DashboardScreen(
     val mesSelecionado by viewModel.mesSelecionado.collectAsState()
     val resumoDoMes by viewModel.resumoDoMes.collectAsState()
     val totalInvestido by viewModel.totalInvestidoDoMes.collectAsState()
+
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
     val saldo = totalReceitas - totalDespesas
     var saldoVisivel by remember { mutableStateOf(true) }
+
     var mostrarFiltros by remember { mutableStateOf(false) }
     var filtroTipo by remember { mutableStateOf<TipoTransacao?>(null) }
     var ordemFiltro by remember { mutableStateOf("VALOR") }
+
     var categoriaDetalheSelecionada by remember { mutableStateOf<ResumoMovimentacao?>(null) }
     val sheetStateDetalhes = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val sheetStateFiltros = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     val alertaFaturaPendente by viewModel.alertaFaturaPendente.collectAsState()
     val nomeUsuario = viewModel.nomeUtilizador
 
@@ -154,12 +158,13 @@ fun DashboardScreen(
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            if (saldoVisivel) formatoMoeda.format(saldo) else "R$ •••••",
+                            if (saldoVisivel) formatoMoeda.format(saldo) else "R$ ••••••",
                             style = MaterialTheme.typography.displayLarge
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         HorizontalDivider()
                         Spacer(modifier = Modifier.height(16.dp))
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -177,7 +182,9 @@ fun DashboardScreen(
                                 Icons.Filled.Savings, Modifier.weight(1f)
                             )
                         }
+
                         Spacer(modifier = Modifier.height(16.dp))
+
                         OutlinedButton(
                             onClick = aoAbrirExtrato,
                             modifier = Modifier.fillMaxWidth(),
@@ -190,7 +197,9 @@ fun DashboardScreen(
                         }
                     }
                 }
+
                 Spacer(modifier = Modifier.height(16.dp))
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -204,7 +213,9 @@ fun DashboardScreen(
                     AtalhoRapidoCard("Metas", Icons.Filled.Flag, Color(0xFF8B5CF6), aoAbrirMetas)
                     AtalhoRapidoCard("Orçamento", Icons.Filled.PieChart, Color(0xFFF2A93B), aoAbrirOrcamento)
                 }
+
                 Spacer(modifier = Modifier.height(24.dp))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -236,6 +247,7 @@ fun DashboardScreen(
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
+
                 if (resumosFiltrados.isEmpty()) {
                     Text(
                         "Nenhuma movimentação encontrada com esses filtros.",
@@ -244,10 +256,12 @@ fun DashboardScreen(
                     )
                 }
             }
+
             items(resumosFiltrados) { resumo ->
                 val nomeCategoria = resumo.titulo
                 val cor = if (resumo.tipo == TipoTransacao.DESPESA) Coral else Verde
                 val sinal = if (resumo.tipo == TipoTransacao.DESPESA) "- " else "+ "
+
                 Card(
                     shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -358,6 +372,7 @@ fun DashboardScreen(
                             }
                         }
                     }
+
                     if (resumo.transacoes.isEmpty()) {
                         Box(
                             modifier = Modifier
@@ -500,7 +515,7 @@ fun DashboardScreen(
 
         if (alertaFaturaPendente) {
             AlertDialog(
-                onDismissRequest = { },
+                onDismissRequest = { viewModel.marcarAlertaComoExibido() },
                 shape = RoundedCornerShape(24.dp),
                 containerColor = MaterialTheme.colorScheme.surface,
                 title = {
