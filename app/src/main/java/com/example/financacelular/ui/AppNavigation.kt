@@ -156,7 +156,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     var atualizacaoDisponivel by remember { mutableStateOf<AtualizacaoDisponivel?>(null) }
     val context = LocalContext.current
 
-    // Fecha o FAB ao pressionar a tecla/gesto de Voltar do sistema
     BackHandler(enabled = isFabExpanded) {
         isFabExpanded = false
     }
@@ -173,7 +172,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    // Garante que o FAB feche sempre que mudar a rota de navegação
     LaunchedEffect(currentDestination?.route) {
         isFabExpanded = false
     }
@@ -183,6 +181,15 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     val emTelaCalendario = currentDestination?.route == DestinoPrincipal.CALENDARIO.rota
     val emTelaMetas = currentDestination?.route == ROTA_METAS
 
+    val corFundoTema = MaterialTheme.colorScheme.background
+
+    // Quando expandido, mescla com os 40% de preto para não gerar bloco marcado no fundo
+    val corBaseDegrade by animateColorAsState(
+        targetValue = if (isFabExpanded) lerp(corFundoTema, Color.Black, 0.4f) else corFundoTema,
+        animationSpec = tween(300),
+        label = "corBaseDegrade"
+    )
+
     @Suppress("UnusedMaterial3ScaffoldPaddingParameter")
     Scaffold(
         bottomBar = {
@@ -191,13 +198,20 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.BottomCenter
                 ) {
+                    // Cobertura total com degradê acelerado para bloquear 100% os itens ao fundo
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .align(Alignment.BottomCenter)
-                            .background(MaterialTheme.colorScheme.background)
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    0.0f to Color.Transparent,
+                                    0.25f to corBaseDegrade,
+                                    1.0f to corBaseDegrade
+                                )
+                            )
                             .navigationBarsPadding()
-                            .height(35.dp)
+                            .height(75.dp)
                     )
 
                     Box(
