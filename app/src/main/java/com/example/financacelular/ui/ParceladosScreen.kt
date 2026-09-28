@@ -41,12 +41,6 @@ fun ParceladosScreen(viewModel: ParceladosViewModel = viewModel()) {
     ) {
         item {
             Text("Compras Parceladas", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "Acompanhe o progresso das suas compras parceladas no cartão.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
             Spacer(modifier = Modifier.height(12.dp))
 
             if (comprasAgrupadas.isEmpty()) {

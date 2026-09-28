@@ -52,12 +52,6 @@ fun RecorrenteScreen(viewModel: RecorrenteViewModel = viewModel()) {
     ) {
         item {
             Text("Recorrentes e Assinaturas", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "Gerencie suas receitas fixas e cobranças recorrentes. Toque em um item para ver detalhes.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
             Spacer(modifier = Modifier.height(24.dp))
         }
 

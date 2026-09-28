@@ -129,12 +129,6 @@ fun InvestimentoScreen(
         ) {
             item {
                 Text("Investimentos", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    "Construção de patrimônio e aportes",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Card(
