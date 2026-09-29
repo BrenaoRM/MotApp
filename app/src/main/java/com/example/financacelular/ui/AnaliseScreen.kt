@@ -111,6 +111,7 @@ fun AnaliseScreen(
     val diasNoMes = mesSelecionado.lengthOfMonth()
     val mediaDiaria = if (totalDespesasMes > 0) totalDespesasMes / diasNoMes else 0.0
     val maiorCategoriaDespesa = despesasPorCategoria.maxByOrNull { it.total }
+
     val pagerState = rememberPagerState(pageCount = { 2 })
     var graficosProntos by remember { mutableStateOf(false) }
 
@@ -132,11 +133,14 @@ fun AnaliseScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 48.dp),
+                    .heightIn(min = 40.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (aoVoltar != null) {
-                    IconButton(onClick = aoVoltar) {
+                    IconButton(
+                        onClick = aoVoltar,
+                        modifier = Modifier.size(36.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Voltar"
@@ -152,8 +156,6 @@ fun AnaliseScreen(
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
-        }
-        item {
             MesSelectorCard(
                 nomeMes = nomeMes,
                 onMesAnterior = { viewModel.mesAnterior() },
@@ -161,6 +163,7 @@ fun AnaliseScreen(
             )
             Spacer(modifier = Modifier.height(16.dp))
         }
+
         item {
             Card(
                 shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
@@ -170,7 +173,6 @@ fun AnaliseScreen(
                 Column(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium)) {
                     Text("Resumo do Período", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(16.dp))
-
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -202,7 +204,6 @@ fun AnaliseScreen(
                         }
                     }
                     Spacer(modifier = Modifier.height(16.dp))
-
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -350,6 +351,7 @@ fun AnaliseScreen(
                             val dados = if (page == 0) despesasPorCategoria else receitasPorCategoria
                             val total = if (page == 0) totalDespesasMes else totalReceitasMes
                             val paletaCores = if (page == 0) CoresCategoria else CoresCategoriaGanhos
+
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 if (dados.isEmpty()) {
                                     Text(
@@ -431,6 +433,7 @@ fun AnaliseScreen(
                 PlaceholderGrafico(altura = 260.dp)
             }
         }
+
         item { Spacer(modifier = Modifier.height(12.dp)) }
 
         item {
@@ -529,6 +532,7 @@ fun AnaliseScreen(
                 PlaceholderGrafico(altura = 230.dp)
             }
         }
+
         item { Spacer(modifier = Modifier.height(12.dp)) }
 
         item {

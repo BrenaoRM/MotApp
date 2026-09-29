@@ -61,11 +61,14 @@ fun OrcamentoScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 48.dp),
+                        .heightIn(min = 40.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (aoVoltar != null) {
-                        IconButton(onClick = aoVoltar) {
+                        IconButton(
+                            onClick = aoVoltar,
+                            modifier = Modifier.size(36.dp)
+                        ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Voltar"
@@ -83,7 +86,6 @@ fun OrcamentoScreen(
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-
                 MesSelectorCard(
                     nomeMes = nomeMes,
                     onMesAnterior = { viewModel.mesAnterior() },
@@ -159,9 +161,7 @@ fun OrcamentoScreen(
                                 }
                             }
                         }
-
                         Spacer(modifier = Modifier.height(14.dp))
-
                         LinearProgressIndicator(
                             progress = { progresso },
                             modifier = Modifier
@@ -210,17 +210,13 @@ fun OrcamentoScreen(
                             Icon(Icons.Filled.Close, contentDescription = "Fechar")
                         }
                     }
-
                     Spacer(modifier = Modifier.height(8.dp))
-
                     Text(
                         "Limite de gastos para $nomeMes. Deixe em branco (ou zero) para não ter limite neste mês.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-
                     Spacer(modifier = Modifier.height(24.dp))
-
                     OutlinedTextField(
                         value = valorInput,
                         onValueChange = { valorInput = it },
@@ -230,9 +226,7 @@ fun OrcamentoScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
-
                     Spacer(modifier = Modifier.height(28.dp))
-
                     Button(
                         onClick = {
                             val valorDouble = valorInput.replace(",", ".").toDoubleOrNull() ?: 0.0

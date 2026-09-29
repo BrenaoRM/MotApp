@@ -40,15 +40,18 @@ fun CartaoScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val repository = remember { FinancaRepository.getInstance(AppDatabase.getInstance(context)) }
+
     var mesSelecionado by remember { mutableStateOf(YearMonth.now()) }
     val anoMesStr = remember(mesSelecionado) { mesSelecionado.format(DateTimeFormatter.ofPattern("yyyy-MM")) }
     val nomeMesAno = remember(mesSelecionado) {
         mesSelecionado.month.getDisplayName(TextStyle.FULL, Locale.forLanguageTag("pt-BR"))
             .replaceFirstChar { it.uppercase() } + " / " + mesSelecionado.year
     }
+
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.forLanguageTag("pt-BR")) }
     var transacoesFatura by remember { mutableStateOf<List<Transacao>>(emptyList()) }
     var faturaPaga by remember { mutableStateOf(false) }
+
     val cartao by viewModel.cartao.collectAsState()
     var mostrarConfig by remember { mutableStateOf(false) }
 
@@ -57,6 +60,7 @@ fun CartaoScreen(
             transacoesFatura = lista
         }
     }
+
     LaunchedEffect(mesSelecionado) {
         repository.verificarFaturaPaga(anoMesStr).collect { paga ->
             faturaPaga = paga
@@ -77,11 +81,14 @@ fun CartaoScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 48.dp),
+                    .heightIn(min = 40.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (aoVoltar != null) {
-                    IconButton(onClick = aoVoltar) {
+                    IconButton(
+                        onClick = aoVoltar,
+                        modifier = Modifier.size(36.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Voltar"
@@ -105,14 +112,12 @@ fun CartaoScreen(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-
             MesSelectorCard(
                 nomeMes = nomeMesAno,
                 onMesAnterior = { mesSelecionado = mesSelecionado.minusMonths(1) },
                 onMesSeguinte = { mesSelecionado = mesSelecionado.plusMonths(1) }
             )
             Spacer(modifier = Modifier.height(16.dp))
-
             Card(
                 shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
                 colors = CardDefaults.cardColors(
@@ -190,6 +195,7 @@ fun CartaoScreen(
             Text("Lançamentos na Fatura", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(12.dp))
         }
+
         items(transacoesFatura) { transacao ->
             Card(
                 shape = RoundedCornerShape(14.dp),

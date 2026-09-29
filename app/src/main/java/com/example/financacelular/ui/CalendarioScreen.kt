@@ -87,11 +87,14 @@ fun CalendarioScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 48.dp),
+                        .heightIn(min = 40.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (aoVoltar != null) {
-                        IconButton(onClick = aoVoltar) {
+                        IconButton(
+                            onClick = aoVoltar,
+                            modifier = Modifier.size(36.dp)
+                        ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Voltar"
@@ -109,14 +112,12 @@ fun CalendarioScreen(
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-
                 MesSelectorCard(
                     nomeMes = nomeMesAno,
                     onMesAnterior = { mesAnoSelecionado = mesAnoSelecionado.minusMonths(1) },
                     onMesSeguinte = { mesAnoSelecionado = mesAnoSelecionado.plusMonths(1) }
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-
                 Card(
                     shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -137,7 +138,6 @@ fun CalendarioScreen(
                             }
                         }
                         Spacer(modifier = Modifier.height(12.dp))
-
                         val diasNoMes = mesAnoSelecionado.lengthOfMonth()
                         val primeiroDiaDoMes = mesAnoSelecionado.atDay(1)
                         val deslocamentoDias = if (primeiroDiaDoMes.dayOfWeek.value == 7) 0 else primeiroDiaDoMes.dayOfWeek.value
@@ -235,6 +235,7 @@ fun CalendarioScreen(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
             }
+
             if (abaAtiva == 0) {
                 if (transacoesDoDia.isEmpty()) {
                     item {
