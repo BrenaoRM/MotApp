@@ -19,6 +19,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import com.example.financacelular.ui.theme.dimens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,6 +33,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
@@ -79,6 +81,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -172,6 +175,9 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    val espacoFabCentral = if (screenWidthDp < 350) 32.dp else 48.dp
+
     BackHandler(enabled = isFabExpanded) {
         isFabExpanded = false
     }
@@ -234,7 +240,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                             .height(75.dp)
                     )
 
-                    // Transição animada entre a barra de navegação normal e a barra de pesquisa no Extrato
                     AnimatedContent(
                         targetState = emTelaExtrato,
                         transitionSpec = {
@@ -244,12 +249,11 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         label = "bottomBarTransform"
                     ) { noExtrato ->
                         if (noExtrato) {
-                            // Barra de Pesquisa Animada para o Extrato
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .navigationBarsPadding()
-                                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                                    .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 OutlinedTextField(
@@ -258,7 +262,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .shadow(elevation = 12.dp, shape = RoundedCornerShape(20.dp))
-                                        .height(52.dp),
+                                        .heightIn(min = 52.dp),
                                     placeholder = { Text("Pesquisar no extrato...") },
                                     leadingIcon = {
                                         Icon(
@@ -291,12 +295,11 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                 )
                             }
                         } else {
-                            // Barra de Navegação Padrão com Botão Flutuante (FAB)
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .navigationBarsPadding()
-                                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                                    .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 NavigationBar(
@@ -321,7 +324,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                     ) {
                                         DestinoPrincipal.entries.forEachIndexed { index, destino ->
                                             if (index == 2) {
-                                                Spacer(modifier = Modifier.width(48.dp))
+                                                Spacer(modifier = Modifier.width(espacoFabCentral))
                                             }
                                             val selecionado = currentDestination?.hierarchy?.any { it.route == destino.rota } == true
                                             val indicatorScaleX by animateFloatAsState(
@@ -402,7 +405,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                     transitionSpec = { liquidSpring },
                                     label = "fabWidth"
                                 ) { expanded ->
-                                    if (expanded) (screenWidth - 80.dp) else 52.dp
+                                    if (expanded) (screenWidth - (MaterialTheme.dimens.paddingScreen * 2 + 30.dp)) else 52.dp
                                 }
                                 val fabHeight by transition.animateDp(
                                     transitionSpec = { liquidSpring },

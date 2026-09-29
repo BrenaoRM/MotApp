@@ -21,11 +21,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.Verde
+import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.YearMonth
@@ -75,7 +77,7 @@ fun CalendarioScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = MaterialTheme.dimens.paddingScreen),
             contentPadding = PaddingValues(
                 top = 16.dp,
                 bottom = espacoParaBarraFlutuante()
@@ -85,7 +87,7 @@ fun CalendarioScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp),
+                        .heightIn(min = 48.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (aoVoltar != null) {
@@ -101,6 +103,8 @@ fun CalendarioScreen(
                         "Calendário & Agenda",
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -114,11 +118,11 @@ fun CalendarioScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Card(
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium)) {
                         Row(modifier = Modifier.fillMaxWidth()) {
                             val diasSemana = listOf("D", "S", "T", "Q", "Q", "S", "S")
                             diasSemana.forEach { dia ->
@@ -157,7 +161,9 @@ fun CalendarioScreen(
 
                                             Box(
                                                 modifier = Modifier
-                                                    .size(46.dp)
+                                                    .weight(1f)
+                                                    .aspectRatio(1f)
+                                                    .padding(2.dp)
                                                     .clip(RoundedCornerShape(12.dp))
                                                     .background(if (isSelecionado) MaterialTheme.colorScheme.primary else Color.Transparent)
                                                     .clickable { dataSelecionada = dataAtualGrid },
@@ -194,11 +200,11 @@ fun CalendarioScreen(
                                                 }
                                             }
                                         } else {
-                                            Box(modifier = Modifier.size(46.dp))
+                                            Box(modifier = Modifier.weight(1f).aspectRatio(1f))
                                         }
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(4.dp))
                             }
                         }
                     }
@@ -286,7 +292,9 @@ fun CalendarioScreen(
                                     descricaoFinal,
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
                                     categoria?.nome ?: "Sem categoria",
@@ -294,11 +302,13 @@ fun CalendarioScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 (if (t.tipo == TipoTransacao.DESPESA) "- " else "+ ") + formatoMoeda.format(t.valor),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = cor
+                                color = cor,
+                                maxLines = 1
                             )
                         }
                     }
@@ -371,7 +381,7 @@ fun CalendarioScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
+                    .padding(horizontal = MaterialTheme.dimens.paddingScreen)
                     .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp)
             ) {
                 Row(
@@ -412,7 +422,9 @@ fun CalendarioScreen(
                             mostrarSheetNovoAfazer = false
                         }
                     },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 50.dp),
                     shape = RoundedCornerShape(14.dp)
                 ) {
                     Text("Salvar na Agenda", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)

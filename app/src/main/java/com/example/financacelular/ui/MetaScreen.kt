@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -58,9 +59,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.Meta
+import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -103,7 +106,7 @@ fun MetaScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = MaterialTheme.dimens.paddingScreen),
             contentPadding = PaddingValues(
                 top = 16.dp,
                 bottom = espacoParaBarraFlutuante()
@@ -113,7 +116,7 @@ fun MetaScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp),
+                        .heightIn(min = 48.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (aoVoltar != null) {
@@ -129,17 +132,19 @@ fun MetaScreen(
                         "Metas",
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Card(
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
+                    Column(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
@@ -150,13 +155,15 @@ fun MetaScreen(
                                 Icon(Icons.Filled.Flag, contentDescription = null, tint = RoxoMeta, modifier = Modifier.size(24.dp))
                             }
                             Spacer(modifier = Modifier.width(16.dp))
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text("TOTAL ACUMULADO", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(
                                     "${formato.format(totalAcumulado)} / ${formato.format(totalAlvo)}",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = RoxoMeta
+                                    color = RoxoMeta,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -195,7 +202,7 @@ fun MetaScreen(
                                 mostrarSheetNovaMeta = true
                             }
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
                                     modifier = Modifier
@@ -207,14 +214,23 @@ fun MetaScreen(
                                 }
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(meta.nome, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        meta.nome,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                     Text(
                                         "${formato.format(meta.valorAtual)} / ${formato.format(meta.valorAlvo)}",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
-                                Text("$percentual%", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = RoxoMeta)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("$percentual%", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = RoxoMeta, maxLines = 1)
                             }
 
                             Spacer(modifier = Modifier.height(14.dp))
@@ -258,7 +274,7 @@ fun MetaScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
+                        .padding(horizontal = MaterialTheme.dimens.paddingScreen)
                         .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp)
                 ) {
                     Row(
@@ -269,7 +285,10 @@ fun MetaScreen(
                         Text(
                             text = if (metaParaEditar == null) "Nova Meta" else "Editar Meta",
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
                         )
                         IconButton(
                             onClick = { mostrarSheetNovaMeta = false },
@@ -311,7 +330,9 @@ fun MetaScreen(
                                     viewModel.excluir(metaParaEditar!!)
                                     mostrarSheetNovaMeta = false
                                 },
-                                modifier = Modifier.weight(1f).height(50.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .heightIn(min = 50.dp),
                                 shape = RoundedCornerShape(14.dp),
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                             ) {
@@ -333,7 +354,9 @@ fun MetaScreen(
                                     mostrarSheetNovaMeta = false
                                 }
                             },
-                            modifier = Modifier.weight(1f).height(50.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 50.dp),
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = RoxoMeta)
                         ) {
@@ -367,7 +390,7 @@ private fun DialogoAdicionarValor(meta: Meta, onDismiss: () -> Unit, onConfirmar
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Adicionar a \"${meta.nome}\"", fontWeight = FontWeight.Bold) },
+        title = { Text("Adicionar a \"${meta.nome}\"", fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         text = {
             OutlinedTextField(
                 value = valor,
@@ -375,7 +398,8 @@ private fun DialogoAdicionarValor(meta: Meta, onDismiss: () -> Unit, onConfirmar
                 label = { Text("Valor (R$)") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
             )
         },
         confirmButton = {

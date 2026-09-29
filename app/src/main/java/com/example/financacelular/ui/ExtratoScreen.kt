@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -67,6 +68,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.Categoria
@@ -75,6 +77,7 @@ import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.data.Transacao
 import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.Verde
+import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -112,7 +115,6 @@ fun ExtratoScreen(
     val algumFiltroAtivo = filtroTipo != null || filtroCategoria != null || apenasEsteMes ||
             dataInicioFiltro != null || dataFimFiltro != null
 
-    // Função de verificação flexível para o período de datas
     fun passaPeriodo(t: Transacao): Boolean {
         val inicio = dataInicioFiltro
         val fim = dataFimFiltro
@@ -136,7 +138,6 @@ fun ExtratoScreen(
         return realNoPeriodo || faturaNoPeriodo
     }
 
-    // Função de verificação flexível para o mês atual
     fun passaFiltroMes(t: Transacao): Boolean {
         if (!apenasEsteMes) return true
         val mesDataReal = t.data.toString().take(7)
@@ -144,7 +145,6 @@ fun ExtratoScreen(
         return mesDataReal == mesAtual || mesFatura == mesAtual
     }
 
-    // Filtra utilizando a busca vinda da barra inferior (textoPesquisa)
     val transacoesFiltradas = transacoes.filter { t ->
         val categoria = categorias.find { it.id == t.categoriaId }
         val passaTipo = filtroTipo == null || t.tipo == filtroTipo
@@ -171,7 +171,7 @@ fun ExtratoScreen(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = MaterialTheme.dimens.paddingScreen),
         contentPadding = PaddingValues(
             top = 16.dp,
             bottom = espacoParaBarraFlutuante()
@@ -179,11 +179,16 @@ fun ExtratoScreen(
     ) {
         item {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 40.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     if (aoVoltar != null) {
                         IconButton(onClick = aoVoltar) {
                             Icon(
@@ -193,7 +198,13 @@ fun ExtratoScreen(
                         }
                         Spacer(modifier = Modifier.width(4.dp))
                     }
-                    Text("Extrato", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Extrato",
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
 
                 Box(
@@ -281,13 +292,18 @@ fun ExtratoScreen(
                         transacao.descricao?.takeIf { it.isNotBlank() }
                             ?: (categoria?.nome ?: "Transação"),
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             "${categoria?.nome ?: "Sem categoria"}, ${transacao.data.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
                         if (transacao.formaPagamento == FormaPagamento.CARTAO_CREDITO && transacao.anoMes != null) {
                             Spacer(modifier = Modifier.width(6.dp))
@@ -310,12 +326,14 @@ fun ExtratoScreen(
                         }
                     }
                 }
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     (if (transacao.tipo == TipoTransacao.DESPESA) "- " else "+ ") +
                             formato.format(transacao.valor),
                     color = cor,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
                 )
             }
         }
@@ -365,13 +383,18 @@ fun ExtratoScreen(
                             transacao.descricao?.takeIf { it.isNotBlank() }
                                 ?: (categoria?.nome ?: "Transação Futura"),
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 "${categoria?.nome ?: "Sem categoria"}, ${transacao.data.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))}",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
                             )
                             if (transacao.formaPagamento == FormaPagamento.CARTAO_CREDITO && transacao.anoMes != null) {
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -394,12 +417,14 @@ fun ExtratoScreen(
                             }
                         }
                     }
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         (if (transacao.tipo == TipoTransacao.DESPESA) "- " else "+ ") +
                                 formato.format(transacao.valor),
                         color = cor.copy(alpha = 0.7f),
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
                     )
                 }
             }
@@ -435,7 +460,7 @@ fun ExtratoScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp)
+                    .padding(horizontal = MaterialTheme.dimens.paddingScreen)
                     .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp)
             ) {
                 Text(
@@ -561,14 +586,18 @@ fun ExtratoScreen(
                             dataInicioFiltro = null
                             dataFimFiltro = null
                         },
-                        modifier = Modifier.weight(1f).height(50.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 50.dp),
                         shape = RoundedCornerShape(14.dp)
                     ) {
                         Text("Limpar filtros", fontWeight = FontWeight.Bold)
                     }
                     Button(
                         onClick = { mostrarFiltros = false },
-                        modifier = Modifier.weight(1f).height(50.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 50.dp),
                         shape = RoundedCornerShape(14.dp)
                     ) {
                         Text("Aplicar", fontWeight = FontWeight.Bold)
@@ -657,7 +686,7 @@ private fun BottomSheetEditarTransacao(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = MaterialTheme.dimens.paddingScreen)
                 .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp)
         ) {
             Row(
@@ -757,7 +786,9 @@ private fun BottomSheetEditarTransacao(
             ) {
                 OutlinedButton(
                     onClick = onExcluir,
-                    modifier = Modifier.weight(1f).height(50.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 50.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
@@ -782,7 +813,9 @@ private fun BottomSheetEditarTransacao(
                             )
                         }
                     },
-                    modifier = Modifier.weight(1f).height(50.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 50.dp),
                     shape = RoundedCornerShape(14.dp)
                 ) {
                     Text("Salvar", fontWeight = FontWeight.Bold)

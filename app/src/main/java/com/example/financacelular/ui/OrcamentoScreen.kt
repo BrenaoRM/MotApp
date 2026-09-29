@@ -19,10 +19,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.Verde
+import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
@@ -52,14 +54,14 @@ fun OrcamentoScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = MaterialTheme.dimens.paddingScreen),
             contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
         ) {
             item {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp),
+                        .heightIn(min = 48.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (aoVoltar != null) {
@@ -75,6 +77,8 @@ fun OrcamentoScreen(
                         "Orçamento Mensal",
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -99,7 +103,6 @@ fun OrcamentoScreen(
             }
 
             items(itens) { item ->
-                // Limite <= 0 conta como "sem orçamento definido", mesmo que exista uma linha no banco
                 val temOrcamento = (item.limite ?: 0.0) > 0.0
                 val limiteVal = item.limite ?: 0.0
                 val progresso = if (temOrcamento) (item.gasto / limiteVal).toFloat().coerceIn(0f, 1f) else 0f
@@ -107,7 +110,7 @@ fun OrcamentoScreen(
                 val corBarra = if (ultrapassou) Coral else Verde
 
                 Card(
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -118,13 +121,21 @@ fun OrcamentoScreen(
                             mostrarSheet = true
                         }
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(item.categoria.nome, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                item.categoria.nome,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
                                     if (temOrcamento) {
@@ -134,14 +145,16 @@ fun OrcamentoScreen(
                                     },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = if (ultrapassou) Coral else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontWeight = if (ultrapassou) FontWeight.Bold else FontWeight.Normal
+                                    fontWeight = if (ultrapassou) FontWeight.Bold else FontWeight.Normal,
+                                    maxLines = 1
                                 )
                                 if (temOrcamento && item.limiteHerdado) {
                                     Text(
                                         "padrão do mês anterior",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontStyle = FontStyle.Italic,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1
                                     )
                                 }
                             }
@@ -162,7 +175,6 @@ fun OrcamentoScreen(
             }
         }
 
-        // Bottom sheet pra definir/alterar o limite da categoria
         if (mostrarSheet) {
             val item = categoriaEmEdicao
             ModalBottomSheet(
@@ -175,7 +187,7 @@ fun OrcamentoScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
+                        .padding(horizontal = MaterialTheme.dimens.paddingScreen)
                         .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp)
                 ) {
                     Row(
@@ -187,6 +199,8 @@ fun OrcamentoScreen(
                             text = "Orçamento: ${item?.categoria?.nome.orEmpty()}",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(
@@ -200,7 +214,7 @@ fun OrcamentoScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        "Limite de gastos para $nomeMes. Deixe em branco (or zero) pra não ter limite neste mês.",
+                        "Limite de gastos para $nomeMes. Deixe em branco (ou zero) para não ter limite neste mês.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -227,7 +241,7 @@ fun OrcamentoScreen(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp),
+                            .heightIn(min = 50.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {

@@ -39,6 +39,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.Verde
+import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.format.TextStyle
 import java.util.Locale
@@ -98,7 +99,7 @@ fun DashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = MaterialTheme.dimens.paddingScreen),
             contentPadding = PaddingValues(
                 top = 16.dp,
                 bottom = espacoParaBarraFlutuante()
@@ -106,7 +107,7 @@ fun DashboardScreen(
         ) {
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth().height(40.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
@@ -132,10 +133,10 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Card(
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
+                    Column(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
@@ -187,7 +188,7 @@ fun DashboardScreen(
 
                         OutlinedButton(
                             onClick = aoAbrirExtrato,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
                         ) {
@@ -330,7 +331,7 @@ fun DashboardScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(corCategoria.copy(alpha = 0.1f))
-                            .padding(horizontal = 20.dp, vertical = 16.dp)
+                            .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 16.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -389,7 +390,7 @@ fun DashboardScreen(
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(20.dp),
+                            contentPadding = PaddingValues(MaterialTheme.dimens.paddingScreen),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             items(resumo.transacoes) { transacao ->
@@ -441,7 +442,7 @@ fun DashboardScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
+                        .padding(horizontal = MaterialTheme.dimens.paddingScreen)
                         .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp)
                 ) {
                     Text(
@@ -504,7 +505,7 @@ fun DashboardScreen(
                     Spacer(modifier = Modifier.height(32.dp))
                     Button(
                         onClick = { mostrarFiltros = false },
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
                         shape = RoundedCornerShape(14.dp)
                     ) {
                         Text("Aplicar Filtros", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)

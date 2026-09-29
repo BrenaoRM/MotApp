@@ -39,8 +39,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -109,15 +111,14 @@ fun InvestimentoScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = MaterialTheme.dimens.paddingScreen),
             contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
         ) {
-            // Título com Seta de Voltar
             item {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp),
+                        .heightIn(min = 48.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (aoVoltar != null) {
@@ -133,16 +134,17 @@ fun InvestimentoScreen(
                         "Investimentos",
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Cartão Hero do Patrimônio
             item {
                 Card(
-                    shape = RoundedCornerShape(28.dp),
+                    shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
                     elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -154,7 +156,7 @@ fun InvestimentoScreen(
                                     colors = listOf(AmareloInvestimento, AmareloEscuroGradiente)
                                 )
                             )
-                            .padding(22.dp)
+                            .padding(MaterialTheme.dimens.paddingMedium)
                     ) {
                         Column {
                             Row(
@@ -162,7 +164,10 @@ fun InvestimentoScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
                                     Box(
                                         modifier = Modifier
                                             .size(38.dp)
@@ -181,9 +186,12 @@ fun InvestimentoScreen(
                                         "PATRIMÔNIO TOTAL",
                                         style = MaterialTheme.typography.labelLarge,
                                         color = Color.White.copy(alpha = 0.9f),
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Surface(
                                     color = Color.White.copy(alpha = 0.2f),
                                     shape = RoundedCornerShape(12.dp)
@@ -204,7 +212,9 @@ fun InvestimentoScreen(
                                 formatoMoeda.format(patrimonioTotal),
                                 style = MaterialTheme.typography.displayLarge,
                                 color = Color.White,
-                                fontWeight = FontWeight.Black
+                                fontWeight = FontWeight.Black,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -212,7 +222,6 @@ fun InvestimentoScreen(
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-            // Filtros de Categoria (Chips)
             if (categoriasPresentes.size > 2) {
                 item {
                     LazyRow(
@@ -236,7 +245,6 @@ fun InvestimentoScreen(
                 }
             }
 
-            // Seção de Lista de Ativos Consolidados
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -302,7 +310,13 @@ fun InvestimentoScreen(
                                 }
                                 Spacer(modifier = Modifier.width(14.dp))
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(ativo.nome, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        ativo.nome,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Surface(
@@ -325,12 +339,14 @@ fun InvestimentoScreen(
                                         )
                                     }
                                 }
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(
                                         formatoMoeda.format(ativo.valorTotal),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = AmareloInvestimento
+                                        color = AmareloInvestimento,
+                                        maxLines = 1
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -352,7 +368,6 @@ fun InvestimentoScreen(
 
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            // Barra visual da participação da carteira
                             LinearProgressIndicator(
                                 progress = { ativo.percentualDoTotal },
                                 modifier = Modifier
@@ -363,7 +378,6 @@ fun InvestimentoScreen(
                                 trackColor = MaterialTheme.colorScheme.surfaceVariant
                             )
 
-                            // Conteúdo Expandido (Ações e Histórico de Aportes)
                             AnimatedVisibility(
                                 visible = isExpandido,
                                 enter = expandVertically() + fadeIn(),
@@ -373,7 +387,6 @@ fun InvestimentoScreen(
                                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                                     Spacer(modifier = Modifier.height(16.dp))
 
-                                    // Botões de Ação para o Ativo Específico
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -386,7 +399,7 @@ fun InvestimentoScreen(
                                                 dataSelecionada = LocalDate.now()
                                                 mostrarSheetNovoAporte = true
                                             },
-                                            modifier = Modifier.weight(1f).height(42.dp),
+                                            modifier = Modifier.weight(1f).heightIn(min = 42.dp),
                                             shape = RoundedCornerShape(12.dp),
                                             colors = ButtonDefaults.buttonColors(containerColor = AmareloInvestimento)
                                         ) {
@@ -401,7 +414,7 @@ fun InvestimentoScreen(
                                                 valorResgateInput = ""
                                                 mostrarSheetResgate = true
                                             },
-                                            modifier = Modifier.weight(1f).height(42.dp),
+                                            modifier = Modifier.weight(1f).heightIn(min = 42.dp),
                                             shape = RoundedCornerShape(12.dp),
                                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                                         ) {
@@ -465,7 +478,6 @@ fun InvestimentoScreen(
             }
         }
 
-        // Bottom Sheet de Resgate / Desconto de Valor
         if (mostrarSheetResgate && ativoParaAporteOuResgate != null) {
             val ativo = ativoParaAporteOuResgate!!
             val valorTotalAtivo = ativo.valorTotal
@@ -480,7 +492,7 @@ fun InvestimentoScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
+                        .padding(horizontal = MaterialTheme.dimens.paddingScreen)
                         .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp)
                 ) {
                     Row(
@@ -488,8 +500,14 @@ fun InvestimentoScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
-                            Text("Resgatar de ${ativo.nome}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Resgatar de ${ativo.nome}",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                             Text("Saldo disponível: ${formatoMoeda.format(valorTotalAtivo)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         IconButton(
@@ -502,7 +520,6 @@ fun InvestimentoScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // Atalhos percentuais de resgate
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -548,7 +565,7 @@ fun InvestimentoScreen(
                                 }
                             }
                         },
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                     ) {
@@ -558,7 +575,6 @@ fun InvestimentoScreen(
             }
         }
 
-        // Bottom Sheet de Novo Aporte
         if (mostrarSheetNovoAporte) {
             ModalBottomSheet(
                 onDismissRequest = { mostrarSheetNovoAporte = false },
@@ -570,7 +586,7 @@ fun InvestimentoScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
+                        .padding(horizontal = MaterialTheme.dimens.paddingScreen)
                         .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp)
                 ) {
                     Row(
@@ -684,7 +700,7 @@ fun InvestimentoScreen(
                                 Toast.makeText(context, "Aporte guardado com sucesso!", Toast.LENGTH_SHORT).show()
                             }
                         },
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = AmareloInvestimento)
                     ) {

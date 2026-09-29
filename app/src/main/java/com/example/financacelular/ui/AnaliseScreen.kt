@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -46,11 +47,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.Verde
+import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.format.TextStyle
 import java.util.Locale
@@ -119,7 +122,7 @@ fun AnaliseScreen(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = MaterialTheme.dimens.paddingScreen),
         contentPadding = PaddingValues(
             top = 16.dp,
             bottom = espacoParaBarraFlutuante()
@@ -129,7 +132,7 @@ fun AnaliseScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .heightIn(min = 48.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (aoVoltar != null) {
@@ -160,11 +163,11 @@ fun AnaliseScreen(
         }
         item {
             Card(
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
+                Column(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium)) {
                     Text("Resumo do Período", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -175,12 +178,27 @@ fun AnaliseScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Total Ganho", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(formato.format(totalReceitasMes), style = MaterialTheme.typography.titleMedium, color = Verde, fontWeight = FontWeight.Bold)
+                            Text(
+                                formato.format(totalReceitasMes),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Verde,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
+                        Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Total Gasto", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(formato.format(totalDespesasMes), style = MaterialTheme.typography.titleMedium, color = Coral, fontWeight = FontWeight.Bold)
+                            Text(
+                                formato.format(totalDespesasMes),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Coral,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                     Spacer(modifier = Modifier.height(16.dp))
@@ -192,12 +210,26 @@ fun AnaliseScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Saldo do Mês", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(formato.format(saldoMes), style = MaterialTheme.typography.titleMedium, color = corSaldo, fontWeight = FontWeight.Bold)
+                            Text(
+                                formato.format(saldoMes),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = corSaldo,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
+                        Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Média Diária", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(formato.format(mediaDiaria), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text(
+                                formato.format(mediaDiaria),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                     Spacer(modifier = Modifier.height(20.dp))
@@ -207,7 +239,13 @@ fun AnaliseScreen(
                     ) {
                         Text("Maior foco de despesa:", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(maiorCategoriaDespesa?.nomeCategoria ?: "Nenhuma", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                        Text(
+                            maiorCategoriaDespesa?.nomeCategoria ?: "Nenhuma",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
@@ -251,14 +289,22 @@ fun AnaliseScreen(
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(despesa.descricao, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text(
+                                despesa.descricao,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                             Text("${despesa.nomeCategoria} • ${despesa.data}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             "- ${formato.format(despesa.valor)}",
                             style = MaterialTheme.typography.titleSmall,
                             color = Coral,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
                         )
                     }
                 }
@@ -269,7 +315,7 @@ fun AnaliseScreen(
         item {
             if (graficosProntos) {
                 Card(
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -280,7 +326,7 @@ fun AnaliseScreen(
                             )
                         )
                 ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
+                    Column(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -313,8 +359,8 @@ fun AnaliseScreen(
                                     )
                                 } else {
                                     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
-                                        Canvas(modifier = Modifier.size(180.dp)) {
-                                            val larguraTraco = 28.dp.toPx()
+                                        Canvas(modifier = Modifier.size(170.dp)) {
+                                            val larguraTraco = 26.dp.toPx()
                                             val raio = (size.minDimension - larguraTraco) / 2
                                             var anguloInicial = -90f
                                             dados.forEachIndexed { index, item ->
@@ -337,7 +383,13 @@ fun AnaliseScreen(
                                         }
                                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                             Text("Total", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                            Text(formato.format(total), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                            Text(
+                                                formato.format(total),
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
                                         }
                                     }
                                     Spacer(modifier = Modifier.height(24.dp))
@@ -347,13 +399,27 @@ fun AnaliseScreen(
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(vertical = 8.dp),
+                                                .padding(vertical = 6.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Box(modifier = Modifier.size(12.dp).background(cor, CircleShape))
                                             Spacer(modifier = Modifier.width(12.dp))
-                                            Text(item.nomeCategoria, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                                            Text("${formato.format(item.total)} ($percentual%)", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            Text(
+                                                item.nomeCategoria,
+                                                modifier = Modifier.weight(1f),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Medium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                "${formato.format(item.total)} ($percentual%)",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1
+                                            )
                                         }
                                     }
                                 }
@@ -370,11 +436,11 @@ fun AnaliseScreen(
         item {
             if (graficosProntos) {
                 Card(
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
+                    Column(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium)) {
                         Text("Fluxo de Caixa (Últimos 6 Meses)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -468,11 +534,11 @@ fun AnaliseScreen(
         item {
             if (graficosProntos) {
                 Card(
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
+                    Column(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium)) {
                         Text("Aportes (Últimos 6 Meses)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -561,7 +627,7 @@ fun AnaliseScreen(
 @Composable
 private fun PlaceholderGrafico(altura: Dp) {
     Card(
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
         ),

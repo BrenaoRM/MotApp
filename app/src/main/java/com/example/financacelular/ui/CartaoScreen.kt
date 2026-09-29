@@ -16,12 +16,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.AppDatabase
 import com.example.financacelular.data.FinancaRepository
 import com.example.financacelular.data.Transacao
 import com.example.financacelular.ui.theme.Verde
+import com.example.financacelular.ui.theme.dimens
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.time.YearMonth
@@ -68,14 +70,14 @@ fun CartaoScreen(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = MaterialTheme.dimens.paddingScreen),
         contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
     ) {
         item {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .heightIn(min = 48.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (aoVoltar != null) {
@@ -91,6 +93,8 @@ fun CartaoScreen(
                     "Fatura do Cartão",
                     style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
                 IconButton(
@@ -110,20 +114,22 @@ fun CartaoScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Card(
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
                 colors = CardDefaults.cardColors(
                     containerColor = if (faturaPaga) Verde.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
                 ),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
-                    modifier = Modifier.padding(20.dp),
+                    modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         if (faturaPaga) "FATURA PAGA NESTE MÊS" else "VALOR DA FATURA",
                         style = MaterialTheme.typography.labelMedium,
-                        color = if (faturaPaga) Verde else MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (faturaPaga) Verde else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -137,7 +143,9 @@ fun CartaoScreen(
                         formatoMoeda.format(valorTotalFatura),
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Bold,
-                        color = if (faturaPaga) Verde else MaterialTheme.colorScheme.primary
+                        color = if (faturaPaga) Verde else MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     if (!faturaPaga) {
@@ -153,7 +161,9 @@ fun CartaoScreen(
                                 }
                             },
                             shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp)
                         ) {
                             Text("Pagar Fatura", fontWeight = FontWeight.Bold)
                         }
@@ -166,10 +176,12 @@ fun CartaoScreen(
                                 }
                             },
                             shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                         ) {
-                            Text("Cancelar Pagamento da Fatura", fontWeight = FontWeight.Bold)
+                            Text("Cancelar Pagamento da Fatura", fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }
@@ -189,18 +201,25 @@ fun CartaoScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(MaterialTheme.dimens.paddingMedium),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(transacao.descricao ?: "Compra no Cartão", fontWeight = FontWeight.Bold)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            transacao.descricao ?: "Compra no Cartão",
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                         Text(transacao.data.toString(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         formatoMoeda.format(transacao.valor),
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.error
+                        color = MaterialTheme.colorScheme.error,
+                        maxLines = 1
                     )
                 }
             }
@@ -231,7 +250,8 @@ fun CartaoScreen(
                         label = { Text("Dia de Fechamento (ex: 18)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true
                     )
                     OutlinedTextField(
                         value = diaVencimento,
@@ -239,7 +259,8 @@ fun CartaoScreen(
                         label = { Text("Dia de Vencimento (ex: 25)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true
                     )
                 }
             },

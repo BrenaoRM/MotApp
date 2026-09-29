@@ -13,8 +13,9 @@ import com.example.financacelular.data.TemaPreferencia
 import com.example.financacelular.ui.AppNavigation
 import com.example.financacelular.ui.ConfiguracoesViewModel
 import com.example.financacelular.ui.theme.FinanceAPPTheme
+import com.example.financacelular.ui.theme.ProvideResponsiveDensity // <-- Import adicionado
+import com.example.financacelular.worker.AutoBackupWorker
 import com.example.financacelular.worker.LembreteFaturaWorker
-import com.example.financacelular.worker.AutoBackupWorker // <-- Import adicionado
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
@@ -52,7 +53,9 @@ class MainActivity : ComponentActivity() {
             }
 
             FinanceAPPTheme(darkTheme = temaEscuro) {
-                AppNavigation(configuracoesViewModel = configuracoesViewModel)
+                ProvideResponsiveDensity {
+                    AppNavigation(configuracoesViewModel = configuracoesViewModel)
+                }
             }
         }
     }
