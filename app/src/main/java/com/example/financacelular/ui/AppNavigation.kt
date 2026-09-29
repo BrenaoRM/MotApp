@@ -625,7 +625,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     atualizacaoDisponivel?.let { atualizacao ->
         AtualizacaoDialog(
             atualizacao = atualizacao,
-            aoAtualizar = {
+            aoAbrirNavegador = {
                 val urlParaAbrir = atualizacao.urlApk.ifBlank { atualizacao.urlPagina }
                 context.startActivity(Intent(Intent.ACTION_VIEW, urlParaAbrir.toUri()))
                 atualizacaoDisponivel = null
