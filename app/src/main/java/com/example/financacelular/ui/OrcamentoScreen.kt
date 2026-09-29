@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
@@ -28,7 +29,10 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OrcamentoScreen(viewModel: OrcamentoViewModel = viewModel()) {
+fun OrcamentoScreen(
+    viewModel: OrcamentoViewModel = viewModel(),
+    aoVoltar: (() -> Unit)? = null
+) {
     val itens by viewModel.itens.collectAsState(initial = emptyList())
     val mesSelecionado by viewModel.mesSelecionado.collectAsState()
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
@@ -53,9 +57,20 @@ fun OrcamentoScreen(viewModel: OrcamentoViewModel = viewModel()) {
         ) {
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth().height(40.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    if (aoVoltar != null) {
+                        IconButton(onClick = aoVoltar) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Voltar"
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
                     Text(
                         "Orçamento Mensal",
                         style = MaterialTheme.typography.headlineLarge,
@@ -185,7 +200,7 @@ fun OrcamentoScreen(viewModel: OrcamentoViewModel = viewModel()) {
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        "Limite de gastos para $nomeMes. Deixe em branco (ou zero) pra não ter limite neste mês.",
+                        "Limite de gastos para $nomeMes. Deixe em branco (or zero) pra não ter limite neste mês.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

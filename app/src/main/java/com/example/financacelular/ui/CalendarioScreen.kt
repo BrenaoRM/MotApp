@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Circle
@@ -36,7 +37,8 @@ import java.util.Locale
 fun CalendarioScreen(
     viewModel: CalendarioViewModel = viewModel(),
     acionarNovaAgendaExterno: Boolean = false,
-    aoNovaAgendaAcionada: () -> Unit = {}
+    aoNovaAgendaAcionada: () -> Unit = {},
+    aoVoltar: (() -> Unit)? = null
 ) {
     val transacoesCalendario by viewModel.transacoesCalendario.collectAsState()
     val categorias by viewModel.categorias.collectAsState()
@@ -81,9 +83,20 @@ fun CalendarioScreen(
         ) {
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth().height(40.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    if (aoVoltar != null) {
+                        IconButton(onClick = aoVoltar) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Voltar"
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
                     Text(
                         "Calendário & Agenda",
                         style = MaterialTheme.typography.headlineLarge,

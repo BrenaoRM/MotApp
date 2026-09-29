@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarToday
@@ -55,7 +56,8 @@ private val AmareloEscuroGradiente = Color(0xFFD97706)
 fun InvestimentoScreen(
     viewModel: InvestimentoViewModel = viewModel(),
     acionarNovoAporteExterno: Boolean = false,
-    aoAporteAcionado: () -> Unit = {}
+    aoAporteAcionado: () -> Unit = {},
+    aoVoltar: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
@@ -110,12 +112,23 @@ fun InvestimentoScreen(
                 .padding(horizontal = 20.dp),
             contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
         ) {
-            // Título
+            // Título com Seta de Voltar
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth().height(40.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    if (aoVoltar != null) {
+                        IconButton(onClick = aoVoltar) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Voltar"
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
                     Text(
                         "Investimentos",
                         style = MaterialTheme.typography.headlineLarge,
@@ -126,7 +139,7 @@ fun InvestimentoScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Cartão Hero do Patrimônio (sem o botão interno)
+            // Cartão Hero do Patrimônio
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),

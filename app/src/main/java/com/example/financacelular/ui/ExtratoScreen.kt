@@ -28,11 +28,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -84,7 +84,11 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
+fun ExtratoScreen(
+    viewModel: ExtratoViewModel = viewModel(),
+    textoPesquisa: String = "",
+    aoVoltar: (() -> Unit)? = null
+) {
     val transacoes by viewModel.todasTransacoes.collectAsState()
     val futuros by viewModel.futurosLancamentos.collectAsState()
     val categorias by viewModel.categorias.collectAsState()
@@ -92,7 +96,6 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
     var filtroTipo by remember { mutableStateOf<TipoTransacao?>(null) }
     var filtroCategoria by remember { mutableStateOf<Categoria?>(null) }
     var menuCategoriaExpandido by remember { mutableStateOf(false) }
-    var busca by remember { mutableStateOf("") }
     var apenasEsteMes by remember { mutableStateOf(false) }
     var transacaoEmEdicao by remember { mutableStateOf<Transacao?>(null) }
 
@@ -118,7 +121,7 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
         val dataReal = t.data
         val dataFatura = if (t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.anoMes != null) {
             try {
-                val partes = t.anoMes!!.split("-")
+                val partes = t.anoMes.split("-")
                 LocalDate.of(partes[0].toInt(), partes[1].toInt(), 1)
             } catch (_: Exception) {
                 dataReal
@@ -141,13 +144,14 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
         return mesDataReal == mesAtual || mesFatura == mesAtual
     }
 
+    // Filtra utilizando a busca vinda da barra inferior (textoPesquisa)
     val transacoesFiltradas = transacoes.filter { t ->
         val categoria = categorias.find { it.id == t.categoriaId }
         val passaTipo = filtroTipo == null || t.tipo == filtroTipo
         val passaCategoria = filtroCategoria == null || t.categoriaId == filtroCategoria?.id
-        val passaBusca = busca.isBlank() ||
-                (t.descricao?.contains(busca, ignoreCase = true) == true) ||
-                (categoria?.nome?.contains(busca, ignoreCase = true) == true)
+        val passaBusca = textoPesquisa.isBlank() ||
+                (t.descricao?.contains(textoPesquisa, ignoreCase = true) == true) ||
+                (categoria?.nome?.contains(textoPesquisa, ignoreCase = true) == true)
 
         passaTipo && passaCategoria && passaBusca && passaFiltroMes(t) && passaPeriodo(t)
     }.sortedByDescending { it.data }
@@ -156,9 +160,9 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
         val categoria = categorias.find { it.id == t.categoriaId }
         val passaTipo = filtroTipo == null || t.tipo == filtroTipo
         val passaCategoria = filtroCategoria == null || t.categoriaId == filtroCategoria?.id
-        val passaBusca = busca.isBlank() ||
-                (t.descricao?.contains(busca, ignoreCase = true) == true) ||
-                (categoria?.nome?.contains(busca, ignoreCase = true) == true)
+        val passaBusca = textoPesquisa.isBlank() ||
+                (t.descricao?.contains(textoPesquisa, ignoreCase = true) == true) ||
+                (categoria?.nome?.contains(textoPesquisa, ignoreCase = true) == true)
 
         passaTipo && passaCategoria && passaBusca && passaFiltroMes(t) && passaPeriodo(t)
     }.sortedBy { it.data }
@@ -179,7 +183,19 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Extrato", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (aoVoltar != null) {
+                        IconButton(onClick = aoVoltar) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Voltar"
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+                    Text("Extrato", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                }
+
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
@@ -214,16 +230,6 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = busca,
-                onValueChange = { busca = it },
-                label = { Text("Buscar por descrição ou categoria") },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
-            )
             Spacer(modifier = Modifier.height(20.dp))
 
             Text("Lançamentos Realizados", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -231,7 +237,7 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
 
             if (transacoesFiltradas.isEmpty()) {
                 Text(
-                    "Nenhuma transação realizada encontrada.",
+                    text = if (textoPesquisa.isBlank()) "Nenhuma transação realizada encontrada." else "Nenhuma transação encontrada para \"$textoPesquisa\".",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -291,7 +297,7 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
                                     .background(MaterialTheme.colorScheme.primaryContainer)
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
-                                val partesAnoMes = transacao.anoMes!!.split("-")
+                                val partesAnoMes = transacao.anoMes.split("-")
                                 val mesFatura = partesAnoMes.getOrNull(1) ?: ""
                                 val anoFatura = partesAnoMes.getOrNull(0)?.takeLast(2) ?: ""
                                 Text(
@@ -375,7 +381,7 @@ fun ExtratoScreen(viewModel: ExtratoViewModel = viewModel()) {
                                         .background(MaterialTheme.colorScheme.secondaryContainer)
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
-                                    val partesAnoMes = transacao.anoMes!!.split("-")
+                                    val partesAnoMes = transacao.anoMes.split("-")
                                     val mesFatura = partesAnoMes.getOrNull(1) ?: ""
                                     val anoFatura = partesAnoMes.getOrNull(0)?.takeLast(2) ?: ""
                                     Text(

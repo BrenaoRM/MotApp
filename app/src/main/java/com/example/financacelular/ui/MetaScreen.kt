@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
@@ -70,7 +71,8 @@ private val RoxoMeta = Color(0xFF8B5CF6)
 fun MetaScreen(
     viewModel: MetaViewModel = viewModel(),
     acionarNovaMetaExterna: Boolean = false,
-    aoMetaAcionada: () -> Unit = {}
+    aoMetaAcionada: () -> Unit = {},
+    aoVoltar: (() -> Unit)? = null
 ) {
     val metas by viewModel.metas.collectAsState()
     val formato = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
@@ -108,7 +110,28 @@ fun MetaScreen(
             )
         ) {
             item {
-                Text("Metas", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (aoVoltar != null) {
+                        IconButton(onClick = aoVoltar) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Voltar"
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+                    Text(
+                        "Metas",
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Card(

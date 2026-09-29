@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,7 +31,10 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CartaoScreen(viewModel: CartaoViewModel = viewModel()) {
+fun CartaoScreen(
+    viewModel: CartaoViewModel = viewModel(),
+    aoVoltar: (() -> Unit)? = null
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val repository = remember { FinancaRepository.getInstance(AppDatabase.getInstance(context)) }
@@ -69,9 +73,20 @@ fun CartaoScreen(viewModel: CartaoViewModel = viewModel()) {
     ) {
         item {
             Row(
-                modifier = Modifier.fillMaxWidth().height(40.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (aoVoltar != null) {
+                    IconButton(onClick = aoVoltar) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Voltar"
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
                 Text(
                     "Fatura do Cartão",
                     style = MaterialTheme.typography.headlineLarge,

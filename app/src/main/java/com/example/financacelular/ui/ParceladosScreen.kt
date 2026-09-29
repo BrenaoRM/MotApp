@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -28,7 +29,10 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable
-fun ParceladosScreen(viewModel: ParceladosViewModel = viewModel()) {
+fun ParceladosScreen(
+    viewModel: ParceladosViewModel = viewModel(),
+    aoVoltar: (() -> Unit)? = null
+) {
     val comprasAgrupadas by viewModel.comprasAgrupadas.collectAsState()
 
     LazyColumn(
@@ -40,7 +44,28 @@ fun ParceladosScreen(viewModel: ParceladosViewModel = viewModel()) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text("Compras Parceladas", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (aoVoltar != null) {
+                    IconButton(onClick = aoVoltar) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Voltar"
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+                Text(
+                    "Compras Parceladas",
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+            }
             Spacer(modifier = Modifier.height(12.dp))
 
             if (comprasAgrupadas.isEmpty()) {

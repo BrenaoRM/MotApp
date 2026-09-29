@@ -23,9 +23,12 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -80,7 +83,10 @@ private fun formatarEixoY(valor: Double): String {
 }
 
 @Composable
-fun AnaliseScreen(viewModel: AnaliseViewModel = viewModel()) {
+fun AnaliseScreen(
+    viewModel: AnaliseViewModel = viewModel(),
+    aoVoltar: (() -> Unit)? = null
+) {
     val despesasPorCategoria by viewModel.despesasPorCategoria.collectAsState()
     val receitasPorCategoria by viewModel.receitasPorCategoria.collectAsState()
     val evolucaoMensal by viewModel.evolucaoMensal.collectAsState()
@@ -121,9 +127,20 @@ fun AnaliseScreen(viewModel: AnaliseViewModel = viewModel()) {
     ) {
         item {
             Row(
-                modifier = Modifier.fillMaxWidth().height(40.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (aoVoltar != null) {
+                    IconButton(onClick = aoVoltar) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Voltar"
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
                 Text(
                     "Análise Financeira",
                     style = MaterialTheme.typography.headlineLarge,

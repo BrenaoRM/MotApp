@@ -12,12 +12,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.automirrored.filled.TrendingDown
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,7 +37,10 @@ import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 @Composable
-fun RecorrenteScreen(viewModel: RecorrenteViewModel = viewModel()) {
+fun RecorrenteScreen(
+    viewModel: RecorrenteViewModel = viewModel(),
+    aoVoltar: (() -> Unit)? = null
+) {
     val recorrentes by viewModel.recorrentes.collectAsState(initial = emptyList())
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
 
@@ -51,7 +55,28 @@ fun RecorrenteScreen(viewModel: RecorrenteViewModel = viewModel()) {
         contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
     ) {
         item {
-            Text("Recorrentes e Assinaturas", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (aoVoltar != null) {
+                    IconButton(onClick = aoVoltar) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Voltar"
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+                Text(
+                    "Recorrentes e Assinaturas",
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+            }
             Spacer(modifier = Modifier.height(24.dp))
         }
 

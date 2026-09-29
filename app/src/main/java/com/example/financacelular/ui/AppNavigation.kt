@@ -2,7 +2,7 @@ package com.example.financacelular.ui
 
 import android.content.Intent
 import androidx.activity.compose.BackHandler
-import androidx.core.net.toUri
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -16,6 +16,9 @@ import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,6 +32,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -36,6 +40,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
@@ -43,13 +49,18 @@ import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -70,10 +81,13 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -153,8 +167,10 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     var acionarNovoInvestimento by remember { mutableStateOf(false) }
     var acionarNovaAgenda by remember { mutableStateOf(false) }
     var acionarNovaMeta by remember { mutableStateOf(false) }
+    var textoPesquisaExtrato by remember { mutableStateOf("") }
     var atualizacaoDisponivel by remember { mutableStateOf<AtualizacaoDisponivel?>(null) }
     val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     BackHandler(enabled = isFabExpanded) {
         isFabExpanded = false
@@ -174,16 +190,19 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
 
     LaunchedEffect(currentDestination?.route) {
         isFabExpanded = false
+        if (currentDestination?.route != ROTA_EXTRATO) {
+            textoPesquisaExtrato = ""
+        }
     }
 
     val emTelaDeFormulario = currentDestination?.route?.startsWith(ROTA_NOVA_TRANSACAO_BASE) == true
     val emTelaInvestimento = currentDestination?.route == ROTA_INVESTIMENTO
     val emTelaCalendario = currentDestination?.route == DestinoPrincipal.CALENDARIO.rota
     val emTelaMetas = currentDestination?.route == ROTA_METAS
+    val emTelaExtrato = currentDestination?.route == ROTA_EXTRATO
 
     val corFundoTema = MaterialTheme.colorScheme.background
 
-    // Quando expandido, mescla com os 40% de preto para não gerar bloco marcado no fundo
     val corBaseDegrade by animateColorAsState(
         targetValue = if (isFabExpanded) lerp(corFundoTema, Color.Black, 0.4f) else corFundoTema,
         animationSpec = tween(300),
@@ -195,10 +214,11 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
         bottomBar = {
             if (!emTelaDeFormulario) {
                 Box(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .imePadding(),
                     contentAlignment = Alignment.BottomCenter
                 ) {
-                    // Cobertura total com degradê acelerado para bloquear 100% os itens ao fundo
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -214,322 +234,382 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                             .height(75.dp)
                     )
 
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .navigationBarsPadding()
-                            .padding(horizontal = 20.dp, vertical = 10.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        NavigationBar(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
-                                .clip(RoundedCornerShape(20.dp))
-                                .border(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f),
-                                    shape = RoundedCornerShape(20.dp)
-                                )
-                                .height(50.dp),
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            tonalElevation = 0.dp,
-                            windowInsets = WindowInsets(0.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxSize(),
-                                horizontalArrangement = Arrangement.SpaceEvenly,
-                                verticalAlignment = Alignment.CenterVertically
+                    // Transição animada entre a barra de navegação normal e a barra de pesquisa no Extrato
+                    AnimatedContent(
+                        targetState = emTelaExtrato,
+                        transitionSpec = {
+                            (fadeIn(tween(300)) + slideInVertically { it / 2 })
+                                .togetherWith(fadeOut(tween(200)) + slideOutVertically { it / 2 })
+                        },
+                        label = "bottomBarTransform"
+                    ) { noExtrato ->
+                        if (noExtrato) {
+                            // Barra de Pesquisa Animada para o Extrato
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .navigationBarsPadding()
+                                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                DestinoPrincipal.entries.forEachIndexed { index, destino ->
-                                    if (index == 2) {
-                                        Spacer(modifier = Modifier.width(48.dp))
-                                    }
-                                    val selecionado = currentDestination?.hierarchy?.any { it.route == destino.rota } == true
-                                    val indicatorScaleX by animateFloatAsState(
-                                        targetValue = if (selecionado) 1.35f else 0f,
-                                        animationSpec = spring(dampingRatio = 0.3f, stiffness = 500f),
-                                        label = "indicatorScaleX"
-                                    )
-                                    val indicatorScaleY by animateFloatAsState(
-                                        targetValue = if (selecionado) 1.15f else 0f,
-                                        animationSpec = spring(dampingRatio = 0.35f, stiffness = 450f),
-                                        label = "indicatorScaleY"
-                                    )
-                                    val indicatorAlpha by animateFloatAsState(
-                                        targetValue = if (selecionado) 1f else 0f,
-                                        animationSpec = tween(80),
-                                        label = "indicatorAlpha"
-                                    )
-
-                                    Box(
-                                        modifier = Modifier
-                                            .size(44.dp)
-                                            .clip(CircleShape)
-                                            .clickable(
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                indication = null
-                                            ) {
-                                                isFabExpanded = false
-                                                if (!selecionado) {
-                                                    navController.navigate(destino.rota) {
-                                                        popUpTo(navController.graph.startDestinationId) { saveState = false }
-                                                        launchSingleTop = true
-                                                        restoreState = false
-                                                    }
-                                                }
-                                            },
-                                        contentAlignment = Alignment.Center
+                                OutlinedTextField(
+                                    value = textoPesquisaExtrato,
+                                    onValueChange = { textoPesquisaExtrato = it },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .shadow(elevation = 12.dp, shape = RoundedCornerShape(20.dp))
+                                        .height(52.dp),
+                                    placeholder = { Text("Pesquisar no extrato...") },
+                                    leadingIcon = {
+                                        Icon(
+                                            Icons.Filled.Search,
+                                            contentDescription = "Pesquisar",
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    },
+                                    trailingIcon = {
+                                        if (textoPesquisaExtrato.isNotEmpty()) {
+                                            IconButton(onClick = { textoPesquisaExtrato = "" }) {
+                                                Icon(
+                                                    Icons.Filled.Clear,
+                                                    contentDescription = "Limpar",
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(20.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+                                    ),
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                    keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() })
+                                )
+                            }
+                        } else {
+                            // Barra de Navegação Padrão com Botão Flutuante (FAB)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .navigationBarsPadding()
+                                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                NavigationBar(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .border(
+                                            width = 1.dp,
+                                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f),
+                                            shape = RoundedCornerShape(20.dp)
+                                        )
+                                        .height(50.dp),
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    tonalElevation = 0.dp,
+                                    windowInsets = WindowInsets(0.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxSize(),
+                                        horizontalArrangement = Arrangement.SpaceEvenly,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        if (indicatorAlpha > 0f) {
+                                        DestinoPrincipal.entries.forEachIndexed { index, destino ->
+                                            if (index == 2) {
+                                                Spacer(modifier = Modifier.width(48.dp))
+                                            }
+                                            val selecionado = currentDestination?.hierarchy?.any { it.route == destino.rota } == true
+                                            val indicatorScaleX by animateFloatAsState(
+                                                targetValue = if (selecionado) 1.35f else 0f,
+                                                animationSpec = spring(dampingRatio = 0.3f, stiffness = 500f),
+                                                label = "indicatorScaleX"
+                                            )
+                                            val indicatorScaleY by animateFloatAsState(
+                                                targetValue = if (selecionado) 1.15f else 0f,
+                                                animationSpec = spring(dampingRatio = 0.35f, stiffness = 450f),
+                                                label = "indicatorScaleY"
+                                            )
+                                            val indicatorAlpha by animateFloatAsState(
+                                                targetValue = if (selecionado) 1f else 0f,
+                                                animationSpec = tween(80),
+                                                label = "indicatorAlpha"
+                                            )
+
                                             Box(
                                                 modifier = Modifier
-                                                    .size(36.dp)
-                                                    .graphicsLayer {
-                                                        scaleX = indicatorScaleX
-                                                        scaleY = indicatorScaleY
-                                                        alpha = indicatorAlpha
-                                                    }
-                                                    .shadow(elevation = 3.dp, shape = CircleShape)
-                                                    .background(
-                                                        brush = Brush.linearGradient(
-                                                            colors = listOf(AuroraVioleta, AuroraIndigo, AuroraAzul)
-                                                        ),
-                                                        shape = CircleShape
+                                                    .size(44.dp)
+                                                    .clip(CircleShape)
+                                                    .clickable(
+                                                        interactionSource = remember { MutableInteractionSource() },
+                                                        indication = null
+                                                    ) {
+                                                        isFabExpanded = false
+                                                        if (!selecionado) {
+                                                            navController.navigate(destino.rota) {
+                                                                popUpTo(navController.graph.startDestinationId) { saveState = false }
+                                                                launchSingleTop = true
+                                                                restoreState = false
+                                                            }
+                                                        }
+                                                    },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                if (indicatorAlpha > 0f) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(36.dp)
+                                                            .graphicsLayer {
+                                                                scaleX = indicatorScaleX
+                                                                scaleY = indicatorScaleY
+                                                                alpha = indicatorAlpha
+                                                            }
+                                                            .shadow(elevation = 3.dp, shape = CircleShape)
+                                                            .background(
+                                                                brush = Brush.linearGradient(
+                                                                    colors = listOf(AuroraVioleta, AuroraIndigo, AuroraAzul)
+                                                                ),
+                                                                shape = CircleShape
+                                                            )
                                                     )
-                                            )
+                                                }
+                                                Icon(
+                                                    imageVector = destino.icone,
+                                                    contentDescription = destino.titulo,
+                                                    tint = if (selecionado)
+                                                        Color.White
+                                                    else
+                                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
                                         }
-                                        Icon(
-                                            imageVector = destino.icone,
-                                            contentDescription = destino.titulo,
-                                            tint = if (selecionado)
-                                                Color.White
-                                            else
-                                                MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
                                     }
                                 }
-                            }
-                        }
 
-                        val density = LocalDensity.current
-                        val windowInfo = LocalWindowInfo.current
-                        val screenWidth = with(density) { windowInfo.containerSize.width.toDp() }
-                        val liquidSpring = spring<Dp>(
-                            dampingRatio = 0.7f,
-                            stiffness = 100f
-                        )
-                        val transition = updateTransition(targetState = isFabExpanded, label = "fabTransition")
-                        val fabWidth by transition.animateDp(
-                            transitionSpec = { liquidSpring },
-                            label = "fabWidth"
-                        ) { expanded ->
-                            if (expanded) (screenWidth - 80.dp) else 52.dp
-                        }
-                        val fabHeight by transition.animateDp(
-                            transitionSpec = { liquidSpring },
-                            label = "fabHeight"
-                        ) { expanded -> if (expanded) 60.dp else 52.dp }
-                        val fabOffset by transition.animateDp(
-                            transitionSpec = { liquidSpring },
-                            label = "fabOffset"
-                        ) { expanded -> if (expanded) (-76).dp else 0.dp }
-                        val fabElevation by transition.animateDp(
-                            transitionSpec = { liquidSpring },
-                            label = "fabElevation"
-                        ) { expanded -> if (expanded) 12.dp else 6.dp }
-                        val contentAlpha by transition.animateFloat(
-                            transitionSpec = { tween(300) },
-                            label = "contentAlpha"
-                        ) { expanded -> if (expanded) 1f else 0f }
-                        val iconAlpha by transition.animateFloat(
-                            transitionSpec = { tween(200) },
-                            label = "iconAlpha"
-                        ) { expanded -> if (expanded) 0f else 1f }
+                                val density = LocalDensity.current
+                                val windowInfo = LocalWindowInfo.current
+                                val screenWidth = with(density) { windowInfo.containerSize.width.toDp() }
+                                val liquidSpring = spring<Dp>(
+                                    dampingRatio = 0.7f,
+                                    stiffness = 100f
+                                )
+                                val transition = updateTransition(targetState = isFabExpanded, label = "fabTransition")
+                                val fabWidth by transition.animateDp(
+                                    transitionSpec = { liquidSpring },
+                                    label = "fabWidth"
+                                ) { expanded ->
+                                    if (expanded) (screenWidth - 80.dp) else 52.dp
+                                }
+                                val fabHeight by transition.animateDp(
+                                    transitionSpec = { liquidSpring },
+                                    label = "fabHeight"
+                                ) { expanded -> if (expanded) 60.dp else 52.dp }
+                                val fabOffset by transition.animateDp(
+                                    transitionSpec = { liquidSpring },
+                                    label = "fabOffset"
+                                ) { expanded -> if (expanded) (-76).dp else 0.dp }
+                                val fabElevation by transition.animateDp(
+                                    transitionSpec = { liquidSpring },
+                                    label = "fabElevation"
+                                ) { expanded -> if (expanded) 12.dp else 6.dp }
+                                val contentAlpha by transition.animateFloat(
+                                    transitionSpec = { tween(300) },
+                                    label = "contentAlpha"
+                                ) { expanded -> if (expanded) 1f else 0f }
+                                val iconAlpha by transition.animateFloat(
+                                    transitionSpec = { tween(200) },
+                                    label = "iconAlpha"
+                                ) { expanded -> if (expanded) 0f else 1f }
 
-                        val corPadrao = MaterialTheme.colorScheme.primary
-                        val corPadraoClara = Color(0xFF5CDBCF)
+                                val corPadrao = MaterialTheme.colorScheme.primary
+                                val corPadraoClara = Color(0xFF5CDBCF)
 
-                        val gradienteCor1 by animateColorAsState(
-                            targetValue = when {
-                                emTelaInvestimento -> AmareloInvestimento
-                                emTelaCalendario -> AzulAgenda
-                                emTelaMetas -> RoxoMeta
-                                else -> corPadrao
-                            },
-                            animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing),
-                            label = "gradiente1"
-                        )
-                        val gradienteCor2 by animateColorAsState(
-                            targetValue = when {
-                                emTelaInvestimento -> AmareloClaro
-                                emTelaCalendario -> AzulAgendaClaro
-                                emTelaMetas -> RoxoMetaClaro
-                                else -> corPadraoClara
-                            },
-                            animationSpec = tween(durationMillis = 1100, easing = LinearOutSlowInEasing),
-                            label = "gradiente2"
-                        )
-                        val rotacaoIcone by animateFloatAsState(
-                            targetValue = if (emTelaInvestimento || emTelaCalendario || emTelaMetas) 180f else 0f,
-                            animationSpec = spring(dampingRatio = 0.6f, stiffness = 150f),
-                            label = "rotacaoIcone"
-                        )
+                                val gradienteCor1 by animateColorAsState(
+                                    targetValue = when {
+                                        emTelaInvestimento -> AmareloInvestimento
+                                        emTelaCalendario -> AzulAgenda
+                                        emTelaMetas -> RoxoMeta
+                                        else -> corPadrao
+                                    },
+                                    animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing),
+                                    label = "gradiente1"
+                                )
+                                val gradienteCor2 by animateColorAsState(
+                                    targetValue = when {
+                                        emTelaInvestimento -> AmareloClaro
+                                        emTelaCalendario -> AzulAgendaClaro
+                                        emTelaMetas -> RoxoMetaClaro
+                                        else -> corPadraoClara
+                                    },
+                                    animationSpec = tween(durationMillis = 1100, easing = LinearOutSlowInEasing),
+                                    label = "gradiente2"
+                                )
+                                val rotacaoIcone by animateFloatAsState(
+                                    targetValue = if (emTelaInvestimento || emTelaCalendario || emTelaMetas) 180f else 0f,
+                                    animationSpec = spring(dampingRatio = 0.6f, stiffness = 150f),
+                                    label = "rotacaoIcone"
+                                )
 
-                        Surface(
-                            modifier = Modifier
-                                .offset(y = fabOffset)
-                                .size(width = fabWidth, height = fabHeight),
-                            shape = CircleShape,
-                            shadowElevation = fabElevation,
-                            color = MaterialTheme.colorScheme.surface,
-                        ) {
-                            Box(modifier = Modifier.fillMaxSize()) {
-                                if (isFabExpanded) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .graphicsLayer {
-                                                alpha = contentAlpha
-                                                scaleX = 0.8f + (0.2f * contentAlpha)
-                                                scaleY = 0.8f + (0.2f * contentAlpha)
-                                            }
-                                    ) {
-                                        if (emTelaInvestimento) {
-                                            Box(
+                                Surface(
+                                    modifier = Modifier
+                                        .offset(y = fabOffset)
+                                        .size(width = fabWidth, height = fabHeight),
+                                    shape = CircleShape,
+                                    shadowElevation = fabElevation,
+                                    color = MaterialTheme.colorScheme.surface,
+                                ) {
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        if (isFabExpanded) {
+                                            Row(
                                                 modifier = Modifier
                                                     .fillMaxSize()
-                                                    .background(
-                                                        Brush.linearGradient(
-                                                            colors = listOf(tomClaro(AmareloInvestimento), AmareloInvestimento)
-                                                        )
-                                                    )
-                                                    .clickable {
-                                                        isFabExpanded = false
-                                                        acionarNovoInvestimento = true
-                                                    },
-                                                contentAlignment = Alignment.Center
+                                                    .graphicsLayer {
+                                                        alpha = contentAlpha
+                                                        scaleX = 0.8f + (0.2f * contentAlpha)
+                                                        scaleY = 0.8f + (0.2f * contentAlpha)
+                                                    }
                                             ) {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    IconeCircular(Icons.Filled.Savings)
-                                                    Spacer(modifier = Modifier.width(10.dp))
-                                                    Text("Novo Aporte", color = Color.White, fontWeight = FontWeight.Bold)
-                                                }
-                                            }
-                                        } else if (emTelaCalendario) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .background(
-                                                        Brush.linearGradient(
-                                                            colors = listOf(tomClaro(AzulAgenda), AzulAgenda)
-                                                        )
+                                                if (emTelaInvestimento) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .fillMaxSize()
+                                                            .background(
+                                                                Brush.linearGradient(
+                                                                    colors = listOf(tomClaro(AmareloInvestimento), AmareloInvestimento)
+                                                                )
+                                                            )
+                                                            .clickable {
+                                                                isFabExpanded = false
+                                                                acionarNovoInvestimento = true
+                                                            },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            IconeCircular(Icons.Filled.Savings)
+                                                            Spacer(modifier = Modifier.width(10.dp))
+                                                            Text("Novo Aporte", color = Color.White, fontWeight = FontWeight.Bold)
+                                                        }
+                                                    }
+                                                } else if (emTelaCalendario) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .fillMaxSize()
+                                                            .background(
+                                                                Brush.linearGradient(
+                                                                    colors = listOf(tomClaro(AzulAgenda), AzulAgenda)
+                                                                )
+                                                            )
+                                                            .clickable {
+                                                                isFabExpanded = false
+                                                                acionarNovaAgenda = true
+                                                            },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            IconeCircular(Icons.Filled.CalendarMonth)
+                                                            Spacer(modifier = Modifier.width(10.dp))
+                                                            Text("Nova Agenda", color = Color.White, fontWeight = FontWeight.Bold)
+                                                        }
+                                                    }
+                                                } else if (emTelaMetas) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .fillMaxSize()
+                                                            .background(
+                                                                Brush.linearGradient(
+                                                                    colors = listOf(tomClaro(RoxoMeta), RoxoMeta)
+                                                                )
+                                                            )
+                                                            .clickable {
+                                                                isFabExpanded = false
+                                                                acionarNovaMeta = true
+                                                            },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            IconeCircular(Icons.Filled.Flag)
+                                                            Spacer(modifier = Modifier.width(10.dp))
+                                                            Text("Nova Meta", color = Color.White, fontWeight = FontWeight.Bold)
+                                                        }
+                                                    }
+                                                } else {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .fillMaxHeight()
+                                                            .background(
+                                                                Brush.linearGradient(
+                                                                    colors = listOf(tomClaro(Coral), Coral)
+                                                                )
+                                                            )
+                                                            .clickable {
+                                                                isFabExpanded = false
+                                                                navController.navigate("nova_transacao/DESPESA") {
+                                                                    launchSingleTop = true
+                                                                }
+                                                            },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            IconeCircular(Icons.AutoMirrored.Filled.TrendingDown)
+                                                            Spacer(modifier = Modifier.width(10.dp))
+                                                            Text("Gasto", color = Color.White, fontWeight = FontWeight.Bold)
+                                                        }
+                                                    }
+                                                    Spacer(
+                                                        modifier = Modifier
+                                                            .fillMaxHeight()
+                                                            .width(1.dp)
+                                                            .background(Color.White.copy(alpha = 0.25f))
                                                     )
-                                                    .clickable {
-                                                        isFabExpanded = false
-                                                        acionarNovaAgenda = true
-                                                    },
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    IconeCircular(Icons.Filled.CalendarMonth)
-                                                    Spacer(modifier = Modifier.width(10.dp))
-                                                    Text("Nova Agenda", color = Color.White, fontWeight = FontWeight.Bold)
-                                                }
-                                            }
-                                        } else if (emTelaMetas) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .background(
-                                                        Brush.linearGradient(
-                                                            colors = listOf(tomClaro(RoxoMeta), RoxoMeta)
-                                                        )
-                                                    )
-                                                    .clickable {
-                                                        isFabExpanded = false
-                                                        acionarNovaMeta = true
-                                                    },
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    IconeCircular(Icons.Filled.Flag)
-                                                    Spacer(modifier = Modifier.width(10.dp))
-                                                    Text("Nova Meta", color = Color.White, fontWeight = FontWeight.Bold)
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .fillMaxHeight()
+                                                            .background(
+                                                                Brush.linearGradient(
+                                                                    colors = listOf(tomClaro(Verde), Verde)
+                                                                )
+                                                            )
+                                                            .clickable {
+                                                                isFabExpanded = false
+                                                                navController.navigate("nova_transacao/RECEITA") {
+                                                                    launchSingleTop = true
+                                                                }
+                                                            },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            IconeCircular(Icons.AutoMirrored.Filled.TrendingUp)
+                                                            Spacer(modifier = Modifier.width(10.dp))
+                                                            Text("Ganho", color = Color.White, fontWeight = FontWeight.Bold)
+                                                        }
+                                                    }
                                                 }
                                             }
                                         } else {
                                             Box(
                                                 modifier = Modifier
-                                                    .weight(1f)
-                                                    .fillMaxHeight()
-                                                    .background(
-                                                        Brush.linearGradient(
-                                                            colors = listOf(tomClaro(Coral), Coral)
-                                                        )
-                                                    )
-                                                    .clickable {
-                                                        isFabExpanded = false
-                                                        navController.navigate("nova_transacao/DESPESA") {
-                                                            launchSingleTop = true
-                                                        }
-                                                    },
+                                                    .fillMaxSize()
+                                                    .graphicsLayer {
+                                                        alpha = iconAlpha
+                                                    }
+                                                    .background(Brush.linearGradient(colors = listOf(gradienteCor1, gradienteCor2)))
+                                                    .clickable { isFabExpanded = true },
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    IconeCircular(Icons.AutoMirrored.Filled.TrendingDown)
-                                                    Spacer(modifier = Modifier.width(10.dp))
-                                                    Text("Gasto", color = Color.White, fontWeight = FontWeight.Bold)
-                                                }
-                                            }
-                                            Spacer(
-                                                modifier = Modifier
-                                                    .fillMaxHeight()
-                                                    .width(1.dp)
-                                                    .background(Color.White.copy(alpha = 0.25f))
-                                            )
-                                            Box(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .fillMaxHeight()
-                                                    .background(
-                                                        Brush.linearGradient(
-                                                            colors = listOf(tomClaro(Verde), Verde)
-                                                        )
-                                                    )
-                                                    .clickable {
-                                                        isFabExpanded = false
-                                                        navController.navigate("nova_transacao/RECEITA") {
-                                                            launchSingleTop = true
-                                                        }
-                                                    },
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    IconeCircular(Icons.AutoMirrored.Filled.TrendingUp)
-                                                    Spacer(modifier = Modifier.width(10.dp))
-                                                    Text("Ganho", color = Color.White, fontWeight = FontWeight.Bold)
-                                                }
+                                                Icon(
+                                                    Icons.Filled.Add,
+                                                    contentDescription = "Nova Ação",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.graphicsLayer { rotationZ = rotacaoIcone }
+                                                )
                                             }
                                         }
-                                    }
-                                } else {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .graphicsLayer {
-                                                alpha = iconAlpha
-                                            }
-                                            .background(Brush.linearGradient(colors = listOf(gradienteCor1, gradienteCor2)))
-                                            .clickable { isFabExpanded = true },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            Icons.Filled.Add,
-                                            contentDescription = "Nova Ação",
-                                            tint = Color.White,
-                                            modifier = Modifier.graphicsLayer { rotationZ = rotacaoIcone }
-                                        )
                                     }
                                 }
                             }
@@ -563,15 +643,25 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         aoAbrirMetas = { navController.navigate(ROTA_METAS) }
                     )
                 }
-                composable(DestinoPrincipal.ANALISE.rota) { AnaliseScreen() }
+                composable(DestinoPrincipal.ANALISE.rota) {
+                    AnaliseScreen(aoVoltar = { navController.popBackStack() })
+                }
                 composable(DestinoPrincipal.CALENDARIO.rota) {
                     CalendarioScreen(
                         acionarNovaAgendaExterno = acionarNovaAgenda,
-                        aoNovaAgendaAcionada = { acionarNovaAgenda = false }
+                        aoNovaAgendaAcionada = { acionarNovaAgenda = false },
+                        aoVoltar = { navController.popBackStack() }
                     )
                 }
-                composable(DestinoPrincipal.CONTAS.rota) { ContasScreen() }
-                composable(ROTA_CONFIGURACOES) { ConfiguracoesScreen(viewModel = configuracoesViewModel) }
+                composable(DestinoPrincipal.CONTAS.rota) {
+                    ContasScreen(aoVoltar = { navController.popBackStack() })
+                }
+                composable(ROTA_CONFIGURACOES) {
+                    ConfiguracoesScreen(
+                        viewModel = configuracoesViewModel,
+                        aoVoltar = { navController.popBackStack() }
+                    )
+                }
                 composable(
                     route = ROTA_NOVA_TRANSACAO,
                     arguments = listOf(navArgument("tipo") { type = NavType.StringType; defaultValue = "DESPESA" })
@@ -583,25 +673,44 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         aoFechar = { navController.popBackStack() }
                     )
                 }
-                composable(ROTA_ORCAMENTO) { OrcamentoScreen() }
+                composable(ROTA_ORCAMENTO) {
+                    OrcamentoScreen(aoVoltar = { navController.popBackStack() })
+                }
                 composable(ROTA_METAS) {
                     MetaScreen(
                         acionarNovaMetaExterna = acionarNovaMeta,
-                        aoMetaAcionada = { acionarNovaMeta = false }
+                        aoMetaAcionada = { acionarNovaMeta = false },
+                        aoVoltar = { navController.popBackStack() }
                     )
                 }
-                composable(ROTA_RECORRENTES) { RecorrenteScreen() }
-                composable(ROTA_CARTAO) { CartaoScreen() }
-                composable(ROTA_EXPORTAR) { ExportarScreen() }
-                composable(ROTA_EXTRATO) { ExtratoScreen() }
+                composable(ROTA_RECORRENTES) {
+                    RecorrenteScreen(aoVoltar = { navController.popBackStack() })
+                }
+                composable(ROTA_CARTAO) {
+                    CartaoScreen(aoVoltar = { navController.popBackStack() })
+                }
+                composable(ROTA_EXPORTAR) {
+                    ExportarScreen(aoVoltar = { navController.popBackStack() })
+                }
+                composable(ROTA_EXTRATO) {
+                    ExtratoScreen(
+                        textoPesquisa = textoPesquisaExtrato,
+                        aoVoltar = { navController.popBackStack() }
+                    )
+                }
                 composable(ROTA_INVESTIMENTO) {
                     InvestimentoScreen(
                         acionarNovoAporteExterno = acionarNovoInvestimento,
-                        aoAporteAcionado = { acionarNovoInvestimento = false }
+                        aoAporteAcionado = { acionarNovoInvestimento = false },
+                        aoVoltar = { navController.popBackStack() }
                     )
                 }
-                composable(ROTA_CATEGORIAS) { CategoriasScreen() }
-                composable("parcelados") { ParceladosScreen() }
+                composable(ROTA_CATEGORIAS) {
+                    CategoriasScreen(aoVoltar = { navController.popBackStack() })
+                }
+                composable("parcelados") {
+                    ParceladosScreen(aoVoltar = { navController.popBackStack() })
+                }
             }
 
             AnimatedVisibility(

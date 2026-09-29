@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -41,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.Categoria
@@ -50,7 +52,10 @@ import com.example.financacelular.ui.theme.Verde
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CategoriasScreen(viewModel: CategoriasViewModel = viewModel()) {
+fun CategoriasScreen(
+    viewModel: CategoriasViewModel = viewModel(),
+    aoVoltar: (() -> Unit)? = null
+) {
     val categorias by viewModel.categorias.collectAsState()
     var categoriaEmEdicao by remember { mutableStateOf<Categoria?>(null) }
 
@@ -61,7 +66,30 @@ fun CategoriasScreen(viewModel: CategoriasViewModel = viewModel()) {
             .padding(horizontal = 20.dp)
     ) {
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Categorias", style = MaterialTheme.typography.headlineLarge)
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (aoVoltar != null) {
+                IconButton(onClick = aoVoltar) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Voltar"
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+            }
+            Text(
+                "Categorias",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(

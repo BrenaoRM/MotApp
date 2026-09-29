@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material3.*
@@ -29,7 +30,10 @@ private tailrec fun Context.encontrarActivity(): Activity = when (this) {
 }
 
 @Composable
-fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel = viewModel()) {
+fun ConfiguracoesScreen(
+    viewModel: ConfiguracoesViewModel = viewModel(),
+    aoVoltar: (() -> Unit)? = null
+) {
     val context = LocalContext.current
     val activity = remember(context) { context.encontrarActivity() }
 
@@ -54,11 +58,28 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel = viewModel()) {
         contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
     ) {
         item {
-            Text(
-                text = "Configurações",
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (aoVoltar != null) {
+                    IconButton(onClick = aoVoltar) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Voltar"
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+                Text(
+                    text = "Configurações",
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+            }
             Spacer(modifier = Modifier.height(16.dp))
         }
 
