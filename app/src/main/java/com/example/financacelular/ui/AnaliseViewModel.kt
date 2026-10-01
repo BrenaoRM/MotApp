@@ -29,6 +29,7 @@ data class TotalMensalInvestimento(val anoMes: String, val total: Double)
 
 class AnaliseViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: FinancaRepository = FinancaRepository.getInstance(AppDatabase.getInstance(application))
+
     private val _mesSelecionado = MutableStateFlow(YearMonth.now())
     val mesSelecionado: StateFlow<YearMonth> = _mesSelecionado
 
@@ -43,23 +44,17 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
         repository.listarCategorias()
     ) { anoMes, todas, categorias ->
         val hoje = LocalDate.now()
-        val faturasPagas = todas.asSequence()
-            .filter { it.cartaoId == null && it.descricao?.startsWith("Pagamento de Fatura - ") == true }
-            .mapNotNull { it.anoMes }
-            .toSet()
-
+        val faturasPagas = conjuntoFaturasPagas(todas)
         val categoriaFaturaId = categorias.find { it.nome.equals("Fatura", ignoreCase = true) }?.id ?: 1L
 
         todas.filter { t ->
-            // Considera a fatura (anoMes) para crédito e o mês da data para débito/dinheiro
             val anoMesTransacao = t.anoMes ?: t.data.toString().take(7)
             val ehDoMes = anoMesTransacao == anoMes
             if (!ehDoMes) return@filter false
-
             val ehPagamentoFatura = t.descricao?.startsWith("Pagamento de Fatura") == true
             if (ehPagamentoFatura) return@filter false
-
             val ehFuturo = t.data.isAfter(hoje)
+
             if (t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.cartaoId != null) {
                 t.anoMes in faturasPagas
             } else {
@@ -108,23 +103,19 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
     val evolucaoMensal: StateFlow<List<TotalMensal>> = repository.listarTransacoes()
         .map { todas ->
             val hoje = LocalDate.now()
-            val faturasPagas = todas.asSequence()
-                .filter { it.cartaoId == null && it.descricao?.startsWith("Pagamento de Fatura - ") == true }
-                .mapNotNull { it.anoMes }
-                .toSet()
-
+            val faturasPagas = conjuntoFaturasPagas(todas)
             val meses = (0..5).map { hoje.minusMonths(it.toLong()) }.reversed()
+
             meses.map { ym ->
                 val anoMes = ym.format(DateTimeFormatter.ofPattern("yyyy-MM"))
                 val transacoesDoPeriodo = todas.filter { t ->
                     val anoMesTransacao = t.anoMes ?: t.data.toString().take(7)
                     val ehDoMes = anoMesTransacao == anoMes
                     if (!ehDoMes) return@filter false
-
                     val ehPagamentoFatura = t.descricao?.startsWith("Pagamento de Fatura") == true
                     if (ehPagamentoFatura) return@filter false
-
                     val ehFuturo = t.data.isAfter(hoje)
+
                     if (t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.cartaoId != null) {
                         t.anoMes in faturasPagas
                     } else {

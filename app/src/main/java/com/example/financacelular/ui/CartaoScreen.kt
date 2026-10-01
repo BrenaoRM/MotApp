@@ -19,15 +19,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.financacelular.data.AppDatabase
-import com.example.financacelular.data.FinancaRepository
-import com.example.financacelular.data.Transacao
 import com.example.financacelular.ui.theme.Verde
 import com.example.financacelular.ui.theme.dimens
-import kotlinx.coroutines.launch
 import java.text.NumberFormat
-import java.time.YearMonth
-import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -38,34 +32,17 @@ fun CartaoScreen(
     aoVoltar: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val repository = remember { FinancaRepository.getInstance(AppDatabase.getInstance(context)) }
+    val mesSelecionado by viewModel.mesSelecionado.collectAsState()
+    val transacoesFatura by viewModel.transacoesFatura.collectAsState()
+    val faturaPaga by viewModel.faturaPaga.collectAsState()
+    val cartao by viewModel.cartao.collectAsState()
 
-    var mesSelecionado by remember { mutableStateOf(YearMonth.now()) }
-    val anoMesStr = remember(mesSelecionado) { mesSelecionado.format(DateTimeFormatter.ofPattern("yyyy-MM")) }
     val nomeMesAno = remember(mesSelecionado) {
         mesSelecionado.month.getDisplayName(TextStyle.FULL, Locale.forLanguageTag("pt-BR"))
             .replaceFirstChar { it.uppercase() } + " / " + mesSelecionado.year
     }
-
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.forLanguageTag("pt-BR")) }
-    var transacoesFatura by remember { mutableStateOf<List<Transacao>>(emptyList()) }
-    var faturaPaga by remember { mutableStateOf(false) }
-
-    val cartao by viewModel.cartao.collectAsState()
     var mostrarConfig by remember { mutableStateOf(false) }
-
-    LaunchedEffect(mesSelecionado) {
-        repository.listarTransacoesFatura(1L, anoMesStr).collect { lista ->
-            transacoesFatura = lista
-        }
-    }
-
-    LaunchedEffect(mesSelecionado) {
-        repository.verificarFaturaPaga(anoMesStr).collect { paga ->
-            faturaPaga = paga
-        }
-    }
 
     val valorTotalFatura = transacoesFatura.sumOf { it.valor }
     val diaVencimentoSalvo = cartao?.diaVencimento ?: 25
@@ -114,8 +91,8 @@ fun CartaoScreen(
             Spacer(modifier = Modifier.height(16.dp))
             MesSelectorCard(
                 nomeMes = nomeMesAno,
-                onMesAnterior = { mesSelecionado = mesSelecionado.minusMonths(1) },
-                onMesSeguinte = { mesSelecionado = mesSelecionado.plusMonths(1) }
+                onMesAnterior = { viewModel.mesAnterior() },
+                onMesSeguinte = { viewModel.mesSeguinte() }
             )
             Spacer(modifier = Modifier.height(16.dp))
             Card(
@@ -156,13 +133,8 @@ fun CartaoScreen(
                     if (!faturaPaga) {
                         Button(
                             onClick = {
-                                if (valorTotalFatura > 0.0) {
-                                    scope.launch {
-                                        repository.pagarFatura(anoMesStr, valorTotalFatura)
-                                        Toast.makeText(context, "Fatura paga e descontada do saldo!", Toast.LENGTH_SHORT).show()
-                                    }
-                                } else {
-                                    Toast.makeText(context, "Não há valor pendente na fatura.", Toast.LENGTH_SHORT).show()
+                                viewModel.pagarFatura {
+                                    Toast.makeText(context, "Fatura paga e descontada do saldo!", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             shape = RoundedCornerShape(14.dp),
@@ -175,8 +147,7 @@ fun CartaoScreen(
                     } else {
                         OutlinedButton(
                             onClick = {
-                                scope.launch {
-                                    repository.cancelarPagamentoFatura(anoMesStr)
+                                viewModel.cancelarPagamentoFatura {
                                     Toast.makeText(context, "Pagamento cancelado com sucesso.", Toast.LENGTH_SHORT).show()
                                 }
                             },
@@ -195,7 +166,6 @@ fun CartaoScreen(
             Text("Lançamentos na Fatura", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(12.dp))
         }
-
         items(transacoesFatura) { transacao ->
             Card(
                 shape = RoundedCornerShape(14.dp),
@@ -231,11 +201,9 @@ fun CartaoScreen(
             }
         }
     }
-
     if (mostrarConfig) {
         var diaFechamento by remember { mutableStateOf(cartao?.diaFechamento?.toString() ?: "") }
         var diaVencimento by remember { mutableStateOf(cartao?.diaVencimento?.toString() ?: "") }
-
         AlertDialog(
             onDismissRequest = { mostrarConfig = false },
             shape = RoundedCornerShape(24.dp),

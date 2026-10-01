@@ -81,7 +81,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -146,16 +145,15 @@ private const val ROTA_ORCAMENTO = "orcamento"
 private const val ROTA_METAS = "metas"
 private const val ROTA_RECORRENTES = "recorrentes"
 private const val ROTA_CARTAO = "cartao"
-private const val ROTA_EXPORTAR = "exportar"
 private const val ROTA_EXTRATO = "extrato"
 private const val ROTA_INVESTIMENTO = "investimento"
-private const val ROTA_CATEGORIAS = "categorias"
 private const val ROTA_CONFIGURACOES = "configuracoes"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     val navController = rememberNavController()
+
     if (!configuracoesViewModel.completouBoasVindas) {
         WelcomeScreen(
             viewModel = configuracoesViewModel,
@@ -172,11 +170,14 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     var acionarNovaMeta by remember { mutableStateOf(false) }
     var textoPesquisaExtrato by remember { mutableStateOf("") }
     var atualizacaoDisponivel by remember { mutableStateOf<AtualizacaoDisponivel?>(null) }
+
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    val screenWidthDp = LocalConfiguration.current.screenWidthDp
-    val espacoFabCentral = if (screenWidthDp < 350) 32.dp else 48.dp
+    val density = LocalDensity.current
+    val windowInfo = LocalWindowInfo.current
+    val containerWidthDp = with(density) { windowInfo.containerSize.width.toDp() }
+    val espacoFabCentral = if (containerWidthDp < 350.dp) 32.dp else 48.dp
 
     BackHandler(enabled = isFabExpanded) {
         isFabExpanded = false
@@ -208,7 +209,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     val emTelaExtrato = currentDestination?.route == ROTA_EXTRATO
 
     val corFundoTema = MaterialTheme.colorScheme.background
-
     val corBaseDegrade by animateColorAsState(
         targetValue = if (isFabExpanded) lerp(corFundoTema, Color.Black, 0.4f) else corFundoTema,
         animationSpec = tween(300),
@@ -393,8 +393,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                     }
                                 }
 
-                                val density = LocalDensity.current
-                                val windowInfo = LocalWindowInfo.current
                                 val screenWidth = with(density) { windowInfo.containerSize.width.toDp() }
                                 val liquidSpring = spring<Dp>(
                                     dampingRatio = 0.7f,
@@ -430,7 +428,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
 
                                 val corPadrao = MaterialTheme.colorScheme.primary
                                 val corPadraoClara = Color(0xFF5CDBCF)
-
                                 val gradienteCor1 by animateColorAsState(
                                     targetValue = when {
                                         emTelaInvestimento -> AmareloInvestimento
@@ -657,7 +654,9 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                     )
                 }
                 composable(DestinoPrincipal.CONTAS.rota) {
-                    ContasScreen(aoVoltar = { navController.popBackStack() })
+                    ContasScreen(
+                        aoVoltar = { navController.popBackStack() }
+                    )
                 }
                 composable(ROTA_CONFIGURACOES) {
                     ConfiguracoesScreen(
@@ -692,9 +691,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                 composable(ROTA_CARTAO) {
                     CartaoScreen(aoVoltar = { navController.popBackStack() })
                 }
-                composable(ROTA_EXPORTAR) {
-                    ExportarScreen(aoVoltar = { navController.popBackStack() })
-                }
                 composable(ROTA_EXTRATO) {
                     ExtratoScreen(
                         textoPesquisa = textoPesquisaExtrato,
@@ -707,9 +703,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         aoAporteAcionado = { acionarNovoInvestimento = false },
                         aoVoltar = { navController.popBackStack() }
                     )
-                }
-                composable(ROTA_CATEGORIAS) {
-                    CategoriasScreen(aoVoltar = { navController.popBackStack() })
                 }
                 composable("parcelados") {
                     ParceladosScreen(aoVoltar = { navController.popBackStack() })

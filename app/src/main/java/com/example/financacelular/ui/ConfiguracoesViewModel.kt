@@ -5,34 +5,35 @@ import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import androidx.activity.result.IntentSenderRequest
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.credentials.CustomCredential
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
+import androidx.core.content.edit
 import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.GetCredentialResponse
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.financacelular.data.AppDatabase
+import com.example.financacelular.data.BackupManager
+import com.example.financacelular.data.FinancaRepository
+import com.example.financacelular.data.GoogleDriveService
+import com.example.financacelular.data.TemaPreferencia
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.Scope
-import com.example.financacelular.data.AppDatabase
-import com.example.financacelular.data.FinancaRepository
-import com.example.financacelular.data.BackupManager
-import com.example.financacelular.data.TemaPreferencia
-import com.example.financacelular.data.GoogleDriveService
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -73,7 +74,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         if (emailSalvo.isNotBlank()) {
             emailUtilizador = emailSalvo
             estaLogadoGoogle = true
-            prefs.edit().putBoolean("completou_boas_vindas", true).apply()
+            prefs.edit { putBoolean("completou_boas_vindas", true) }
         }
 
         val completouSalvo = prefs.getBoolean("completou_boas_vindas", false)
@@ -91,11 +92,11 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
 
     fun definirTema(tema: TemaPreferencia) {
         temaAtual = tema
-        prefs.edit().putString("tema", tema.name).apply()
+        prefs.edit { putString("tema", tema.name) }
     }
 
     fun marcarBoasVindasComoConcluida() {
-        prefs.edit().putBoolean("completou_boas_vindas", true).apply()
+        prefs.edit { putBoolean("completou_boas_vindas", true) }
         completouBoasVindas = true
     }
 
@@ -107,8 +108,9 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         val formato = SimpleDateFormat("dd/MM/yyyy 'às' HH:mm", Locale.getDefault())
         val dataFormatada = formato.format(Date())
         ultimaDataBackup = dataFormatada
-        prefs.edit().putString("ultima_data_backup", dataFormatada).apply()
+        prefs.edit { putString("ultima_data_backup", dataFormatada) }
     }
+
     fun iniciarLoginGoogle(context: Context, onResult: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
             try {
@@ -126,13 +128,10 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
                 val result = credentialManager.getCredential(context, request)
 
                 tratarResultadoLogin(result, onResult)
-            } catch (e: androidx.credentials.exceptions.GetCredentialCancellationException) {
-                // Utilizador fechou a janela de login
+            } catch (_: androidx.credentials.exceptions.GetCredentialCancellationException) {
                 statusBackupMessage = "Login cancelado pelo utilizador."
                 onResult(false, null)
             } catch (e: androidx.credentials.exceptions.NoCredentialException) {
-                // Caso especial: se o Credential Manager não encontrar sessões ativas no telemóvel,
-                // informamos claramente para adicionar uma conta nas definições do sistema.
                 e.printStackTrace()
                 statusBackupMessage = "Nenhuma conta Google encontrada. Adicione uma conta nas Definições do telemóvel."
                 onResult(false, null)
@@ -143,7 +142,6 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
             }
         }
     }
-
 
     private fun tratarResultadoLogin(result: GetCredentialResponse, onResult: (Boolean, String?) -> Unit) {
         val credential = result.credential
@@ -161,7 +159,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
 
         estaLogadoGoogle = true
         emailUtilizador = emailObtido
-        prefs.edit().putString("email_utilizador", emailObtido).apply()
+        prefs.edit { putString("email_utilizador", emailObtido) }
         statusBackupMessage = "Conta ligada com sucesso!"
         onResult(true, emailObtido)
     }
@@ -237,7 +235,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
 
     fun definirNomeUtilizador(nome: String) {
         nomeUtilizador = nome.trim()
-        prefs.edit().putString("nome_utilizador", nomeUtilizador).apply()
+        prefs.edit { putString("nome_utilizador", nomeUtilizador) }
     }
 
     fun aoReceberResultadoAutorizacaoDrive(activity: Activity, dataIntent: Intent?) {
@@ -300,6 +298,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
 
         FinancaRepository.destruirInstancia()
         AppDatabase.destruirInstancia()
+
         File(dbFile.absolutePath + "-wal").delete()
         File(dbFile.absolutePath + "-shm").delete()
         File(dbFile.absolutePath + "-journal").delete()
@@ -321,7 +320,6 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         val componentName = intent?.component
         val mainIntent = Intent.makeRestartActivityTask(componentName)
         context.startActivity(mainIntent)
-        android.os.Process.killProcess(android.os.Process.myPid())
     }
 
     private suspend fun obterAccessTokenDrive(activity: Activity, acaoSeNaoAutorizado: AcaoPendenteDrive): String? {

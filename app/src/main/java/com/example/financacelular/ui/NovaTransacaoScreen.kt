@@ -69,31 +69,17 @@ import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.Verde
 import java.time.Instant
-import java.time.ZoneOffset
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-/**
- * Formata o texto inserido no padrão brasileiro de moeda.
- * Exemplo:
- * "" -> ""
- * "1" -> "0,01"
- * "12" -> "0,12"
- * "1200" -> "12,00"
- * "120000" -> "1.200,00"
- */
 private fun formatarValorMoeda(entrada: String): String {
     val digitos = entrada.filter { it.isDigit() }
     if (digitos.isEmpty()) return ""
-
     val digitosLimitados = digitos.take(9)
     val valorLong = digitosLimitados.toLongOrNull() ?: 0L
-
     val centavos = (valorLong % 100).toString().padStart(2, '0')
     val reaisStr = (valorLong / 100).toString()
 
-    // Monta os reais manualmente, inserindo "." a cada 3 dígitos a partir da direita.
-    // Isso garante vírgula fixa nos centavos e ponto só como separador de milhar,
-    // sem depender do Locale/ICU do dispositivo (que é o que causava a troca aleatória).
     val reaisFormatado = buildString {
         for ((indice, caractere) in reaisStr.withIndex()) {
             val posicaoDaDireita = reaisStr.length - indice
@@ -103,7 +89,6 @@ private fun formatarValorMoeda(entrada: String): String {
             }
         }
     }
-
     return "$reaisFormatado,$centavos"
 }
 
@@ -118,6 +103,7 @@ fun NovaTransacaoScreen(
     LaunchedEffect(tipoInicial) {
         viewModel.definirTipoInicial(tipoInicial)
     }
+
     val categorias by viewModel.categorias.collectAsState()
     var categoriaMenuExpandido by remember { mutableStateOf(false) }
     var mostrarDatePicker by remember { mutableStateOf(false) }
@@ -127,6 +113,7 @@ fun NovaTransacaoScreen(
         textoCategoria = ""
         viewModel.onCategoriaChange(null)
     }
+
     val categoriasFiltradas = categorias.filter { it.tipo == viewModel.tipo }
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
@@ -142,7 +129,6 @@ fun NovaTransacaoScreen(
                     .fillMaxSize()
                     .statusBarsPadding()
             ) {
-                // Topo personalizado
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -161,7 +147,6 @@ fun NovaTransacaoScreen(
                     )
                 }
 
-                // Conteúdo da tela
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -184,7 +169,6 @@ fun NovaTransacaoScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(4.dp))
-
                             val valorExibido = if (viewModel.valor.isEmpty()) "0,00" else viewModel.valor
                             val corTexto = if (viewModel.valor.isEmpty()) {
                                 MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
@@ -192,7 +176,6 @@ fun NovaTransacaoScreen(
                                 corTema
                             }
 
-                            // Mantém o texto centralizado com a seleção/cursor travado no final (à direita do número)
                             var textFieldValue by remember(valorExibido) {
                                 mutableStateOf(
                                     TextFieldValue(
@@ -293,6 +276,7 @@ fun NovaTransacaoScreen(
                                     }
                                 }
                             }
+
                             OutlinedTextField(
                                 value = viewModel.data.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
                                 onValueChange = {},
@@ -306,6 +290,7 @@ fun NovaTransacaoScreen(
                                 shape = RoundedCornerShape(14.dp),
                                 modifier = Modifier.fillMaxWidth()
                             )
+
                             OutlinedTextField(
                                 value = viewModel.descricao,
                                 onValueChange = viewModel::onDescricaoChange,
@@ -341,7 +326,6 @@ fun NovaTransacaoScreen(
                                         modifier = Modifier.weight(1f)
                                     )
                                 }
-
                                 if (viewModel.formaPagamento == FormaPagamento.CARTAO_CREDITO) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -366,7 +350,6 @@ fun NovaTransacaoScreen(
                                             modifier = Modifier.fillMaxWidth()
                                         )
                                     }
-
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         verticalAlignment = Alignment.CenterVertically
@@ -401,7 +384,6 @@ fun NovaTransacaoScreen(
                 }
             }
 
-            // Container do Botão Salvar
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -443,14 +425,14 @@ fun NovaTransacaoScreen(
 
         if (mostrarDatePicker) {
             val datePickerState = rememberDatePickerState(
-                initialSelectedDateMillis = viewModel.data.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+                initialSelectedDateMillis = viewModel.data.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
             )
             DatePickerDialog(
                 onDismissRequest = { mostrarDatePicker = false },
                 confirmButton = {
                     TextButton(onClick = {
                         datePickerState.selectedDateMillis?.let { millis ->
-                            val novaData = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
+                            val novaData = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
                             viewModel.onDataChange(novaData)
                         }
                         mostrarDatePicker = false

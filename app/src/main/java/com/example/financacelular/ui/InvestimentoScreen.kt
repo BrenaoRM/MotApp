@@ -712,14 +712,14 @@ fun InvestimentoScreen(
 
         if (mostrarDatePicker) {
             val datePickerState = rememberDatePickerState(
-                initialSelectedDateMillis = dataSelecionada.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli()
+                initialSelectedDateMillis = dataSelecionada.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
             )
             DatePickerDialog(
                 onDismissRequest = { mostrarDatePicker = false },
                 confirmButton = {
                     TextButton(onClick = {
                         datePickerState.selectedDateMillis?.let { millis ->
-                            dataSelecionada = Instant.ofEpochMilli(millis).atZone(ZoneId.of("UTC")).toLocalDate()
+                            dataSelecionada = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
                         }
                         mostrarDatePicker = false
                     }) { Text("Confirmar", fontWeight = FontWeight.Bold) }
