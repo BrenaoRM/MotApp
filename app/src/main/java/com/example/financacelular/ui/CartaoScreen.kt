@@ -1,6 +1,11 @@
 package com.example.financacelular.ui
 
 import android.widget.Toast
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,12 +18,18 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.Verde
 import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
@@ -85,91 +96,69 @@ fun CartaoScreen(
                     onClick = { mostrarConfig = true },
                     modifier = Modifier.size(36.dp)
                 ) {
-                    Icon(Icons.Filled.Settings, contentDescription = "Configurar Fatura", tint = MaterialTheme.colorScheme.primary)
+                    Icon(
+                        imageVector = Icons.Filled.Settings,
+                        contentDescription = "Configurar Fatura",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
+
             Spacer(modifier = Modifier.height(16.dp))
+
             MesSelectorCard(
                 nomeMes = nomeMesAno,
                 onMesAnterior = { viewModel.mesAnterior() },
                 onMesSeguinte = { viewModel.mesSeguinte() }
             )
+
             Spacer(modifier = Modifier.height(16.dp))
-            Card(
-                shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (faturaPaga) Verde.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        if (faturaPaga) "FATURA PAGA NESTE MÊS" else "VALOR DA FATURA",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (faturaPaga) Verde else MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        "Vencimento dia $diaVencimentoSalvo",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        formatoMoeda.format(valorTotalFatura),
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = if (faturaPaga) Verde else MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    if (!faturaPaga) {
-                        Button(
-                            onClick = {
-                                viewModel.pagarFatura {
-                                    Toast.makeText(context, "Fatura paga e descontada do saldo!", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 48.dp)
-                        ) {
-                            Text("Pagar Fatura", fontWeight = FontWeight.Bold)
-                        }
-                    } else {
-                        OutlinedButton(
-                            onClick = {
-                                viewModel.cancelarPagamentoFatura {
-                                    Toast.makeText(context, "Pagamento cancelado com sucesso.", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 48.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Text("Cancelar Pagamento da Fatura", fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
+
+            CartaoVirtualHero(
+                valorTotal = valorTotalFatura,
+                faturaPaga = faturaPaga,
+                diaVencimento = diaVencimentoSalvo,
+                formatoMoeda = formatoMoeda,
+                onPagarFatura = {
+                    viewModel.pagarFatura {
+                        Toast.makeText(context, "Fatura paga e descontada do saldo!", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onCancelarPagamento = {
+                    viewModel.cancelarPagamentoFatura {
+                        Toast.makeText(context, "Pagamento cancelado com sucesso.", Toast.LENGTH_SHORT).show()
                     }
                 }
-            }
+            )
+
             Spacer(modifier = Modifier.height(24.dp))
-            Text("Lançamentos na Fatura", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Lançamentos na Fatura",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = if (transacoesFatura.size == 1) "1 item" else "${transacoesFatura.size} itens",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             Spacer(modifier = Modifier.height(12.dp))
         }
+
         items(transacoesFatura) { transacao ->
             Card(
                 shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp)
@@ -188,28 +177,38 @@ fun CartaoScreen(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        Text(transacao.data.toString(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            transacao.data.toString(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         formatoMoeda.format(transacao.valor),
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.error,
+                        color = Coral, // Usando a cor Coral do Dashboard
                         maxLines = 1
                     )
                 }
             }
         }
     }
+
     if (mostrarConfig) {
         var diaFechamento by remember { mutableStateOf(cartao?.diaFechamento?.toString() ?: "") }
         var diaVencimento by remember { mutableStateOf(cartao?.diaVencimento?.toString() ?: "") }
+
         AlertDialog(
             onDismissRequest = { mostrarConfig = false },
             shape = RoundedCornerShape(24.dp),
             containerColor = MaterialTheme.colorScheme.surface,
             title = {
-                Text("Configuração do Cartão", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(
+                    "Configuração do Cartão",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -262,5 +261,143 @@ fun CartaoScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun CartaoVirtualHero(
+    valorTotal: Double,
+    faturaPaga: Boolean,
+    diaVencimento: Int,
+    formatoMoeda: NumberFormat,
+    onPagarFatura: () -> Unit,
+    onCancelarPagamento: () -> Unit
+) {
+    val animProgress by animateFloatAsState(
+        targetValue = if (faturaPaga) 1f else 0f,
+        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
+        label = "transicaoFaturaColor"
+    )
+
+    val corInicial = lerp(Color(0xFF0D47A1), Verde, animProgress)
+    val corFinal = lerp(Color(0xFF00897B), Color(0xFF0288D1), animProgress)
+
+    val cardGradient = Brush.linearGradient(
+        colors = listOf(corInicial, corFinal)
+    )
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp)),
+        shape = RoundedCornerShape(24.dp),
+        shadowElevation = 6.dp
+    ) {
+        Box(
+            modifier = Modifier
+                .background(cardGradient)
+                .padding(20.dp)
+        ) {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Cartão de Crédito",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    Surface(
+                        color = Color.White.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(50)
+                    ) {
+                        Text(
+                            text = if (faturaPaga) "PAGA" else "EM ABERTO",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Text(
+                    text = if (faturaPaga) "VALOR PAGO" else "VALOR DA FATURA",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White.copy(alpha = 0.75f),
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 1.sp
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = formatoMoeda.format(valorTotal),
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = Color.White,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 32.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = "Vencimento dia $diaVencimento",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.85f),
+                    fontWeight = FontWeight.Medium
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                if (!faturaPaga) {
+                    Button(
+                        onClick = onPagarFatura,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Verde,
+                            contentColor = Color.White
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Text(
+                            text = "Pagar Fatura",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = onCancelarPagamento,
+                        shape = RoundedCornerShape(14.dp),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.7f)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Text(
+                            text = "Cancelar Pagamento",
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
     }
 }

@@ -71,7 +71,7 @@ fun RecorrenteScreen(
                     Spacer(modifier = Modifier.width(4.dp))
                 }
                 Text(
-                    "Recorrentes e Assinaturas",
+                    "Recorrentes",
                     style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
@@ -162,7 +162,6 @@ fun ItemRecorrenteCard(
         }
     }
 
-    // Calcula quantos meses se passaram desde a criação + 1 mês atual/inicial
     val mesesCobrados = remember(item.dataCriacao) {
         val mesesPassados = ChronoUnit.MONTHS.between(item.dataCriacao, hoje)
         maxOf(1, mesesPassados + 1)
@@ -259,7 +258,6 @@ fun ItemRecorrenteCard(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // --- LINHA DE TOTAL ACUMULADO/PAGO ---
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(
                             text = if (item.tipo == TipoTransacao.DESPESA) "Total já gasto (estimado):" else "Total já recebido (estimado):",
@@ -280,9 +278,9 @@ fun ItemRecorrenteCard(
                         onClick = onCancelar,
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
+                            contentColor = Coral
                         ),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                        border = BorderStroke(1.dp, Coral.copy(alpha = 0.5f)),
                         modifier = Modifier.fillMaxWidth().height(42.dp)
                     ) {
                         Icon(Icons.Filled.DeleteOutline, contentDescription = null, modifier = Modifier.size(18.dp))

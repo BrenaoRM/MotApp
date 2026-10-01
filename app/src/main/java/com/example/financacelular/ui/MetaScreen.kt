@@ -30,7 +30,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -45,7 +44,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -83,7 +81,9 @@ fun MetaScreen(
     var mostrarSheetNovaMeta by remember { mutableStateOf(false) }
     var metaParaEditar by remember { mutableStateOf<Meta?>(null) }
     var metaParaAdicionarValor by remember { mutableStateOf<Meta?>(null) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    val sheetStateCriarOuEditar = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetStateAdicionarValor = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var novoNome by remember { mutableStateOf("") }
     var novoValorAlvo by remember { mutableStateOf("") }
@@ -244,16 +244,23 @@ fun MetaScreen(
                                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
                             )
 
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(14.dp))
 
+                            // --- Botão "Adicionar Valor" Reestilizado e Modernizado ---
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.End
                             ) {
-                                TextButton(onClick = { metaParaAdicionarValor = meta }) {
+                                Button(
+                                    onClick = { metaParaAdicionarValor = meta },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = RoxoMeta),
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                                    modifier = Modifier.heightIn(min = 38.dp)
+                                ) {
                                     Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Adicionar Valor")
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Adicionar Valor", fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -262,11 +269,11 @@ fun MetaScreen(
             }
         }
 
-        // Bottom Sheet para Criar/Editar Meta
+        // --- Bottom Sheet para Criar/Editar Meta ---
         if (mostrarSheetNovaMeta) {
             ModalBottomSheet(
                 onDismissRequest = { mostrarSheetNovaMeta = false },
-                sheetState = sheetState,
+                sheetState = sheetStateCriarOuEditar,
                 containerColor = MaterialTheme.colorScheme.surface,
                 dragHandle = { BottomSheetDefaults.DragHandle() },
                 shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
@@ -371,44 +378,89 @@ fun MetaScreen(
             }
         }
 
-        metaParaAdicionarValor?.let { meta ->
-            DialogoAdicionarValor(
-                meta = meta,
-                onDismiss = { metaParaAdicionarValor = null },
-                onConfirmar = { valor ->
-                    viewModel.adicionarValor(meta, valor)
-                    metaParaAdicionarValor = null
+        // --- Bottom Sheet para Adicionar Valor à Meta (Substituindo o AlertDialog) ---
+        if (metaParaAdicionarValor != null) {
+            val meta = metaParaAdicionarValor!!
+            var valorInput by remember { mutableStateOf("") }
+
+            ModalBottomSheet(
+                onDismissRequest = { metaParaAdicionarValor = null },
+                sheetState = sheetStateAdicionarValor,
+                containerColor = MaterialTheme.colorScheme.surface,
+                dragHandle = { BottomSheetDefaults.DragHandle() },
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = MaterialTheme.dimens.paddingScreen)
+                        .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Adicionar a \"${meta.nome}\"",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Progresso: ${formato.format(meta.valorAtual)} / ${formato.format(meta.valorAlvo)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(
+                            onClick = { metaParaAdicionarValor = null },
+                            modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
+                        ) {
+                            Icon(Icons.Filled.Close, contentDescription = "Fechar")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    OutlinedTextField(
+                        value = valorInput,
+                        onValueChange = { valorInput = it },
+                        label = { Text("Valor a guardar (R$)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Button(
+                        onClick = {
+                            val valorDouble = valorInput.replace(",", ".").toDoubleOrNull() ?: 0.0
+                            if (valorDouble > 0) {
+                                viewModel.adicionarValor(meta, valorDouble)
+                                metaParaAdicionarValor = null
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 50.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = RoxoMeta)
+                    ) {
+                        Text(
+                            text = "Confirmar Aporte",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
                 }
-            )
+            }
         }
     }
-}
-
-@Composable
-private fun DialogoAdicionarValor(meta: Meta, onDismiss: () -> Unit, onConfirmar: (Double) -> Unit) {
-    var valor by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Adicionar a \"${meta.nome}\"", fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        text = {
-            OutlinedTextField(
-                value = valor,
-                onValueChange = { valor = it },
-                label = { Text("Valor (R$)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                valor.replace(",", ".").toDoubleOrNull()?.let { onConfirmar(it) }
-            }) { Text("Adicionar", fontWeight = FontWeight.Bold) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancelar") }
-        }
-    )
 }

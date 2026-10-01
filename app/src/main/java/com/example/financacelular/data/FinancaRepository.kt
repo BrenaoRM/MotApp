@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.util.Locale
 
+@Suppress("unused")
 class FinancaRepository(database: AppDatabase) {
     private val dao = database.transacaoDao()
     private val categoriaDao = database.categoriaDao()
@@ -207,6 +208,7 @@ class FinancaRepository(database: AppDatabase) {
 
     fun listarHistoricoOrcamentos(anoMes: String): Flow<List<Orcamento>> = orcamentoDao.listarHistoricoAteMes(anoMes)
     fun listarOrcamentosDoMes(anoMes: String): Flow<List<Orcamento>> = orcamentoDao.listarDoMes(anoMes)
+    suspend fun buscarOrcamentoDoMes(categoriaId: Long, anoMes: String): Orcamento? = orcamentoDao.buscarPorCategoriaEMes(categoriaId, anoMes)
     suspend fun definirOrcamento(orcamento: Orcamento) = orcamentoDao.definir(orcamento)
 
     fun listarInvestimentos(): Flow<List<InvestimentoEntity>> = investimentoDao.listarTodos()

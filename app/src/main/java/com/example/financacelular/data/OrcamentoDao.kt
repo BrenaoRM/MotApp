@@ -18,9 +18,10 @@ interface OrcamentoDao {
     @Query("SELECT * FROM orcamentos WHERE anoMes = :anoMes")
     fun listarDoMes(anoMes: String): Flow<List<Orcamento>>
 
-    // Histórico ordenado do mês mais recente pro mais antigo, ignorando limites zerados
-// (usado pra "herdar" o orçamento do mês anterior quando o mês atual não tem um definido)
-    @Query("SELECT * FROM orcamentos WHERE anoMes <= :anoMes AND valorLimite > 0 ORDER BY anoMes DESC")
+    // Busca o registro exato da categoria para o mês selecionado (priorizando o ID mais recente)
+    @Query("SELECT * FROM orcamentos WHERE categoriaId = :categoriaId AND anoMes = :anoMes ORDER BY id DESC LIMIT 1")
+    suspend fun buscarPorCategoriaEMes(categoriaId: Long, anoMes: String): Orcamento?
+
+    @Query("SELECT * FROM orcamentos WHERE anoMes <= :anoMes ORDER BY anoMes DESC, id DESC")
     fun listarHistoricoAteMes(anoMes: String): Flow<List<Orcamento>>
 }
-

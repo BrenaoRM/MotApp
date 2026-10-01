@@ -25,7 +25,6 @@ import java.time.format.DateTimeFormatter
 data class ItemOrcamento(
     val categoria: Categoria,
     val limite: Double?,
-    // true quando o valor exibido veio de um mês anterior (não foi definido explicitamente neste mês)
     val limiteHerdado: Boolean,
     val gasto: Double
 )
@@ -55,14 +54,27 @@ class OrcamentoViewModel(application: Application) : AndroidViewModel(applicatio
         anoMesTexto
     ) { categorias, historico, gastos, anoMesAtual ->
         categorias.map { categoria ->
-            // historico já vem ordenado do mês mais recente pro mais antigo e sem valores zerados,
-            // então o primeiro que bater com a categoria é o orçamento "efetivo" pra esse mês
-            // (definido nele mesmo, ou herdado do último mês anterior que teve um valor)
-            val entradaEfetiva = historico.firstOrNull { it.categoriaId == categoria.id }
+            val entradasCategoria = historico.filter { it.categoriaId == categoria.id }
+            val entradaMaisRecente = entradasCategoria.firstOrNull()
+
+            val limiteEfetivo: Double?
+            val limiteHerdado: Boolean
+
+            if (entradaMaisRecente == null) {
+                limiteEfetivo = null
+                limiteHerdado = false
+            } else if (entradaMaisRecente.anoMes == anoMesAtual) {
+                limiteEfetivo = if (entradaMaisRecente.valorLimite > 0) entradaMaisRecente.valorLimite else null
+                limiteHerdado = false
+            } else {
+                limiteEfetivo = if (entradaMaisRecente.valorLimite > 0) entradaMaisRecente.valorLimite else null
+                limiteHerdado = limiteEfetivo != null
+            }
+
             ItemOrcamento(
                 categoria = categoria,
-                limite = entradaEfetiva?.valorLimite,
-                limiteHerdado = entradaEfetiva != null && entradaEfetiva.anoMes != anoMesAtual,
+                limite = limiteEfetivo,
+                limiteHerdado = limiteHerdado,
                 gasto = gastos.find { it.categoriaId == categoria.id }?.total ?: 0.0
             )
         }
@@ -79,8 +91,15 @@ class OrcamentoViewModel(application: Application) : AndroidViewModel(applicatio
     fun definirLimite(categoria: Categoria, valor: Double) {
         viewModelScope.launch {
             val anoMesAtual = _mesSelecionado.value.format(formatoAnoMes)
+            val existente = repository.buscarOrcamentoDoMes(categoria.id, anoMesAtual)
+
             repository.definirOrcamento(
-                Orcamento(categoriaId = categoria.id, anoMes = anoMesAtual, valorLimite = valor)
+                Orcamento(
+                    id = existente?.id ?: 0,
+                    categoriaId = categoria.id,
+                    anoMes = anoMesAtual,
+                    valorLimite = valor
+                )
             )
         }
     }

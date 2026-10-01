@@ -60,7 +60,7 @@ fun ParceladosScreen(
                     Spacer(modifier = Modifier.width(4.dp))
                 }
                 Text(
-                    "Compras Parceladas",
+                    "Parcelamentos",
                     style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
@@ -188,7 +188,7 @@ fun ItemCompraParcelada(compra: CompraParceladaAgrupada, viewModel: ParceladosVi
                         OutlinedButton(
                             onClick = { viewModel.cancelarParcelasRestantes(compra.transacoesPendentes) },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Coral),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text("Cancelar ${compra.parcelasRestantes} parcelas restantes")

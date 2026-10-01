@@ -41,7 +41,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.Instant
@@ -143,20 +145,21 @@ fun InvestimentoScreen(
             }
 
             item {
-                Card(
-                    shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-                    modifier = Modifier.fillMaxWidth()
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(24.dp)),
+                    shape = RoundedCornerShape(24.dp),
+                    shadowElevation = 6.dp
                 ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
                             .background(
                                 Brush.linearGradient(
                                     colors = listOf(AmareloInvestimento, AmareloEscuroGradiente)
                                 )
                             )
-                            .padding(MaterialTheme.dimens.paddingMedium)
+                            .padding(20.dp)
                     ) {
                         Column {
                             Row(
@@ -170,7 +173,7 @@ fun InvestimentoScreen(
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .size(38.dp)
+                                            .size(36.dp)
                                             .background(Color.White.copy(alpha = 0.25f), CircleShape),
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -194,25 +197,26 @@ fun InvestimentoScreen(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Surface(
                                     color = Color.White.copy(alpha = 0.2f),
-                                    shape = RoundedCornerShape(12.dp)
+                                    shape = RoundedCornerShape(50)
                                 ) {
                                     Text(
-                                        "${listaAtivosAgrupados.size} Ativo(s)",
+                                        text = if (listaAtivosAgrupados.size == 1) "1 Ativo" else "${listaAtivosAgrupados.size} Ativos",
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                        style = MaterialTheme.typography.labelMedium,
+                                        style = MaterialTheme.typography.labelSmall,
                                         color = Color.White,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
 
                             Text(
-                                formatoMoeda.format(patrimonioTotal),
-                                style = MaterialTheme.typography.displayLarge,
+                                text = formatoMoeda.format(patrimonioTotal),
+                                style = MaterialTheme.typography.headlineLarge,
                                 color = Color.White,
-                                fontWeight = FontWeight.Black,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 32.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -251,8 +255,17 @@ fun InvestimentoScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Seus Ativos Consolidados", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Icon(Icons.Filled.PieChart, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                    Text(
+                        "Seus Ativos Consolidados",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Icon(
+                        Icons.Filled.PieChart,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
                 Spacer(modifier = Modifier.height(12.dp))
             }
@@ -261,14 +274,19 @@ fun InvestimentoScreen(
                 item {
                     Card(
                         shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
                             modifier = Modifier.padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(Icons.Filled.Savings, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(40.dp))
+                            Icon(
+                                Icons.Filled.Savings,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                modifier = Modifier.size(40.dp)
+                            )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
                                 "Nenhum investimento registrado nesta categoria.",
@@ -284,13 +302,12 @@ fun InvestimentoScreen(
                     val percentualInt = (ativo.percentualDoTotal * 100).toInt()
 
                     Card(
-                        shape = RoundedCornerShape(22.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = if (isExpandido) 4.dp else 1.dp),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 6.dp)
-                            .clip(RoundedCornerShape(22.dp))
+                            .padding(vertical = 4.dp)
+                            .clip(RoundedCornerShape(18.dp))
                             .clickable {
                                 ativoExpandidoNome = if (isExpandido) null else ativo.nome
                             }
@@ -302,7 +319,7 @@ fun InvestimentoScreen(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(46.dp)
+                                        .size(44.dp)
                                         .background(AmareloInvestimento.copy(alpha = 0.15f), RoundedCornerShape(14.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -333,7 +350,7 @@ fun InvestimentoScreen(
                                         }
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
-                                            "${ativo.aportes.size} aporte(s)",
+                                            text = if (ativo.aportes.size == 1) "1 aporte" else "${ativo.aportes.size} aportes",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -416,7 +433,7 @@ fun InvestimentoScreen(
                                             },
                                             modifier = Modifier.weight(1f).heightIn(min = 42.dp),
                                             shape = RoundedCornerShape(12.dp),
-                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Coral)
                                         ) {
                                             Icon(Icons.Filled.Remove, contentDescription = null, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
@@ -461,7 +478,7 @@ fun InvestimentoScreen(
                                                             Icon(
                                                                 Icons.Filled.DeleteOutline,
                                                                 contentDescription = "Eliminar",
-                                                                tint = MaterialTheme.colorScheme.error,
+                                                                tint = Coral,
                                                                 modifier = Modifier.size(16.dp)
                                                             )
                                                         }
@@ -567,7 +584,7 @@ fun InvestimentoScreen(
                         },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
                         shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        colors = ButtonDefaults.buttonColors(containerColor = Coral)
                     ) {
                         Text("Confirmar Resgate", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     }
