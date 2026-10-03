@@ -179,7 +179,7 @@ fun OrcamentoScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(26.dp)
                                 .background(Color.White.copy(alpha = 0.25f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
@@ -187,13 +187,13 @@ fun OrcamentoScreen(
                                 imageVector = Icons.Filled.PieChart,
                                 contentDescription = null,
                                 tint = Color.White,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(15.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             "TOTAL ORÇADO DO MÊS",
-                            style = MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.labelSmall,
                             color = Color.White.copy(alpha = 0.85f),
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
@@ -203,30 +203,30 @@ fun OrcamentoScreen(
                             PilulaGlass(if (ultrapassouGeral) "Limite excedido" else "No limite")
                         }
                     }
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = if (temAlgumLimite) {
                             "${formatoMoeda.format(totalGasto)} / ${formatoMoeda.format(totalLimite)}"
                         } else {
                             formatoMoeda.format(totalGasto)
                         },
-                        style = MaterialTheme.typography.headlineLarge,
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White,
                         maxLines = 1
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     LinearProgressIndicator(
                         progress = { progressoGeral },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(8.dp)
-                            .clip(RoundedCornerShape(4.dp)),
+                            .height(5.dp)
+                            .clip(RoundedCornerShape(3.dp)),
                         color = Color.White,
                         trackColor = Color.White.copy(alpha = 0.25f)
                     )
                 }
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,

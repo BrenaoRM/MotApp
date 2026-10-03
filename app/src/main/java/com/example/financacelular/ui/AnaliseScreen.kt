@@ -122,8 +122,7 @@ private fun formatarDataAnalise(texto: String): String {
 
 @Composable
 fun AnaliseScreen(
-    viewModel: AnaliseViewModel = viewModel(),
-    aoVoltar: (() -> Unit)? = null
+    viewModel: AnaliseViewModel = viewModel()
 ) {
     val despesasPorCategoria by viewModel.despesasPorCategoria.collectAsState()
     val receitasPorCategoria by viewModel.receitasPorCategoria.collectAsState()
@@ -167,7 +166,7 @@ fun AnaliseScreen(
     ) {
         // ---------------- CABEÇALHO + MÊS ----------------
         item {
-            CabecalhoDePagina("Análise Financeira", RoxoAnalise, aoVoltar)
+            CabecalhoDePagina("Análise", RoxoAnalise, null) // tela principal: sem seta de voltar
             Spacer(modifier = Modifier.height(16.dp))
             MesSelectorCard(
                 nomeMes = nomeMes,
