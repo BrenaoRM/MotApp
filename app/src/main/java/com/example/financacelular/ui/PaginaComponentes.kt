@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,6 +25,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
@@ -89,25 +89,6 @@ fun CabecalhoDePagina(
     }
 }
 
-/** Círculos translúcidos decorativos do cartão principal. */
-@Composable
-fun BoxScope.CirculosDecorativosHero() {
-    Box(
-        modifier = Modifier
-            .size(200.dp)
-            .align(Alignment.TopEnd)
-            .offset(x = 70.dp, y = (-70).dp)
-            .background(Color.White.copy(alpha = 0.08f), CircleShape)
-    )
-    Box(
-        modifier = Modifier
-            .size(140.dp)
-            .align(Alignment.BottomStart)
-            .offset(x = (-50).dp, y = 60.dp)
-            .background(Color.White.copy(alpha = 0.06f), CircleShape)
-    )
-}
-
 /** Cartão principal com degradê na cor da página, no mesmo estilo da home. */
 @Composable
 fun CartaoHeroDePagina(
@@ -121,10 +102,23 @@ fun CartaoHeroDePagina(
             .fillMaxWidth()
             .clip(RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius))
             .background(Brush.linearGradient(colors = listOf(corInicio, corFim)))
+            // Círculos desenhados no fundo: não entram no layout, então o cartão
+            // tem só a altura do conteúdo (antes o círculo de 200dp definia a altura mínima).
+            .drawBehind {
+                drawCircle(
+                    color = Color.White.copy(alpha = 0.08f),
+                    radius = 100.dp.toPx(),
+                    center = Offset(size.width - 30.dp.toPx(), 30.dp.toPx())
+                )
+                drawCircle(
+                    color = Color.White.copy(alpha = 0.06f),
+                    radius = 70.dp.toPx(),
+                    center = Offset(20.dp.toPx(), size.height - 10.dp.toPx())
+                )
+            }
     ) {
-        CirculosDecorativosHero()
         Column(
-            modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             content = conteudo
         )
     }
@@ -149,7 +143,7 @@ fun PilulaGlass(texto: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** Mini indicador translúcido para o cartão principal (mesmo visual da home).dsada */
+/** Mini indicador translúcido para o cartão principal (mesmo visual da home). */
 @Composable
 fun IndicadorGlassDePagina(
     titulo: String,
@@ -161,7 +155,7 @@ fun IndicadorGlassDePagina(
         modifier = modifier
             .clip(RoundedCornerShape(18.dp))
             .background(Color.White.copy(alpha = 0.16f))
-            .padding(horizontal = 10.dp, vertical = 10.dp)
+            .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(icone, contentDescription = null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(13.dp))
@@ -173,7 +167,7 @@ fun IndicadorGlassDePagina(
                 maxLines = 1
             )
         }
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(3.dp))
         Text(
             valor,
             style = MaterialTheme.typography.bodyMedium,

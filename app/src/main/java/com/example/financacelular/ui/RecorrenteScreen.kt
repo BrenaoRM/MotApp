@@ -37,6 +37,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -49,12 +50,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.DespesaRecorrente
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.Verde
+import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
@@ -79,7 +82,7 @@ fun RecorrenteScreen(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = MaterialTheme.dimens.paddingScreen),
         contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
     ) {
         item {
@@ -100,12 +103,13 @@ fun RecorrenteScreen(
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     formatoMoeda.format(totalCobrancas),
-                    style = MaterialTheme.typography.displaySmall,
+                    style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White,
-                    maxLines = 1
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -119,11 +123,18 @@ fun RecorrenteScreen(
 
         if (recorrentes.isEmpty()) {
             item {
-                Text(
-                    "Nenhum item recorrente cadastrado.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        "Nenhum item recorrente cadastrado.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(24.dp)
+                    )
+                }
             }
         }
 
@@ -212,14 +223,14 @@ fun ItemRecorrenteCard(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp)
+            .padding(vertical = 5.dp)
             .clip(RoundedCornerShape(20.dp))
             .clickable { expandido = !expandido }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(14.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -234,21 +245,28 @@ fun ItemRecorrenteCard(
                     Icon(
                         imageVector = if (item.tipo == TipoTransacao.RECEITA) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
                         contentDescription = null,
-                        tint = corTema
+                        tint = corTema,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(item.nome, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        item.nome,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                     Text(subtitulo, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         formatoMoeda.format(item.valor),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = corTema
+                        color = corTema,
+                        maxLines = 1
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Icon(

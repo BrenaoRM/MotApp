@@ -34,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -46,10 +47,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.Verde
+import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -71,9 +74,8 @@ fun ParceladosScreen(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante()),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(horizontal = MaterialTheme.dimens.paddingScreen),
+        contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
     ) {
         item {
             CabecalhoDePagina("Parcelamentos", TealParcelados, aoVoltar)
@@ -93,12 +95,13 @@ fun ParceladosScreen(
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     formatoMoedaResumo.format(totalRestante),
-                    style = MaterialTheme.typography.displaySmall,
+                    style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White,
-                    maxLines = 1
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -107,14 +110,42 @@ fun ParceladosScreen(
                     IndicadorGlassDePagina("EM ANDAMENTO", "${comprasAgrupadas.count { it.parcelasRestantes > 0 }}", Icons.Filled.ShoppingCart, Modifier.weight(1f))
                 }
             }
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            if (comprasAgrupadas.isEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    "Nenhuma compra parcelada em andamento.",
-                    style = MaterialTheme.typography.bodyMedium,
+                    "Compras Parceladas",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = if (comprasAgrupadas.size == 1) "1 compra" else "${comprasAgrupadas.size} compras",
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        if (comprasAgrupadas.isEmpty()) {
+            item {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        "Nenhuma compra parcelada em andamento.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(24.dp)
+                    )
+                }
             }
         }
 
@@ -138,13 +169,14 @@ fun ItemCompraParcelada(compra: CompraParceladaAgrupada, viewModel: ParceladosVi
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
         modifier = Modifier
             .fillMaxWidth()
+            .padding(vertical = 5.dp)
             .clip(RoundedCornerShape(20.dp))
             .clickable { expandido = !expandido }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(14.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -160,7 +192,13 @@ fun ItemCompraParcelada(compra: CompraParceladaAgrupada, viewModel: ParceladosVi
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(compra.descricaoBase, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        compra.descricaoBase,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                     Text(
                         "${compra.totalParcelas}x de ${formatoMoeda.format(compra.valorParcela)}",
                         style = MaterialTheme.typography.bodySmall,
@@ -170,8 +208,10 @@ fun ItemCompraParcelada(compra: CompraParceladaAgrupada, viewModel: ParceladosVi
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         formatoMoeda.format(compra.valorTotal),
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1
                     )
                     Icon(
                         imageVector = if (expandido) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,

@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Flag
@@ -144,18 +145,9 @@ fun MetaScreen(
                 CabecalhoDePagina("Metas", RoxoMeta, aoVoltar)
                 Spacer(modifier = Modifier.height(16.dp))
 
-                val progressoGeral = if (totalAlvo > 0) (totalAcumulado / totalAlvo).toFloat().coerceIn(0f, 1f) else 0f
+                val metasConcluidas = metas.count { it.valorAlvo > 0 && it.valorAtual >= it.valorAlvo }
                 CartaoHeroDePagina(RoxoMeta, gradienteDaCor(RoxoMeta)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .background(Color.White.copy(alpha = 0.25f), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Filled.Flag, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             "TOTAL ACUMULADO",
                             style = MaterialTheme.typography.labelMedium,
@@ -165,35 +157,38 @@ fun MetaScreen(
                         )
                         PilulaGlass(if (metas.size == 1) "1 meta" else "${metas.size} metas")
                     }
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         formato.format(totalAcumulado),
-                        style = MaterialTheme.typography.displaySmall,
+                        style = MaterialTheme.typography.displayMedium,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Text(
-                        "de ${formato.format(totalAlvo)}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.8f),
-                        maxLines = 1
-                    )
                     Spacer(modifier = Modifier.height(14.dp))
-                    LinearProgressIndicator(
-                        progress = { progressoGeral },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(8.dp)
-                            .clip(RoundedCornerShape(4.dp)),
-                        color = Color.White,
-                        trackColor = Color.White.copy(alpha = 0.25f)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        IndicadorGlassDePagina("META TOTAL", formato.format(totalAlvo), Icons.Filled.Flag, Modifier.weight(1f))
+                        IndicadorGlassDePagina("CONCLUÍDAS", "$metasConcluidas de ${metas.size}", Icons.Filled.CheckCircle, Modifier.weight(1f))
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(32.dp))
-                Text("Seus Objetivos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(24.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Seus Objetivos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = if (metas.size == 1) "1 meta" else "${metas.size} metas",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
@@ -226,7 +221,7 @@ fun MetaScreen(
                                 mostrarSheetNovaMeta = true
                             }
                     ) {
-                        Column(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium)) {
+                        Column(modifier = Modifier.padding(14.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
                                     modifier = Modifier
@@ -234,9 +229,9 @@ fun MetaScreen(
                                         .background(RoxoMeta.copy(alpha = 0.15f), RoundedCornerShape(14.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Filled.Flag, contentDescription = null, tint = RoxoMeta)
+                                    Icon(Icons.Filled.Flag, contentDescription = null, tint = RoxoMeta, modifier = Modifier.size(22.dp))
                                 }
-                                Spacer(modifier = Modifier.width(16.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         meta.nome,

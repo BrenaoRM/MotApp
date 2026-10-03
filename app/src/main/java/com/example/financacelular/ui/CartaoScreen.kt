@@ -373,7 +373,7 @@ private fun CartaoVirtualHero(
             overflow = TextOverflow.Ellipsis
         )
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),

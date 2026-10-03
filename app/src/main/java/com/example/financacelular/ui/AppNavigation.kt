@@ -187,7 +187,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
 
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
-
     val density = LocalDensity.current
     val windowInfo = LocalWindowInfo.current
     val containerWidthDp = with(density) { windowInfo.containerSize.width.toDp() }
@@ -709,6 +708,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                         stiffness = 100f
                                     )
                                     val transition = updateTransition(targetState = isFabExpanded, label = "fabTransition")
+
                                     val fabWidth by transition.animateDp(
                                         transitionSpec = { liquidSpring },
                                         label = "fabWidth"
@@ -719,18 +719,22 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                         transitionSpec = { liquidSpring },
                                         label = "fabHeight"
                                     ) { expanded -> if (expanded) 60.dp else 52.dp }
+
                                     val fabOffset by transition.animateDp(
                                         transitionSpec = { liquidSpring },
                                         label = "fabOffset"
                                     ) { expanded -> if (expanded) (-76).dp else 0.dp }
+
                                     val fabElevation by transition.animateDp(
                                         transitionSpec = { liquidSpring },
                                         label = "fabElevation"
                                     ) { expanded -> if (expanded) 12.dp else 6.dp }
+
                                     val contentAlpha by transition.animateFloat(
                                         transitionSpec = { tween(300) },
                                         label = "contentAlpha"
                                     ) { expanded -> if (expanded) 1f else 0f }
+
                                     val iconAlpha by transition.animateFloat(
                                         transitionSpec = { tween(200) },
                                         label = "iconAlpha"
@@ -738,6 +742,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
 
                                     val corPadrao = MaterialTheme.colorScheme.primary
                                     val corPadraoClara = Color(0xFF5CDBCF)
+
                                     val gradienteCor1 by animateColorAsState(
                                         targetValue = when {
                                             emTelaCalendario -> AzulAgenda
@@ -746,6 +751,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                         animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing),
                                         label = "gradiente1"
                                     )
+
                                     val gradienteCor2 by animateColorAsState(
                                         targetValue = when {
                                             emTelaCalendario -> AzulAgendaClaro
@@ -754,6 +760,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                         animationSpec = tween(durationMillis = 1100, easing = LinearOutSlowInEasing),
                                         label = "gradiente2"
                                     )
+
                                     val rotacaoIcone by animateFloatAsState(
                                         targetValue = if (emTelaCalendario) 180f else 0f,
                                         animationSpec = spring(dampingRatio = 0.6f, stiffness = 150f),
@@ -908,6 +915,15 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         aoAbrirMetas = { navController.navigate(ROTA_METAS) }
                     )
                 }
+                composable(DestinoPrincipal.ANALISE.rota) {
+                    AnaliseScreen()
+                }
+                composable(DestinoPrincipal.CALENDARIO.rota) {
+                    CalendarioScreen(
+                        acionarNovaAgendaExterno = acionarNovaAgenda,
+                        aoNovaAgendaAcionada = { acionarNovaAgenda = false }
+                    )
+                }
                 composable(DestinoPrincipal.CONTAS.rota) {
                     ContasScreen(
                         aoVoltar = { navController.popBackStack() }
@@ -930,7 +946,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                     val tipoTexto = backStackEntry.arguments?.getString("tipo") ?: "DESPESA"
                     val isParcelado = backStackEntry.arguments?.getBoolean("parcelado") ?: false
                     val isRecorrente = backStackEntry.arguments?.getBoolean("recorrente") ?: false
-
                     NovaTransacaoScreen(
                         tipoInicial = TipoTransacao.valueOf(tipoTexto),
                         isParceladoInicial = isParcelado,

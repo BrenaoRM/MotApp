@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PieChart
@@ -135,7 +136,6 @@ fun OrcamentoScreen(
     val totalGasto = remember(itens) { itens.sumOf { it.gasto } }
     val totalLimite = remember(itens) { itens.sumOf { it.limite ?: 0.0 } }
     val temAlgumLimite = totalLimite > 0.0
-    val progressoGeral = if (temAlgumLimite) (totalGasto / totalLimite).toFloat().coerceIn(0f, 1f) else 0f
     val ultrapassouGeral = temAlgumLimite && totalGasto > totalLimite
 
     // Botão "Definir Limite" da barra inferior: abre o sheet com seletor de categoria
@@ -177,26 +177,11 @@ fun OrcamentoScreen(
                     corFim = gradienteDaCor(if (ultrapassouGeral) CorHeroAlerta else VerdeOrcamento)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(26.dp)
-                                .background(Color.White.copy(alpha = 0.25f), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.PieChart,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(15.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            "TOTAL ORÇADO DO MÊS",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White.copy(alpha = 0.85f),
+                            "TOTAL GASTO NO MÊS",
+                            style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            maxLines = 1,
+                            color = Color.White.copy(alpha = 0.85f),
                             modifier = Modifier.weight(1f)
                         )
                         if (temAlgumLimite) {
@@ -205,28 +190,33 @@ fun OrcamentoScreen(
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = if (temAlgumLimite) {
-                            "${formatoMoeda.format(totalGasto)} / ${formatoMoeda.format(totalLimite)}"
-                        } else {
-                            formatoMoeda.format(totalGasto)
-                        },
-                        style = MaterialTheme.typography.titleLarge,
+                        formatoMoeda.format(totalGasto),
+                        style = MaterialTheme.typography.displayMedium,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White,
-                        maxLines = 1
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    LinearProgressIndicator(
-                        progress = { progressoGeral },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(5.dp)
-                            .clip(RoundedCornerShape(3.dp)),
-                        color = Color.White,
-                        trackColor = Color.White.copy(alpha = 0.25f)
-                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        IndicadorGlassDePagina(
+                            "LIMITE TOTAL",
+                            if (temAlgumLimite) formatoMoeda.format(totalLimite) else "Não definido",
+                            Icons.Filled.PieChart,
+                            Modifier.weight(1f)
+                        )
+                        IndicadorGlassDePagina(
+                            if (ultrapassouGeral) "EXCEDIDO" else "DISPONÍVEL",
+                            if (temAlgumLimite) formatoMoeda.format(kotlin.math.abs(totalLimite - totalGasto)) else "—",
+                            Icons.Filled.AccountBalanceWallet,
+                            Modifier.weight(1f)
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -293,7 +283,7 @@ fun OrcamentoScreen(
                             mostrarSheet = true
                         }
                 ) {
-                    Column(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium)) {
+                    Column(modifier = Modifier.padding(14.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
@@ -319,11 +309,10 @@ fun OrcamentoScreen(
                                 Text(
                                     text = item.categoria.nome,
                                     fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.titleMedium,
+                                    style = MaterialTheme.typography.titleSmall,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                                Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = when {
                                         !temOrcamento -> "Toque para definir um limite"

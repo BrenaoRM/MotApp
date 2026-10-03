@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
@@ -88,7 +87,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -187,7 +185,7 @@ fun InvestimentoScreen(
             }
 
             item {
-                // Distribuição por categoria (para a barra segmentada do card)
+                // Distribuição por categoria (para o indicador de maior posição)
                 val distribuicao = remember(listaAtivosAgrupados) {
                     listaAtivosAgrupados
                         .groupBy { it.categoria }
@@ -196,115 +194,56 @@ fun InvestimentoScreen(
                 }
                 val maiorPosicao = distribuicao.firstOrNull()
 
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(20.dp)),
-                    shape = RoundedCornerShape(20.dp),
-                    shadowElevation = 4.dp
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(AmareloInvestimento, AmareloEscuroGradiente)
-                                )
-                            )
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                CartaoHeroDePagina(AmareloInvestimento, gradienteDaCor(AmareloInvestimento)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        CirculosDecorativosHero()
-                        Column {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .background(Color.White.copy(alpha = 0.25f), CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.TrendingUp,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text(
-                                    "PATRIMÔNIO TOTAL",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = Color.White.copy(alpha = 0.9f),
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Surface(
-                                    color = Color.White.copy(alpha = 0.2f),
-                                    shape = RoundedCornerShape(50)
-                                ) {
-                                    Text(
-                                        text = if (listaAtivosAgrupados.size == 1) "1 ativo" else "${listaAtivosAgrupados.size} ativos",
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
+                        Text(
+                            "PATRIMÔNIO TOTAL",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White.copy(alpha = 0.85f),
+                            maxLines = 1,
+                            modifier = Modifier.weight(1f)
+                        )
+                        PilulaGlass(if (listaAtivosAgrupados.size == 1) "1 ativo" else "${listaAtivosAgrupados.size} ativos")
+                    }
 
-                            Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                            Text(
-                                text = formatoMoeda.format(patrimonioTotal),
-                                style = MaterialTheme.typography.headlineLarge,
-                                color = Color.White,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 32.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                    Text(
+                        text = formatoMoeda.format(patrimonioTotal),
+                        style = MaterialTheme.typography.displayMedium,
+                        color = Color.White,
+                        fontWeight = FontWeight.ExtraBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
 
-                            if (maiorPosicao != null && patrimonioTotal > 0.0) {
-                                Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    // Barra segmentada: cada trecho é uma categoria
-                                    Row(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .height(6.dp)
-                                            .clip(RoundedCornerShape(3.dp)),
-                                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                    ) {
-                                        distribuicao.forEachIndexed { i, (_, valor) ->
-                                            val peso = (valor / patrimonioTotal).toFloat().coerceAtLeast(0.02f)
-                                            Box(
-                                                modifier = Modifier
-                                                    .weight(peso)
-                                                    .height(6.dp)
-                                                    .background(Color.White.copy(alpha = (1f - i * 0.22f).coerceAtLeast(0.30f)))
-                                            )
-                                        }
-                                    }
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        text = "${maiorPosicao.first} ${((maiorPosicao.second / patrimonioTotal) * 100).toInt()}%",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color.White.copy(alpha = 0.9f),
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.widthIn(max = 130.dp)
-                                    )
-                                }
-                            }
-                        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        IndicadorGlassDePagina(
+                            "MAIOR POSIÇÃO",
+                            if (maiorPosicao != null && patrimonioTotal > 0.0)
+                                "${maiorPosicao.first} ${((maiorPosicao.second / patrimonioTotal) * 100).toInt()}%"
+                            else "—",
+                            Icons.Filled.PieChart,
+                            Modifier.weight(1f)
+                        )
+                        IndicadorGlassDePagina(
+                            "CATEGORIAS",
+                            "${distribuicao.size}",
+                            Icons.AutoMirrored.Filled.TrendingUp,
+                            Modifier.weight(1f)
+                        )
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(if (categoriasPresentes.size > 2) 16.dp else 24.dp))
             }
 
             if (categoriasPresentes.size > 2) {
@@ -394,7 +333,7 @@ fun InvestimentoScreen(
                                 ativoExpandidoNome = if (isExpandido) null else ativo.nome
                             }
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(14.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
@@ -405,13 +344,13 @@ fun InvestimentoScreen(
                                         .background(AmareloInvestimento.copy(alpha = 0.15f), RoundedCornerShape(14.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Filled.Savings, contentDescription = null, tint = AmareloInvestimento)
+                                    Icon(Icons.Filled.Savings, contentDescription = null, tint = AmareloInvestimento, modifier = Modifier.size(22.dp))
                                 }
-                                Spacer(modifier = Modifier.width(14.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         ativo.nome,
-                                        style = MaterialTheme.typography.titleMedium,
+                                        style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
@@ -442,7 +381,7 @@ fun InvestimentoScreen(
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(
                                         formatoMoeda.format(ativo.valorTotal),
-                                        style = MaterialTheme.typography.titleMedium,
+                                        style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = AmareloInvestimento,
                                         maxLines = 1
