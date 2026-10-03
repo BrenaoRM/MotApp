@@ -35,6 +35,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -54,7 +59,24 @@ import java.util.Locale
 private val AmareloInvestimento = Color(0xFFF2A93B)
 private val HeroInicio = Color(0xFF7B5CF5)
 private val HeroFim = Color(0xFF3B82F6)
-private val HeroNegativoFim = Color(0xFFD64584)
+private val HeroNegativoInicio = Color(0xFFA85560)
+private val HeroNegativoFim = Color(0xFFA85560)
+
+/**
+ * Evita o "pulo" ao arrastar a lista de lançamentos dentro do ModalBottomSheet.
+ * Quando a lista chega ao topo, o restante do gesto de arrastar para baixo era repassado
+ * ao sheet, que começava a se mover (e voltar) no meio do scroll. Aqui consumimos esse
+ * excedente, então o sheet só é arrastado pela alça/cabeçalho (ou fechado no X / scrim).
+ */
+private val ConsumirExcedenteDeScroll = object : NestedScrollConnection {
+    override fun onPostScroll(
+        consumed: Offset,
+        available: Offset,
+        source: NestedScrollSource
+    ): Offset = available
+
+    override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity = available
+}
 
 private fun saudacaoPorHorario(): String {
     val hora = java.time.LocalTime.now().hour
@@ -128,7 +150,7 @@ fun DashboardScreen(
 
     // O cartão principal muda de cor quando o saldo fica negativo
     val corHero1 by animateColorAsState(
-        targetValue = if (saldo >= 0) HeroInicio else Coral,
+        targetValue = if (saldo >= 0) HeroInicio else HeroNegativoInicio,
         animationSpec = tween(600),
         label = "corHero1"
     )
@@ -305,7 +327,7 @@ fun DashboardScreen(
                     AtalhoRapidoCard("Parcelados", Icons.AutoMirrored.Filled.ReceiptLong, Color(0xFF2EC4B6), aoAbrirParcelados)
                     AtalhoRapidoCard("Investir", Icons.Filled.Savings, AmareloInvestimento, aoAbrirInvestimento)
                     AtalhoRapidoCard("Metas", Icons.Filled.Flag, Color(0xFF8B5CF6), aoAbrirMetas)
-                    AtalhoRapidoCard("Orçamento", Icons.Filled.PieChart, Color(0xFFF2A93B), aoAbrirOrcamento)
+                    AtalhoRapidoCard("Orçamento", Icons.Filled.PieChart, Color(0xFF5FB36B), aoAbrirOrcamento)
                 }
 
                 Spacer(modifier = Modifier.height(28.dp))
@@ -364,7 +386,7 @@ fun DashboardScreen(
                 }
             }
 
-            items(resumosFiltrados) { resumo ->
+            items(resumosFiltrados, key = { it.titulo + it.tipo }) { resumo ->
                 val nomeCategoria = resumo.titulo
                 val cor = if (resumo.tipo == TipoTransacao.DESPESA) Coral else Verde
                 val sinal = if (resumo.tipo == TipoTransacao.DESPESA) "- " else "+ "
@@ -524,7 +546,10 @@ fun DashboardScreen(
                         }
                     } else {
                         LazyColumn(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f, fill = false)
+                                .nestedScroll(ConsumirExcedenteDeScroll),
                             contentPadding = PaddingValues(
                                 start = MaterialTheme.dimens.paddingScreen,
                                 end = MaterialTheme.dimens.paddingScreen,
