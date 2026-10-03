@@ -94,6 +94,7 @@ import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.Verde
+import com.example.financacelular.ui.theme.dimens
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -129,14 +130,14 @@ private fun SecaoCard(
     conteudo: @Composable ColumnScope.() -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(26.dp),
+        shape = RoundedCornerShape(22.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
             content = conteudo
         )
     }
@@ -242,10 +243,10 @@ private fun LinhaSwitch(
             .clip(RoundedCornerShape(18.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
             .clickable { aoMudar(!marcado) }
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconeEmCirculo(icone = icone, cor = cor, tamanho = 38.dp)
+        IconeEmCirculo(icone = icone, cor = cor, tamanho = 34.dp)
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(titulo, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
@@ -278,7 +279,7 @@ private fun PilulaData(texto: String, selecionada: Boolean, cor: Color, aoClicar
             .clip(RoundedCornerShape(50))
             .background(fundo)
             .clickable(onClick = aoClicar)
-            .padding(horizontal = 14.dp, vertical = 7.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
         Text(
             text = texto,
@@ -378,23 +379,24 @@ fun NovaTransacaoScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .statusBarsPadding()
+                    .imePadding()
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
-                        .padding(top = 12.dp, bottom = 14.dp),
+                        .padding(horizontal = MaterialTheme.dimens.paddingScreen)
+                        .padding(top = 8.dp, bottom = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(
                         onClick = aoFechar,
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(38.dp)
                             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), CircleShape)
                     ) {
                         Icon(Icons.Filled.Close, contentDescription = "Fechar", modifier = Modifier.size(20.dp))
                     }
-                    Spacer(modifier = Modifier.width(14.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = "Nova Transação",
                         style = MaterialTheme.typography.titleLarge,
@@ -404,9 +406,9 @@ fun NovaTransacaoScreen(
 
                 Box(
                     modifier = Modifier
-                        .padding(horizontal = 20.dp)
+                        .padding(horizontal = MaterialTheme.dimens.paddingScreen)
                         .fillMaxWidth()
-                        .height(52.dp)
+                        .height(46.dp)
                         .clip(RoundedCornerShape(50))
                         .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
                         .padding(4.dp)
@@ -450,9 +452,9 @@ fun NovaTransacaoScreen(
                         .fillMaxWidth()
                         .weight(1f)
                         .verticalScroll(scrollState)
-                        .padding(horizontal = 20.dp)
-                        .padding(top = 18.dp, bottom = 100.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                        .padding(horizontal = MaterialTheme.dimens.paddingScreen)
+                        .padding(top = 12.dp, bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Box(
                         modifier = Modifier
@@ -464,7 +466,7 @@ fun NovaTransacaoScreen(
                                 )
                             )
                             .border(1.dp, corTema.copy(alpha = 0.28f), RoundedCornerShape(28.dp))
-                            .padding(start = 20.dp, end = 12.dp, top = 18.dp, bottom = 10.dp)
+                            .padding(start = 18.dp, end = 8.dp, top = 12.dp, bottom = 2.dp)
                     ) {
                         Column {
                             Text(
@@ -494,7 +496,7 @@ fun NovaTransacaoScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = "R$",
-                                    fontSize = 22.sp,
+                                    fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = corTema
                                 )
@@ -509,7 +511,7 @@ fun NovaTransacaoScreen(
                                             selection = TextRange(textoFinal.length)
                                         )
                                     },
-                                    textStyle = MaterialTheme.typography.displaySmall.copy(
+                                    textStyle = MaterialTheme.typography.headlineLarge.copy(
                                         textAlign = TextAlign.Start,
                                         fontWeight = FontWeight.Bold,
                                         color = corTexto
@@ -592,30 +594,34 @@ fun NovaTransacaoScreen(
                         }
 
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(formaCampo)
-                                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f), formaCampo)
-                                .clickable { mostrarDatePicker = true }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = corTema)
-                            Spacer(modifier = Modifier.width(14.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    "Data",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                            Row(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                                    .clip(formaCampo)
+                                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f), formaCampo)
+                                    .clickable { mostrarDatePicker = true }
+                                    .padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Filled.CalendarMonth,
+                                    contentDescription = "Selecionar data",
+                                    tint = corTema,
+                                    modifier = Modifier.size(20.dp)
                                 )
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     viewModel.data.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
                                     style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1
                                 )
                             }
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             PilulaData("Hoje", viewModel.data == hoje, corTema) { viewModel.onDataChange(hoje) }
                             PilulaData("Ontem", viewModel.data == ontem, corTema) { viewModel.onDataChange(ontem) }
                         }
@@ -704,35 +710,13 @@ fun NovaTransacaoScreen(
                         }
                     }
                 }
-            }
-
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .imePadding()
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .background(
-                            brush = Brush.verticalGradient(
-                                0.0f to Color.Transparent,
-                                0.3f to MaterialTheme.colorScheme.background,
-                                1.0f to MaterialTheme.colorScheme.background
-                            )
-                        )
-                        .navigationBarsPadding()
-                        .height(80.dp)
-                )
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
-                        .padding(horizontal = 20.dp, vertical = 10.dp),
-                    contentAlignment = Alignment.Center
+                        .padding(horizontal = MaterialTheme.dimens.paddingScreen)
+                        .padding(top = 6.dp, bottom = 10.dp)
                 ) {
                     Button(
                         onClick = {
@@ -753,22 +737,17 @@ fun NovaTransacaoScreen(
                         ),
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Salvar Transação",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Salvar Transação",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
                     }
                 }
             }

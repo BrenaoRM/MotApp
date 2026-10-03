@@ -1,6 +1,7 @@
 package com.example.financacelular.ui
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,12 +15,11 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,7 +29,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Flag
@@ -142,61 +141,55 @@ fun MetaScreen(
             )
         ) {
             item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (aoVoltar != null) {
-                        IconButton(onClick = aoVoltar) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Voltar"
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(4.dp))
-                    }
-                    Text(
-                        "Metas",
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                CabecalhoDePagina("Metas", RoxoMeta, aoVoltar)
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Card(
-                    shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .background(RoxoMeta.copy(alpha = 0.15f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Filled.Flag, contentDescription = null, tint = RoxoMeta, modifier = Modifier.size(24.dp))
-                            }
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("TOTAL ACUMULADO", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(
-                                    "${formato.format(totalAcumulado)} / ${formato.format(totalAlvo)}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = RoxoMeta,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
+                val progressoGeral = if (totalAlvo > 0) (totalAcumulado / totalAlvo).toFloat().coerceIn(0f, 1f) else 0f
+                CartaoHeroDePagina(RoxoMeta, gradienteDaCor(RoxoMeta)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(Color.White.copy(alpha = 0.25f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Filled.Flag, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                         }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            "TOTAL ACUMULADO",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White.copy(alpha = 0.85f),
+                            modifier = Modifier.weight(1f)
+                        )
+                        PilulaGlass(if (metas.size == 1) "1 meta" else "${metas.size} metas")
                     }
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        formato.format(totalAcumulado),
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        "de ${formato.format(totalAlvo)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.8f),
+                        maxLines = 1
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    LinearProgressIndicator(
+                        progress = { progressoGeral },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp)),
+                        color = Color.White,
+                        trackColor = Color.White.copy(alpha = 0.25f)
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -219,11 +212,13 @@ fun MetaScreen(
                     val percentual = (progresso * 100).toInt()
 
                     Card(
-                        shape = RoundedCornerShape(18.dp),
+                        shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 6.dp)
+                            .padding(vertical = 5.dp)
+                            .clip(RoundedCornerShape(20.dp))
                             .clickable {
                                 metaParaEditar = meta
                                 novoNome = meta.nome
@@ -236,7 +231,7 @@ fun MetaScreen(
                                 Box(
                                     modifier = Modifier
                                         .size(44.dp)
-                                        .background(RoxoMeta.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
+                                        .background(RoxoMeta.copy(alpha = 0.15f), RoundedCornerShape(14.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(Icons.Filled.Flag, contentDescription = null, tint = RoxoMeta)
@@ -268,9 +263,10 @@ fun MetaScreen(
                                 progress = { progresso },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(8.dp),
+                                    .height(8.dp)
+                                    .clip(RoundedCornerShape(4.dp)),
                                 color = RoxoMeta,
-                                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                trackColor = RoxoMeta.copy(alpha = 0.12f),
                             )
 
                         }

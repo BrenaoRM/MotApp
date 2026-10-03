@@ -62,12 +62,6 @@ private val HeroFim = Color(0xFF3B82F6)
 private val HeroNegativoInicio = Color(0xFFA85560)
 private val HeroNegativoFim = Color(0xFFA85560)
 
-/**
- * Evita o "pulo" ao arrastar a lista de lançamentos dentro do ModalBottomSheet.
- * Quando a lista chega ao topo, o restante do gesto de arrastar para baixo era repassado
- * ao sheet, que começava a se mover (e voltar) no meio do scroll. Aqui consumimos esse
- * excedente, então o sheet só é arrastado pela alça/cabeçalho (ou fechado no X / scrim).
- */
 private val ConsumirExcedenteDeScroll = object : NestedScrollConnection {
     override fun onPostScroll(
         consumed: Offset,
@@ -87,7 +81,6 @@ private fun saudacaoPorHorario(): String {
     }
 }
 
-/** "2026-10-03" -> "03/10/2026" (sem depender do tipo exato da data). */
 private fun formatarDataIso(texto: String): String {
     val partes = texto.take(10).split("-")
     return if (partes.size == 3) "${partes[2]}/${partes[1]}/${partes[0]}" else texto

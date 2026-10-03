@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,12 +14,11 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -28,7 +28,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PieChart
@@ -66,11 +65,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.ui.theme.Coral
-import com.example.financacelular.ui.theme.Verde
 import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.util.Locale
 import java.time.format.TextStyle as JavaTextStyle
+
+private val VerdeOrcamento = Color(0xFF5FB36B)
 
 /**
  * Converte qualquer entrada numérica (usando vírgula ou ponto) para Double com segurança.
@@ -161,33 +161,7 @@ fun OrcamentoScreen(
             contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
         ) {
             item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 40.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (aoVoltar != null) {
-                        IconButton(
-                            onClick = aoVoltar,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Voltar"
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(4.dp))
-                    }
-                    Text(
-                        "Orçamento Mensal",
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                CabecalhoDePagina("Orçamento Mensal", VerdeOrcamento, aoVoltar)
                 Spacer(modifier = Modifier.height(16.dp))
                 MesSelectorCard(
                     nomeMes = nomeMes,
@@ -198,77 +172,59 @@ fun OrcamentoScreen(
             }
 
             item {
-                Card(
-                    shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
+                CartaoHeroDePagina(
+                    corInicio = if (ultrapassouGeral) CorHeroAlerta else VerdeOrcamento,
+                    corFim = gradienteDaCor(if (ultrapassouGeral) CorHeroAlerta else VerdeOrcamento)
                 ) {
-                    Column(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.PieChart,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text(
-                                    "TOTAL ORÇADO DO MÊS",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            if (temAlgumLimite) {
-                                Surface(
-                                    color = if (ultrapassouGeral) Coral.copy(alpha = 0.15f) else Verde.copy(alpha = 0.15f),
-                                    shape = RoundedCornerShape(50)
-                                ) {
-                                    Text(
-                                        text = if (ultrapassouGeral) "Limite Excedido" else "No Limite",
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (ultrapassouGeral) Coral else Verde,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Text(
-                            text = if (temAlgumLimite) {
-                                "${formatoMoeda.format(totalGasto)} / ${formatoMoeda.format(totalLimite)}"
-                            } else {
-                                formatoMoeda.format(totalGasto)
-                            },
-                            style = MaterialTheme.typography.headlineLarge,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = if (ultrapassouGeral) Coral else MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        LinearProgressIndicator(
-                            progress = { progressoGeral },
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(8.dp)
-                                .clip(RoundedCornerShape(4.dp)),
-                            color = if (ultrapassouGeral) Coral else Verde,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                .size(36.dp)
+                                .background(Color.White.copy(alpha = 0.25f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.PieChart,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            "TOTAL ORÇADO DO MÊS",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            modifier = Modifier.weight(1f)
                         )
+                        if (temAlgumLimite) {
+                            PilulaGlass(if (ultrapassouGeral) "Limite excedido" else "No limite")
+                        }
                     }
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = if (temAlgumLimite) {
+                            "${formatoMoeda.format(totalGasto)} / ${formatoMoeda.format(totalLimite)}"
+                        } else {
+                            formatoMoeda.format(totalGasto)
+                        },
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White,
+                        maxLines = 1
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    LinearProgressIndicator(
+                        progress = { progressoGeral },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp)),
+                        color = Color.White,
+                        trackColor = Color.White.copy(alpha = 0.25f)
+                    )
                 }
                 Spacer(modifier = Modifier.height(24.dp))
                 Row(
@@ -318,15 +274,16 @@ fun OrcamentoScreen(
                 val limiteVal = item.limite ?: 0.0
                 val progresso = if (temOrcamento) (item.gasto / limiteVal).toFloat().coerceIn(0f, 1f) else 0f
                 val ultrapassou = temOrcamento && item.gasto > limiteVal
-                val corBarra = if (ultrapassou) Coral else Verde
+                val corBarra = if (ultrapassou) Coral else VerdeOrcamento
                 val percentualInt = if (temOrcamento) ((item.gasto / limiteVal) * 100).toInt() else 0
                 Card(
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                        .clip(RoundedCornerShape(18.dp))
+                        .padding(vertical = 5.dp)
+                        .clip(RoundedCornerShape(20.dp))
                         .clickable {
                             modoNovoLimite = false
                             categoriaEmEdicao = item
@@ -343,17 +300,17 @@ fun OrcamentoScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(42.dp)
+                                    .size(44.dp)
                                     .background(
-                                        color = if (ultrapassou) Coral.copy(alpha = 0.15f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                        shape = RoundedCornerShape(12.dp)
+                                        color = if (ultrapassou) Coral.copy(alpha = 0.15f) else VerdeOrcamento.copy(alpha = 0.12f),
+                                        shape = RoundedCornerShape(14.dp)
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = iconeParaCategoria(item.categoria.nome),
                                     contentDescription = null,
-                                    tint = if (ultrapassou) Coral else MaterialTheme.colorScheme.primary,
+                                    tint = if (ultrapassou) Coral else VerdeOrcamento,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -484,12 +441,12 @@ fun OrcamentoScreen(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(50))
                                         .background(
-                                            if (selecionada) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                                            if (selecionada) VerdeOrcamento.copy(alpha = 0.14f)
                                             else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
                                         )
                                         .border(
                                             width = if (selecionada) 1.5.dp else 0.dp,
-                                            color = if (selecionada) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                            color = if (selecionada) VerdeOrcamento else Color.Transparent,
                                             shape = RoundedCornerShape(50)
                                         )
                                         .clickable {
@@ -502,7 +459,7 @@ fun OrcamentoScreen(
                                     Icon(
                                         imageVector = iconeParaCategoria(opcao.categoria.nome),
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
+                                        tint = VerdeOrcamento,
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -539,7 +496,7 @@ fun OrcamentoScreen(
                             .height(52.dp),
                         shape = RoundedCornerShape(20.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
+                            containerColor = VerdeOrcamento,
                             contentColor = Color.White
                         ),
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
