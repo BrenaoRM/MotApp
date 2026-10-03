@@ -1,6 +1,10 @@
 package com.example.financacelular.ui
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -30,11 +34,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.ui.theme.Coral
@@ -45,6 +52,24 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 private val AmareloInvestimento = Color(0xFFF2A93B)
+private val HeroInicio = Color(0xFF7B5CF5)
+private val HeroFim = Color(0xFF3B82F6)
+private val HeroNegativoFim = Color(0xFFD64584)
+
+private fun saudacaoPorHorario(): String {
+    val hora = java.time.LocalTime.now().hour
+    return when {
+        hora < 12 -> "Bom dia"
+        hora < 18 -> "Boa tarde"
+        else -> "Boa noite"
+    }
+}
+
+/** "2026-10-03" -> "03/10/2026" (sem depender do tipo exato da data). */
+private fun formatarDataIso(texto: String): String {
+    val partes = texto.take(10).split("-")
+    return if (partes.size == 3) "${partes[2]}/${partes[1]}/${partes[0]}" else texto
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,6 +97,7 @@ fun DashboardScreen(
     var mostrarFiltros by remember { mutableStateOf(false) }
     var filtroTipo by remember { mutableStateOf<TipoTransacao?>(null) }
     var ordemFiltro by remember { mutableStateOf("VALOR") }
+    val filtrosAtivos = filtroTipo != null || ordemFiltro != "VALOR"
 
     var categoriaDetalheSelecionada by remember { mutableStateOf<ResumoMovimentacao?>(null) }
     val sheetStateDetalhes = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -79,6 +105,7 @@ fun DashboardScreen(
 
     val alertaFaturaPendente by viewModel.alertaFaturaPendente.collectAsState()
     val nomeUsuario = viewModel.nomeUtilizador
+    val saudacao = remember { saudacaoPorHorario() }
 
     val nomeMes = remember(mesSelecionado) {
         mesSelecionado.month.getDisplayName(TextStyle.FULL, Locale.Builder().setLanguage("pt").setRegion("BR").build())
@@ -94,6 +121,23 @@ fun DashboardScreen(
         )
     }
 
+    // Total por tipo (entradas / saídas) para mostrar a participação de cada categoria
+    val totaisPorTipo = remember(resumoDoMes) {
+        resumoDoMes.groupBy { it.tipo }.mapValues { (_, lista) -> lista.sumOf { it.total } }
+    }
+
+    // O cartão principal muda de cor quando o saldo fica negativo
+    val corHero1 by animateColorAsState(
+        targetValue = if (saldo >= 0) HeroInicio else Coral,
+        animationSpec = tween(600),
+        label = "corHero1"
+    )
+    val corHero2 by animateColorAsState(
+        targetValue = if (saldo >= 0) HeroFim else HeroNegativoFim,
+        animationSpec = tween(600),
+        label = "corHero2"
+    )
+
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier
@@ -106,21 +150,39 @@ fun DashboardScreen(
             )
         ) {
             item {
+                // ---------------- CABEÇALHO ----------------
                 Row(
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        "Olá, $nomeUsuario",
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
-                    )
-                    IconButton(
-                        onClick = aoAbrirConfiguracoes,
-                        modifier = Modifier.size(36.dp)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            saudacao,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            nomeUsuario,
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surface)
+                            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f), CircleShape)
+                            .clickable(onClick = aoAbrirConfiguracoes),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Filled.Settings, contentDescription = "Configurações", tint = MaterialTheme.colorScheme.primary)
+                        Icon(
+                            Icons.Filled.Settings,
+                            contentDescription = "Configurações",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
@@ -132,10 +194,29 @@ fun DashboardScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Card(
-                    shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                // ---------------- CARTÃO PRINCIPAL (PROJEÇÃO) ----------------
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius))
+                        .background(Brush.linearGradient(colors = listOf(corHero1, corHero2)))
                 ) {
+                    // Círculos decorativos
+                    Box(
+                        modifier = Modifier
+                            .size(200.dp)
+                            .align(Alignment.TopEnd)
+                            .offset(x = 70.dp, y = (-70).dp)
+                            .background(Color.White.copy(alpha = 0.08f), CircleShape)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(140.dp)
+                            .align(Alignment.BottomStart)
+                            .offset(x = (-50).dp, y = 60.dp)
+                            .background(Color.White.copy(alpha = 0.06f), CircleShape)
+                    )
+
                     Column(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -144,63 +225,75 @@ fun DashboardScreen(
                             Text(
                                 "PROJEÇÃO DO MÊS",
                                 style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.weight(1f)
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White.copy(alpha = 0.8f)
                             )
-                            IconButton(onClick = { saldoVisivel = !saldoVisivel }, modifier = Modifier.size(20.dp)) {
+                            IconButton(
+                                onClick = { saldoVisivel = !saldoVisivel },
+                                modifier = Modifier.size(32.dp)
+                            ) {
                                 Icon(
                                     if (saldoVisivel) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
                                     contentDescription = "Ocultar valor",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = Color.White.copy(alpha = 0.9f),
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.weight(1f))
                             SeloSaude(saudavel = saldo >= 0)
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             if (saldoVisivel) formatoMoeda.format(saldo) else "R$ ••••••",
-                            style = MaterialTheme.typography.displayLarge
+                            style = MaterialTheme.typography.displayMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White,
+                            maxLines = 1
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        HorizontalDivider()
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(18.dp))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            LinhaIndicador(
-                                "ENTRADAS", formatoMoeda.format(totalReceitas), Verde,
+                            IndicadorGlass(
+                                "ENTRADAS", formatoMoeda.format(totalReceitas),
                                 Icons.AutoMirrored.Filled.TrendingUp, Modifier.weight(1f)
                             )
-                            LinhaIndicador(
-                                "SAÍDAS", formatoMoeda.format(totalDespesas), MaterialTheme.colorScheme.onSurface,
+                            IndicadorGlass(
+                                "SAÍDAS", formatoMoeda.format(totalDespesas),
                                 Icons.AutoMirrored.Filled.TrendingDown, Modifier.weight(1f)
                             )
-                            LinhaIndicador(
-                                "INVESTIDO", formatoMoeda.format(totalInvestido), AmareloInvestimento,
+                            IndicadorGlass(
+                                "INVESTIDO", formatoMoeda.format(totalInvestido),
                                 Icons.Filled.Savings, Modifier.weight(1f)
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
 
-                        OutlinedButton(
+                        Button(
                             onClick = aoAbrirExtrato,
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.White.copy(alpha = 0.2f),
+                                contentColor = Color.White
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp)
                         ) {
                             Icon(Icons.AutoMirrored.Filled.ReceiptLong, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Ver Extrato Completo", style = MaterialTheme.typography.labelLarge)
+                            Text("Ver Extrato Completo", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
+                // ---------------- ACESSO RÁPIDO ----------------
+                Text("Acesso rápido", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -215,8 +308,9 @@ fun DashboardScreen(
                     AtalhoRapidoCard("Orçamento", Icons.Filled.PieChart, Color(0xFFF2A93B), aoAbrirOrcamento)
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(28.dp))
 
+                // ---------------- RESUMO POR CATEGORIA ----------------
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -225,22 +319,26 @@ fun DashboardScreen(
                     Text("Resumo do mês por Categoria", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                            .clip(RoundedCornerShape(50))
+                            .background(
+                                if (filtrosAtivos) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                            )
                             .clickable { mostrarFiltros = true }
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
+                        val corFiltro = if (filtrosAtivos) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 Icons.Filled.FilterList,
                                 contentDescription = "Filtros",
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = corFiltro,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                "Filtrar",
-                                color = MaterialTheme.colorScheme.primary,
+                                if (filtrosAtivos) "Filtrado" else "Filtrar",
+                                color = corFiltro,
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold
                             )
@@ -250,11 +348,19 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 if (resumosFiltrados.isEmpty()) {
-                    Text(
-                        "Nenhuma movimentação encontrada com esses filtros.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            "Nenhuma movimentação encontrada com esses filtros.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(24.dp)
+                        )
+                    }
                 }
             }
 
@@ -262,57 +368,77 @@ fun DashboardScreen(
                 val nomeCategoria = resumo.titulo
                 val cor = if (resumo.tipo == TipoTransacao.DESPESA) Coral else Verde
                 val sinal = if (resumo.tipo == TipoTransacao.DESPESA) "- " else "+ "
+                val totalDoTipo = totaisPorTipo[resumo.tipo] ?: 0.0
+                val fracao = if (totalDoTipo > 0.0) (resumo.total / totalDoTipo).toFloat().coerceIn(0f, 1f) else 0f
+                val percentual = (fracao * 100).toInt()
+                val rotuloTipo = if (resumo.tipo == TipoTransacao.DESPESA) "das saídas" else "das entradas"
 
                 Card(
-                    shape = RoundedCornerShape(18.dp),
+                    onClick = { categoriaDetalheSelecionada = resumo },
+                    shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 6.dp)
-                        .clickable { categoriaDetalheSelecionada = resumo }
+                        .padding(vertical = 5.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(cor.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
-                            contentAlignment = Alignment.Center
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                iconeParaCategoria(nomeCategoria),
-                                contentDescription = null,
-                                tint = cor
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .background(cor.copy(alpha = 0.14f), RoundedCornerShape(14.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    iconeParaCategoria(nomeCategoria),
+                                    contentDescription = null,
+                                    tint = cor,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    nomeCategoria,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    "$percentual% $rotuloTipo",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                nomeCategoria,
+                                "$sinal${formatoMoeda.format(resumo.total)}",
                                 style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                "Toque para ver os lançamentos",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = cor,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
                             )
                         }
-                        Text(
-                            "$sinal${formatoMoeda.format(resumo.total)}",
-                            style = MaterialTheme.typography.titleSmall,
+                        Spacer(modifier = Modifier.height(12.dp))
+                        LinearProgressIndicator(
+                            progress = { fracao },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(5.dp)
+                                .clip(RoundedCornerShape(3.dp)),
                             color = cor,
-                            fontWeight = FontWeight.Bold
+                            trackColor = cor.copy(alpha = 0.12f)
                         )
                     }
                 }
             }
         }
 
+        // ---------------- SHEET: DETALHES DA CATEGORIA ----------------
         categoriaDetalheSelecionada?.let { resumo ->
             val corCategoria = if (resumo.tipo == TipoTransacao.DESPESA) Coral else Verde
             ModalBottomSheet(
@@ -320,17 +446,22 @@ fun DashboardScreen(
                 sheetState = sheetStateDetalhes,
                 containerColor = MaterialTheme.colorScheme.surface,
                 dragHandle = { BottomSheetDefaults.DragHandle() },
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                contentWindowInsets = { WindowInsets.statusBars }
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                        .navigationBarsPadding()
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(corCategoria.copy(alpha = 0.1f))
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(corCategoria.copy(alpha = 0.16f), Color.Transparent)
+                                )
+                            )
                             .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 16.dp)
                     ) {
                         Row(
@@ -338,11 +469,14 @@ fun DashboardScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Box(
                                     modifier = Modifier
                                         .size(48.dp)
-                                        .background(corCategoria, CircleShape),
+                                        .background(corCategoria, RoundedCornerShape(16.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -356,10 +490,11 @@ fun DashboardScreen(
                                     Text(
                                         text = resumo.titulo,
                                         style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1
                                     )
                                     Text(
-                                        text = "${resumo.transacoes.size} lançamentos",
+                                        text = if (resumo.transacoes.size == 1) "1 lançamento" else "${resumo.transacoes.size} lançamentos",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -367,7 +502,7 @@ fun DashboardScreen(
                             }
                             IconButton(
                                 onClick = { categoriaDetalheSelecionada = null },
-                                modifier = Modifier.background(MaterialTheme.colorScheme.surface, CircleShape)
+                                modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
                             ) {
                                 Icon(Icons.Filled.Close, contentDescription = "Fechar")
                             }
@@ -390,40 +525,62 @@ fun DashboardScreen(
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(MaterialTheme.dimens.paddingScreen),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                            contentPadding = PaddingValues(
+                                start = MaterialTheme.dimens.paddingScreen,
+                                end = MaterialTheme.dimens.paddingScreen,
+                                top = 4.dp,
+                                bottom = 16.dp
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             items(resumo.transacoes) { transacao ->
                                 val corItem = if (transacao.tipo == TipoTransacao.DESPESA) Coral else Verde
                                 val sinalItem = if (transacao.tipo == TipoTransacao.DESPESA) "- " else "+ "
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .background(corItem.copy(alpha = 0.14f), CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            if (transacao.tipo == TipoTransacao.DESPESA) Icons.AutoMirrored.Filled.TrendingDown
+                                            else Icons.AutoMirrored.Filled.TrendingUp,
+                                            contentDescription = null,
+                                            tint = corItem,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = transacao.descricao ?: resumo.titulo,
                                             style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.Bold
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1
                                         )
                                         Text(
-                                            text = transacao.data.toString(),
+                                            text = formatarDataIso(transacao.data.toString()),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
+                                    Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = "$sinalItem${formatoMoeda.format(transacao.valor)}",
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = corItem
+                                        color = corItem,
+                                        maxLines = 1
                                     )
                                 }
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(top = 16.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                                )
                             }
                         }
                     }
@@ -431,19 +588,22 @@ fun DashboardScreen(
             }
         }
 
+        // ---------------- SHEET: FILTROS ----------------
         if (mostrarFiltros) {
             ModalBottomSheet(
                 onDismissRequest = { mostrarFiltros = false },
                 sheetState = sheetStateFiltros,
                 containerColor = MaterialTheme.colorScheme.surface,
                 dragHandle = { BottomSheetDefaults.DragHandle() },
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                contentWindowInsets = { WindowInsets.statusBars }
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = MaterialTheme.dimens.paddingScreen)
-                        .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp)
+                        .navigationBarsPadding()
+                        .padding(bottom = 10.dp)
                 ) {
                     Text(
                         text = "Opções de Visualização",
@@ -451,12 +611,12 @@ fun DashboardScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(24.dp))
-                    Text("Exibir tipo de movimentação", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("EXIBIR TIPO DE MOVIMENTAÇÃO", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.height(10.dp))
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(50))
                             .padding(4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -480,12 +640,12 @@ fun DashboardScreen(
                         )
                     }
                     Spacer(modifier = Modifier.height(24.dp))
-                    Text("Ordenar categorias por", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("ORDENAR CATEGORIAS POR", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.height(10.dp))
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(50))
                             .padding(4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -505,10 +665,14 @@ fun DashboardScreen(
                     Spacer(modifier = Modifier.height(32.dp))
                     Button(
                         onClick = { mostrarFiltros = false },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
-                        shape = RoundedCornerShape(14.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
+                            .height(52.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
                     ) {
-                        Text("Aplicar Filtros", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                        Text("Aplicar Filtros", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                 }
             }
@@ -552,11 +716,15 @@ private fun SegmentedButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val backgroundColor = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent
+    val backgroundColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        animationSpec = tween(200),
+        label = "fundoSegmento"
+    )
     val textColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(50))
             .background(backgroundColor)
             .clickable { onClick() }
             .padding(vertical = 10.dp),
@@ -567,7 +735,8 @@ private fun SegmentedButton(
             color = textColor,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            maxLines = 1
         )
     }
 }
@@ -576,73 +745,90 @@ private fun SegmentedButton(
 private fun AtalhoRapidoCard(titulo: String, icone: ImageVector, cor: Color, onClick: () -> Unit) {
     Card(
         onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = cor.copy(alpha = 0.10f)),
+        border = BorderStroke(1.dp, cor.copy(alpha = 0.2f)),
         modifier = Modifier
-            .width(100.dp)
-            .height(85.dp)
+            .width(104.dp)
+            .height(92.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(10.dp),
+                .padding(12.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
-                    .background(cor.copy(alpha = 0.15f), CircleShape),
+                    .size(34.dp)
+                    .background(cor, RoundedCornerShape(11.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icone, contentDescription = null, tint = cor, modifier = Modifier.size(18.dp))
+                Icon(icone, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
             }
-            Text(titulo, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+            Text(
+                titulo,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
         }
     }
 }
 
 @Composable
 private fun SeloSaude(saudavel: Boolean) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(Color.White.copy(alpha = 0.2f))
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Icon(
             if (saudavel) Icons.Filled.CheckCircle else Icons.Filled.ErrorOutline,
             contentDescription = null,
-            tint = if (saudavel) Verde else Coral,
-            modifier = Modifier.size(16.dp)
+            tint = Color.White,
+            modifier = Modifier.size(14.dp)
         )
         Spacer(modifier = Modifier.width(4.dp))
         Text(
             if (saudavel) "Saudável" else "Atenção",
-            style = MaterialTheme.typography.labelLarge,
-            color = if (saudavel) Verde else Coral
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
         )
     }
 }
 
 @Composable
-private fun LinhaIndicador(
+private fun IndicadorGlass(
     titulo: String,
     valor: String,
-    cor: Color,
     icone: ImageVector,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(18.dp))
+            .background(Color.White.copy(alpha = 0.16f))
+            .padding(horizontal = 10.dp, vertical = 10.dp)
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icone, contentDescription = null, tint = cor, modifier = Modifier.size(14.dp))
-            Spacer(modifier = Modifier.width(2.dp))
+            Icon(icone, contentDescription = null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(13.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             Text(
                 titulo,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = Color.White.copy(alpha = 0.8f),
                 maxLines = 1
             )
         }
-        Spacer(modifier = Modifier.height(2.dp))
+        Spacer(modifier = Modifier.height(4.dp))
         Text(
             valor,
             style = MaterialTheme.typography.bodyMedium,
-            color = cor,
+            color = Color.White,
             fontWeight = FontWeight.Bold,
             maxLines = 1
         )

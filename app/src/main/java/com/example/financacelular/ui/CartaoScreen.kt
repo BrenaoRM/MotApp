@@ -4,7 +4,6 @@ import android.widget.Toast
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -118,17 +117,7 @@ fun CartaoScreen(
                 valorTotal = valorTotalFatura,
                 faturaPaga = faturaPaga,
                 diaVencimento = diaVencimentoSalvo,
-                formatoMoeda = formatoMoeda,
-                onPagarFatura = {
-                    viewModel.pagarFatura {
-                        Toast.makeText(context, "Fatura paga e descontada do saldo!", Toast.LENGTH_SHORT).show()
-                    }
-                },
-                onCancelarPagamento = {
-                    viewModel.cancelarPagamentoFatura {
-                        Toast.makeText(context, "Pagamento cancelado com sucesso.", Toast.LENGTH_SHORT).show()
-                    }
-                }
+                formatoMoeda = formatoMoeda
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -187,7 +176,7 @@ fun CartaoScreen(
                     Text(
                         formatoMoeda.format(transacao.valor),
                         fontWeight = FontWeight.Bold,
-                        color = Coral, // Usando a cor Coral do Dashboard
+                        color = Coral,
                         maxLines = 1
                     )
                 }
@@ -269,9 +258,7 @@ private fun CartaoVirtualHero(
     valorTotal: Double,
     faturaPaga: Boolean,
     diaVencimento: Int,
-    formatoMoeda: NumberFormat,
-    onPagarFatura: () -> Unit,
-    onCancelarPagamento: () -> Unit
+    formatoMoeda: NumberFormat
 ) {
     val animProgress by animateFloatAsState(
         targetValue = if (faturaPaga) 1f else 0f,
@@ -355,48 +342,6 @@ private fun CartaoVirtualHero(
                     color = Color.White.copy(alpha = 0.85f),
                     fontWeight = FontWeight.Medium
                 )
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                if (!faturaPaga) {
-                    Button(
-                        onClick = onPagarFatura,
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Verde,
-                            contentColor = Color.White
-                        ),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                    ) {
-                        Text(
-                            text = "Pagar Fatura",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
-                    }
-                } else {
-                    OutlinedButton(
-                        onClick = onCancelarPagamento,
-                        shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.7f)),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = Color.White
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                    ) {
-                        Text(
-                            text = "Cancelar Pagamento",
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
             }
         }
     }

@@ -1,6 +1,7 @@
 package com.example.financacelular.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,17 +10,19 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,6 +48,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +57,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -98,10 +104,17 @@ private fun converterTextoParaDouble(texto: String): Double {
     return textoFormatado.toDoubleOrNull() ?: 0.0
 }
 
+private fun limiteParaTexto(limite: Double?): String =
+    limite?.takeIf { it > 0.0 }?.let { lim ->
+        if (lim % 1.0 == 0.0) lim.toLong().toString() else lim.toString().replace(".", ",")
+    } ?: ""
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrcamentoScreen(
     viewModel: OrcamentoViewModel = viewModel(),
+    acionarNovoLimiteExterno: Boolean = false,
+    aoNovoLimiteAcionado: () -> Unit = {},
     aoVoltar: (() -> Unit)? = null
 ) {
     val itens by viewModel.itens.collectAsState(initial = emptyList())
@@ -115,6 +128,7 @@ fun OrcamentoScreen(
 
     var categoriaEmEdicao by remember { mutableStateOf<ItemOrcamento?>(null) }
     var mostrarSheet by remember { mutableStateOf(false) }
+    var modoNovoLimite by remember { mutableStateOf(false) }
     var valorInput by remember { mutableStateOf("") }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -123,6 +137,20 @@ fun OrcamentoScreen(
     val temAlgumLimite = totalLimite > 0.0
     val progressoGeral = if (temAlgumLimite) (totalGasto / totalLimite).toFloat().coerceIn(0f, 1f) else 0f
     val ultrapassouGeral = temAlgumLimite && totalGasto > totalLimite
+
+    // Botão "Definir Limite" da barra inferior: abre o sheet com seletor de categoria
+    LaunchedEffect(acionarNovoLimiteExterno) {
+        if (acionarNovoLimiteExterno) {
+            val inicial = itens.firstOrNull { (it.limite ?: 0.0) <= 0.0 } ?: itens.firstOrNull()
+            if (inicial != null) {
+                modoNovoLimite = true
+                categoriaEmEdicao = inicial
+                valorInput = limiteParaTexto(inicial.limite)
+                mostrarSheet = true
+            }
+            aoNovoLimiteAcionado()
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -300,6 +328,7 @@ fun OrcamentoScreen(
                         .padding(vertical = 4.dp)
                         .clip(RoundedCornerShape(18.dp))
                         .clickable {
+                            modoNovoLimite = false
                             categoriaEmEdicao = item
                             valorInput = item.limite?.let { lim ->
                                 if (lim % 1.0 == 0.0) lim.toLong().toString() else lim.toString().replace(".", ",")
@@ -403,13 +432,16 @@ fun OrcamentoScreen(
                 sheetState = sheetState,
                 containerColor = MaterialTheme.colorScheme.surface,
                 dragHandle = { BottomSheetDefaults.DragHandle() },
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                contentWindowInsets = { WindowInsets.statusBars }
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = MaterialTheme.dimens.paddingScreen)
-                        .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp)
+                        .navigationBarsPadding()
+                        .imePadding()
+                        .padding(bottom = 10.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -417,7 +449,7 @@ fun OrcamentoScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Orçamento: ${item?.categoria?.nome.orEmpty()}",
+                            text = if (modoNovoLimite) "Definir limite" else "Orçamento: ${item?.categoria?.nome.orEmpty()}",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
@@ -437,6 +469,52 @@ fun OrcamentoScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    if (modoNovoLimite) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "PARA QUAL CATEGORIA?",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(itens) { opcao ->
+                                val selecionada = item?.categoria == opcao.categoria
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(50))
+                                        .background(
+                                            if (selecionada) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                        )
+                                        .border(
+                                            width = if (selecionada) 1.5.dp else 0.dp,
+                                            color = if (selecionada) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                            shape = RoundedCornerShape(50)
+                                        )
+                                        .clickable {
+                                            categoriaEmEdicao = opcao
+                                            valorInput = limiteParaTexto(opcao.limite)
+                                        }
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = iconeParaCategoria(opcao.categoria.nome),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        opcao.categoria.nome,
+                                        fontWeight = if (selecionada) FontWeight.Bold else FontWeight.Medium,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(24.dp))
                     OutlinedTextField(
                         value = valorInput,
@@ -457,9 +535,14 @@ fun OrcamentoScreen(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 50.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                            .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
+                            .height(52.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = Color.White
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
                     ) {
                         Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
