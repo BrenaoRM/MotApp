@@ -149,7 +149,7 @@ fun PilulaGlass(texto: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** Mini indicador translúcido para o cartão principal (mesmo visual da home). */
+/** Mini indicador translúcido para o cartão principal (mesmo visual da home).dsada */
 @Composable
 fun IndicadorGlassDePagina(
     titulo: String,
