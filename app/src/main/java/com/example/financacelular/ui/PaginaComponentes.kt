@@ -173,7 +173,8 @@ fun IndicadorGlassDePagina(
             style = MaterialTheme.typography.bodyMedium,
             color = Color.White,
             fontWeight = FontWeight.Bold,
-            maxLines = 1
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
