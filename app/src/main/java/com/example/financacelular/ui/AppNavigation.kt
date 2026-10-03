@@ -908,16 +908,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         aoAbrirMetas = { navController.navigate(ROTA_METAS) }
                     )
                 }
-                composable(DestinoPrincipal.ANALISE.rota) {
-                    AnaliseScreen(aoVoltar = { navController.popBackStack() })
-                }
-                composable(DestinoPrincipal.CALENDARIO.rota) {
-                    CalendarioScreen(
-                        acionarNovaAgendaExterno = acionarNovaAgenda,
-                        aoNovaAgendaAcionada = { acionarNovaAgenda = false },
-                        aoVoltar = { navController.popBackStack() }
-                    )
-                }
                 composable(DestinoPrincipal.CONTAS.rota) {
                     ContasScreen(
                         aoVoltar = { navController.popBackStack() }
