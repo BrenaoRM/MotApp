@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -51,13 +52,101 @@ private val AzulCalendario = Color(0xFF3B82F6)
 private val AmareloAgenda = Color(0xFFF59E0B)
 private val LocalePtBrCalendario: Locale = Locale.Builder().setLanguage("pt").setRegion("BR").build()
 
+/** Resumo do dia selecionado: faixa compacta com data, pendências e totais de ganhos/gastos. */
+@Composable
+private fun ResumoDiaCompacto(
+    rotulo: String,
+    titulo: String,
+    pendentes: Int,
+    ganhos: String,
+    gastos: String
+) {
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        shadowElevation = 3.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+    ) {
+        Column(
+            modifier = Modifier
+                .background(Brush.linearGradient(listOf(RoxoCalendario, AzulCalendario)))
+                .padding(horizontal = 14.dp, vertical = 10.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        rotulo,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                    Text(
+                        titulo,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Surface(
+                    color = Color.White.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(50)
+                ) {
+                    Text(
+                        text = if (pendentes == 1) "1 pendente" else "$pendentes pendentes",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ValorGlassCompacto(Icons.AutoMirrored.Filled.TrendingUp, ganhos, Modifier.weight(1f))
+                ValorGlassCompacto(Icons.AutoMirrored.Filled.TrendingDown, gastos, Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ValorGlassCompacto(
+    icone: androidx.compose.ui.graphics.vector.ImageVector,
+    valor: String,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .background(Color.White.copy(alpha = 0.18f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icone, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            valor,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarioScreen(
     viewModel: CalendarioViewModel = viewModel(),
     acionarNovaAgendaExterno: Boolean = false,
-    aoNovaAgendaAcionada: () -> Unit = {},
-    aoVoltar: (() -> Unit)? = null
+    aoNovaAgendaAcionada: () -> Unit = {}
 ) {
     val transacoesCalendario by viewModel.transacoesCalendario.collectAsState()
     val categorias by viewModel.categorias.collectAsState()
@@ -116,7 +205,7 @@ fun CalendarioScreen(
             )
         ) {
             item {
-                CabecalhoDePagina("Calendário & Agenda", RoxoCalendario, aoVoltar)
+                CabecalhoDePagina("Calendário", RoxoCalendario, null) // tela principal: sem seta de voltar
                 Spacer(modifier = Modifier.height(16.dp))
                 MesSelectorCard(
                     nomeMes = nomeMesAno,
@@ -124,6 +213,16 @@ fun CalendarioScreen(
                     onMesSeguinte = { mesAnoSelecionado = mesAnoSelecionado.plusMonths(1) }
                 )
                 Spacer(modifier = Modifier.height(16.dp))
+
+                // ---------------- RESUMO DO DIA SELECIONADO (compacto) ----------------
+                ResumoDiaCompacto(
+                    rotulo = if (dataSelecionada == hoje) "HOJE" else "DIA SELECIONADO",
+                    titulo = tituloDia,
+                    pendentes = afazeresPendentes,
+                    ganhos = formatoMoeda.format(ganhoDoDia),
+                    gastos = formatoMoeda.format(gastoDoDia)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // ---------------- GRADE DO MÊS ----------------
                 Card(
@@ -232,39 +331,6 @@ fun CalendarioScreen(
                                 }
                             }
                         }
-                    }
-                }
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // ---------------- RESUMO DO DIA SELECIONADO ----------------
-                CartaoHeroDePagina(RoxoCalendario, AzulCalendario) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                if (dataSelecionada == hoje) "HOJE" else "DIA SELECIONADO",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White.copy(alpha = 0.8f)
-                            )
-                            Text(
-                                tituloDia,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color.White,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        PilulaGlass(if (afazeresPendentes == 1) "1 pendente" else "$afazeresPendentes pendentes")
-                    }
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        IndicadorGlassDePagina("GANHOS", formatoMoeda.format(ganhoDoDia), Icons.AutoMirrored.Filled.TrendingUp, Modifier.weight(1f))
-                        IndicadorGlassDePagina("GASTOS", formatoMoeda.format(gastoDoDia), Icons.AutoMirrored.Filled.TrendingDown, Modifier.weight(1f))
                     }
                 }
                 Spacer(modifier = Modifier.height(20.dp))

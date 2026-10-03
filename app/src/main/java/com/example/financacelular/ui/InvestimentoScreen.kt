@@ -17,15 +17,21 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -87,6 +93,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -102,6 +109,14 @@ import java.util.Locale
 
 private val AmareloInvestimento = Color(0xFFF2A93B)
 private val AmareloEscuroGradiente = Color(0xFFD97706)
+
+/** Guarda os dados do aporte aguardando confirmação de exclusão. */
+private data class AporteParaExcluir(
+    val data: LocalDate,
+    val valor: Double,
+    val nomeAtivo: String,
+    val confirmar: () -> Unit
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,6 +141,8 @@ fun InvestimentoScreen(
 
     val sheetStateAporte = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val sheetStateResgate = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetStateExcluir = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var aporteParaExcluir by remember { mutableStateOf<AporteParaExcluir?>(null) }
 
     var novoNome by remember { mutableStateOf("") }
     var novaCategoria by remember { mutableStateOf("Renda Fixa") }
@@ -170,12 +187,21 @@ fun InvestimentoScreen(
             }
 
             item {
+                // Distribuição por categoria (para a barra segmentada do card)
+                val distribuicao = remember(listaAtivosAgrupados) {
+                    listaAtivosAgrupados
+                        .groupBy { it.categoria }
+                        .map { (cat, ativos) -> cat to ativos.sumOf { it.valorTotal } }
+                        .sortedByDescending { it.second }
+                }
+                val maiorPosicao = distribuicao.firstOrNull()
+
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(24.dp)),
-                    shape = RoundedCornerShape(24.dp),
-                    shadowElevation = 6.dp
+                        .clip(RoundedCornerShape(20.dp)),
+                    shape = RoundedCornerShape(20.dp),
+                    shadowElevation = 4.dp
                 ) {
                     Box(
                         modifier = Modifier
@@ -184,50 +210,44 @@ fun InvestimentoScreen(
                                     colors = listOf(AmareloInvestimento, AmareloEscuroGradiente)
                                 )
                             )
-                            .padding(20.dp)
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
                     ) {
                         CirculosDecorativosHero()
                         Column {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    modifier = Modifier.weight(1f),
-                                    verticalAlignment = Alignment.CenterVertically
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .background(Color.White.copy(alpha = 0.25f), CircleShape),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .background(Color.White.copy(alpha = 0.25f), CircleShape),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            Icons.AutoMirrored.Filled.TrendingUp,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        "PATRIMÔNIO TOTAL",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = Color.White.copy(alpha = 0.9f),
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.TrendingUp,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    "PATRIMÔNIO TOTAL",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = Color.White.copy(alpha = 0.9f),
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
                                 Surface(
                                     color = Color.White.copy(alpha = 0.2f),
                                     shape = RoundedCornerShape(50)
                                 ) {
                                     Text(
-                                        text = if (listaAtivosAgrupados.size == 1) "1 Ativo" else "${listaAtivosAgrupados.size} Ativos",
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                        text = if (listaAtivosAgrupados.size == 1) "1 ativo" else "${listaAtivosAgrupados.size} ativos",
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = Color.White,
                                         fontWeight = FontWeight.Bold
@@ -235,7 +255,7 @@ fun InvestimentoScreen(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
 
                             Text(
                                 text = formatoMoeda.format(patrimonioTotal),
@@ -246,10 +266,45 @@ fun InvestimentoScreen(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
+
+                            if (maiorPosicao != null && patrimonioTotal > 0.0) {
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    // Barra segmentada: cada trecho é uma categoria
+                                    Row(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(6.dp)
+                                            .clip(RoundedCornerShape(3.dp)),
+                                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                    ) {
+                                        distribuicao.forEachIndexed { i, (_, valor) ->
+                                            val peso = (valor / patrimonioTotal).toFloat().coerceAtLeast(0.02f)
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(peso)
+                                                    .height(6.dp)
+                                                    .background(Color.White.copy(alpha = (1f - i * 0.22f).coerceAtLeast(0.30f)))
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = "${maiorPosicao.first} ${((maiorPosicao.second / patrimonioTotal) * 100).toInt()}%",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White.copy(alpha = 0.9f),
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.widthIn(max = 130.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
             if (categoriasPresentes.size > 2) {
@@ -497,8 +552,12 @@ fun InvestimentoScreen(
                                                         Spacer(modifier = Modifier.width(6.dp))
                                                         IconButton(
                                                             onClick = {
-                                                                viewModel.deletarAporte(aporte)
-                                                                Toast.makeText(context, "Aporte removido!", Toast.LENGTH_SHORT).show()
+                                                                aporteParaExcluir = AporteParaExcluir(
+                                                                    data = aporte.data,
+                                                                    valor = aporte.valorInvestido,
+                                                                    nomeAtivo = ativo.nome,
+                                                                    confirmar = { viewModel.deletarAporte(aporte) }
+                                                                )
                                                             },
                                                             modifier = Modifier.size(28.dp)
                                                         ) {
@@ -522,6 +581,124 @@ fun InvestimentoScreen(
             }
         }
 
+        aporteParaExcluir?.let { pendente ->
+            ModalBottomSheet(
+                onDismissRequest = { aporteParaExcluir = null },
+                sheetState = sheetStateExcluir,
+                containerColor = MaterialTheme.colorScheme.surface,
+                dragHandle = { BottomSheetDefaults.DragHandle() },
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                contentWindowInsets = { WindowInsets.statusBars }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .imePadding()
+                        .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .background(Coral.copy(alpha = 0.14f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Filled.DeleteOutline,
+                            contentDescription = null,
+                            tint = Coral,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        "Excluir aporte?",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        "Esta ação não pode ser desfeita e o valor será removido do patrimônio.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    pendente.nomeAtivo,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    "Aporte de ${pendente.data.format(formatoData)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Text(
+                                formatoMoeda.format(pendente.valor),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = AmareloInvestimento
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { aporteParaExcluir = null },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp),
+                            shape = RoundedCornerShape(20.dp)
+                        ) {
+                            Text("Cancelar", fontWeight = FontWeight.Bold)
+                        }
+                        Button(
+                            onClick = {
+                                pendente.confirmar()
+                                aporteParaExcluir = null
+                                Toast.makeText(context, "Aporte removido!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Coral,
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Text("Excluir", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+        }
+
         if (mostrarSheetResgate && ativoParaAporteOuResgate != null) {
             val ativo = ativoParaAporteOuResgate!!
             val valorTotalAtivo = ativo.valorTotal
@@ -531,12 +708,14 @@ fun InvestimentoScreen(
                 sheetState = sheetStateResgate,
                 containerColor = MaterialTheme.colorScheme.surface,
                 dragHandle = { BottomSheetDefaults.DragHandle() },
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                contentWindowInsets = { WindowInsets.statusBars }
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
+                        .imePadding()
                         .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp)
                 ) {
                     Row(
@@ -647,12 +826,15 @@ fun InvestimentoScreen(
                 sheetState = sheetStateAporte,
                 containerColor = MaterialTheme.colorScheme.surface,
                 dragHandle = { BottomSheetDefaults.DragHandle() },
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                contentWindowInsets = { WindowInsets.statusBars }
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
+                        .imePadding()
+                        .verticalScroll(rememberScrollState())
                         .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp)
                 ) {
                     Row(

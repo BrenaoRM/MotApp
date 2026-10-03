@@ -331,7 +331,7 @@ fun DashboardScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Resumo do mês por Categoria", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Resumo por Categoria", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
