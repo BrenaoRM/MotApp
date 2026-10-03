@@ -251,9 +251,10 @@ fun AnaliseScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
         } else {
-            val maiorDespesa = topDespesas.maxOf { it.valor }
             itemsIndexed(topDespesas) { indice, despesa ->
-                val proporcao = if (maiorDespesa > 0.0) (despesa.valor / maiorDespesa).toFloat().coerceIn(0f, 1f) else 0f
+                // Quanto este gasto pesou no total de despesas do mês
+                val proporcao = if (totalDespesasMes > 0.0) (despesa.valor / totalDespesasMes).toFloat().coerceIn(0f, 1f) else 0f
+                val textoPercentual = String.format(LocalePtBr, "%.1f%% do mês", proporcao * 100f)
                 Card(
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -307,15 +308,25 @@ fun AnaliseScreen(
                             )
                         }
                         Spacer(modifier = Modifier.height(10.dp))
-                        LinearProgressIndicator(
-                            progress = { proporcao },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(5.dp)
-                                .clip(RoundedCornerShape(3.dp)),
-                            color = Coral,
-                            trackColor = Coral.copy(alpha = 0.12f)
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            LinearProgressIndicator(
+                                progress = { proporcao },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(5.dp)
+                                    .clip(RoundedCornerShape(3.dp)),
+                                color = Coral,
+                                trackColor = Coral.copy(alpha = 0.12f)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                textoPercentual,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                        }
                     }
                 }
             }
