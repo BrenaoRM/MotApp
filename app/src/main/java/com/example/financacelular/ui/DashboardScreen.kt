@@ -379,7 +379,9 @@ fun DashboardScreen(
                 }
             }
 
-            items(resumosFiltrados, key = { it.titulo + it.tipo }) { resumo ->
+            // A chave usa o id da categoria: o título não é único (várias categorias podem aparecer como
+            // "Sem categoria" enquanto as categorias ainda carregam, ou ter o mesmo nome) e chave repetida derruba o app
+            items(resumosFiltrados, key = { "${it.categoriaId}-${it.tipo}" }) { resumo ->
                 val nomeCategoria = resumo.titulo
                 val cor = if (resumo.tipo == TipoTransacao.DESPESA) Coral else Verde
                 val sinal = if (resumo.tipo == TipoTransacao.DESPESA) "- " else "+ "
