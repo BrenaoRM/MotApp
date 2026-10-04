@@ -32,5 +32,7 @@ data class Transacao(
     val anoMes: String? = null,
     val numeroParcela: Int = 1,
     val totalParcelas: Int = 1,
-    val grupoParcelamentoId: String? = null
+    val grupoParcelamentoId: String? = null,
+    // ID da assinatura/recorrente que gerou esta transação (null se foi lançamento avulso)
+    val recorrenteId: Long? = null
 )

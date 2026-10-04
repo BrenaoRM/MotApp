@@ -682,6 +682,10 @@ fun NovaTransacaoScreen(
                                             value = viewModel.numeroParcelas,
                                             onValueChange = viewModel::onNumeroParcelasChange,
                                             label = { Text("Número de Parcelas (ex: 10)") },
+                                            isError = viewModel.parcelasInvalidas,
+                                            supportingText = {
+                                                if (viewModel.parcelasInvalidas) Text("Use entre 2 e 60 parcelas")
+                                            },
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                             shape = formaCampo,
                                             colors = coresCampo,

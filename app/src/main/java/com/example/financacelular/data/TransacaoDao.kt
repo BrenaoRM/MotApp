@@ -7,6 +7,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
 
 data class GastoCategoria(val categoriaId: Long, val total: Double)
 data class TotalMensal(val anoMes: String, val totalReceitas: Double, val totalDespesas: Double)
@@ -19,9 +20,6 @@ interface TransacaoDao {
 
     @Query("SELECT * FROM transacoes ORDER BY data DESC")
     fun listarTransacoes(): Flow<List<Transacao>>
-
-    @Query("SELECT * FROM transacoes WHERE anoMes = :anoMes AND (formaPagamento != 'CARTAO_CREDITO' OR cartaoId IS NULL) ORDER BY data DESC")
-    fun listarTransacoesDashboard(anoMes: String): Flow<List<Transacao>>
 
     @Query("SELECT * FROM transacoes WHERE cartaoId = :cartaoId AND anoMes = :anoMes")
     fun listarTransacoesFatura(cartaoId: Long, anoMes: String): Flow<List<Transacao>>
@@ -41,18 +39,29 @@ interface TransacaoDao {
     @Delete
     suspend fun excluirTransacao(transacao: Transacao)
 
-    @Query("SELECT SUM(valor) FROM transacoes WHERE anoMes = :anoMes AND tipo = 'DESPESA' AND (formaPagamento != 'CARTAO_CREDITO' OR cartaoId IS NULL)")
-    fun totalDespesasDoMes(anoMes: String): Flow<Double?>
-
-    @Query("SELECT SUM(valor) FROM transacoes WHERE anoMes = :anoMes AND tipo = 'RECEITA'")
-    fun totalReceitasDoMes(anoMes: String): Flow<Double?>
-
     @Query("SELECT SUM(valor) FROM transacoes WHERE cartaoId = :cartaoId AND anoMes = :anoMes")
     fun totalCartaoNoMes(cartaoId: Long, anoMes: String): Flow<Double?>
 
     @Query("SELECT categoriaId, SUM(valor) as total FROM transacoes WHERE anoMes = :anoMes AND tipo = 'DESPESA' GROUP BY categoriaId")
     fun gastoPorCategoriaNoMes(anoMes: String): Flow<List<GastoCategoria>>
 
-    @Query("SELECT anoMes, SUM(CASE WHEN tipo = 'RECEITA' THEN valor ELSE 0.0 END) as totalReceitas, SUM(CASE WHEN tipo = 'DESPESA' THEN valor ELSE 0.0 END) as totalDespesas FROM transacoes GROUP BY anoMes ORDER BY anoMes DESC LIMIT :limite")
-    fun evolucaoMensal(limite: Int): Flow<List<TotalMensal>>
+    // ---- Recorrentes / assinaturas ----
+
+    /** Última cobrança já gerada para uma assinatura (a de mês mais recente). */
+    @Query("SELECT * FROM transacoes WHERE recorrenteId = :recorrenteId ORDER BY anoMes DESC, data DESC LIMIT 1")
+    suspend fun ultimaDaRecorrente(recorrenteId: Long): Transacao?
+
+    /** Quantas cobranças da assinatura já existem no mês (por vínculo ou pela descrição exata). */
+    @Query("SELECT COUNT(*) FROM transacoes WHERE anoMes = :anoMes AND (recorrenteId = :recorrenteId OR descricao = :descricao)")
+    suspend fun contarDaRecorrenteNoMes(recorrenteId: Long, anoMes: String, descricao: String): Int
+
+    /**
+     * Apaga as cobranças futuras de uma assinatura: as vinculadas por ID e, para dados
+     * antigos sem vínculo, as que têm exatamente a descrição gerada pela assinatura.
+     */
+    @Query(
+        "DELETE FROM transacoes WHERE data > :hoje AND " +
+                "(recorrenteId = :recorrenteId OR (recorrenteId IS NULL AND descricao IN (:descricoes)))"
+    )
+    suspend fun excluirFuturasDaRecorrente(recorrenteId: Long, descricoes: List<String>, hoje: LocalDate)
 }

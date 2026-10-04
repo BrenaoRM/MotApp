@@ -54,6 +54,8 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
 
     var numeroParcelas by mutableStateOf("2")
         private set
+    val parcelasInvalidas: Boolean
+        get() = ehParcelado && (numeroParcelas.toIntOrNull() ?: 0) !in 2..60
 
     var ehRecorrente by mutableStateOf(false)
         private set
@@ -99,7 +101,7 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun onNumeroParcelasChange(parcelas: String) {
-        numeroParcelas = parcelas
+        numeroParcelas = parcelas.filter { it.isDigit() }.take(2)
     }
 
     fun onRecorrenteChange(recorrente: Boolean) {
@@ -123,6 +125,7 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
         if (salvando) return
         val valorNumerico = valor.replace(".", "").replace(',', '.').toDoubleOrNull() ?: 0.0
         if (valorNumerico <= 0.0) return
+        if (parcelasInvalidas) return
 
         salvando = true
         viewModelScope.launch {

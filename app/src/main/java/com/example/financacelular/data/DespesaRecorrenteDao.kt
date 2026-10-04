@@ -16,4 +16,7 @@ interface DespesaRecorrenteDao {
 
     @Query("SELECT * FROM despesas_recorrentes ORDER BY diaDoMes")
     fun listarTodas(): Flow<List<DespesaRecorrente>>
+
+    @Query("SELECT * FROM despesas_recorrentes")
+    suspend fun listarTodasSync(): List<DespesaRecorrente>
 }

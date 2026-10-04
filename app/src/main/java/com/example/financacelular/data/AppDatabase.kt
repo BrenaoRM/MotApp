@@ -21,8 +21,8 @@ import kotlinx.coroutines.launch
         AfazerEntity::class,
         CartaoEntity::class
     ],
-    version = 8,
-    exportSchema = false
+    version = 9,
+    exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
@@ -48,12 +48,12 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     NOME_ARQUIVO_BANCO
                 )
-                    .fallbackToDestructiveMigration(true)
-                    .addCallback(object : RoomDatabase.Callback() {
+                    .addMigrations(MIGRATION_8_9)
+                    .addCallback(object : Callback() {
                         override fun onCreate(db: SupportSQLiteDatabase) {
                             super.onCreate(db)
                             CoroutineScope(Dispatchers.IO).launch {
-                                val categoriaDao = getInstance(context).categoriaDao()
+                                val categoriaDao = INSTANCE?.categoriaDao() ?: return@launch
                                 listOf(
                                     Categoria(nome = "Alimentação", tipo = TipoTransacao.DESPESA),
                                     Categoria(nome = "Transporte", tipo = TipoTransacao.DESPESA),

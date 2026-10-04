@@ -13,8 +13,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import java.util.Locale
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -25,21 +27,20 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // 1. LANÇAMENTOS REALIZADOS (Débito/Dinheiro com data <= hoje OU Crédito cuja fatura já foi PAGA)
-    val todasTransacoes: StateFlow<List<Transacao>> = combine(
-        repository.listarTransacoes(),
-        repository.listarTransacoes()
-    ) { transacoes, todas ->
-        val hoje = LocalDate.now()
-        val faturasPagas = todas.asSequence()
-            .filter { it.cartaoId == null && it.descricao?.startsWith("Pagamento de Fatura - ") == true }
-            .mapNotNull { it.anoMes }
-            .toSet()
+    val todasTransacoes: StateFlow<List<Transacao>> = repository.listarTransacoes()
+        .map { transacoes ->
+            val hoje = LocalDate.now()
+            val faturasPagas = transacoes.asSequence()
+                .filter { it.cartaoId == null && it.descricao?.startsWith("Pagamento de Fatura - ") == true }
+                .mapNotNull { it.anoMes }
+                .toSet()
 
         transacoes.filter { t ->
             val ehPagamentoFatura = t.descricao?.startsWith("Pagamento de Fatura") == true
             if (ehPagamentoFatura) return@filter false
 
-            val anoMesStr = t.anoMes ?: String.format("%d-%02d", t.data.year, t.data.monthValue)
+            val anoMesStr = t.anoMes ?: String.format(Locale.ROOT, "%d-%02d", t.data.year, t.data.monthValue)
+
             val faturaPaga = anoMesStr in faturasPagas
             val ehCartao = t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.cartaoId != null
             val ehFuturo = t.data.isAfter(hoje)
@@ -60,7 +61,7 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
         repository.listarTransacoes()
     ) { transacoes, recorrentes, todas ->
         val hoje = LocalDate.now()
-        val mesAtualStr = String.format("%04d-%02d", hoje.year, hoje.monthValue)
+        val mesAtualStr = String.format(Locale.ROOT, "%04d-%02d", hoje.year, hoje.monthValue)
         val faturasPagas = todas.asSequence()
             .filter { it.cartaoId == null && it.descricao?.startsWith("Pagamento de Fatura - ") == true }
             .mapNotNull { it.anoMes }
@@ -71,7 +72,7 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
             val ehPagamentoFatura = t.descricao?.startsWith("Pagamento de Fatura") == true
             if (ehPagamentoFatura) return@filter false
 
-            val anoMesStr = t.anoMes ?: String.format("%d-%02d", t.data.year, t.data.monthValue)
+            val anoMesStr = t.anoMes ?: String.format(Locale.ROOT, "%d-%02d", t.data.year, t.data.monthValue)
             val faturaPaga = anoMesStr in faturasPagas
             val ehCartao = t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.cartaoId != null
             val ehFuturo = t.data.isAfter(hoje)
@@ -88,9 +89,13 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
             val diaSeguro = minOf(recorrente.diaDoMes, hoje.lengthOfMonth())
             val dataPrevista = LocalDate.of(hoje.year, hoje.monthValue, diaSeguro)
 
-            val jaLancada = transacoes.any {
-                it.data.toString().startsWith(mesAtualStr) &&
-                        it.descricao?.startsWith(recorrente.nome) == true
+            val jaLancada = transacoes.any { t ->
+                val mesmoMes = t.anoMes == mesAtualStr || t.data.toString().startsWith(mesAtualStr)
+                mesmoMes && (
+                        t.recorrenteId == recorrente.id ||
+                                t.descricao == "${recorrente.nome} (Assinatura)" ||
+                                t.descricao == "${recorrente.nome} (Recorrente)"
+                        )
             }
 
             val faturaDesteMesPaga = mesAtualStr in faturasPagas

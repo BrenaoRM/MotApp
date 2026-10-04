@@ -24,57 +24,53 @@ data class CompraParceladaAgrupada(
     val dataCompra: LocalDate
 )
 
+private val REGEX_SUFIXO_PARCELA = Regex(" \\(\\d+/\\d+\\)$")
+
+/** Nome da compra sem o " (3/10)" do final. */
+private fun nomeBaseDaCompra(transacao: Transacao): String =
+    transacao.descricao?.replace(REGEX_SUFIXO_PARCELA, "") ?: "Compra Parcelada"
+
 class ParceladosViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = FinancaRepository.getInstance(AppDatabase.getInstance(application))
 
     val comprasAgrupadas: StateFlow<List<CompraParceladaAgrupada>> = repository.listarTransacoes().map { transacoes ->
         // Filtra apenas as transações parceladas (totalParcelas > 1)
         val transacoesParceladas = transacoes.filter { it.totalParcelas > 1 }
-        
+
         // Descobre quais meses tiveram a fatura paga
-        val faturasPagas = transacoes.filter { 
-            it.cartaoId == null && it.descricao?.startsWith("Pagamento de Fatura") == true 
+        val faturasPagas = transacoes.filter {
+            it.cartaoId == null && it.descricao?.startsWith("Pagamento de Fatura") == true
         }.mapNotNull { it.anoMes }.toSet()
 
-        // Agrupa as parcelas usando Regex para remover o " (1/10)" do final do nome
+        // Compras novas agrupam pelo ID do grupo; as antigas (sem ID) pelo nome + total de parcelas
         val agrupado = transacoesParceladas.groupBy { t ->
-            t.descricao?.replace(Regex(" \\(\\d+/\\d+\\)$"), "") ?: "Compra Parcelada"
+            t.grupoParcelamentoId ?: "legado|${nomeBaseDaCompra(t)}|${t.totalParcelas}"
         }
 
-        // Mapeia o grupo para a nossa classe de dados formatada
-        agrupado.map { (descricaoBase, lista) ->
+        agrupado.values.map { lista ->
             val transacoesOrdenadas = lista.sortedBy { it.numeroParcela }
             val primeiraTransacao = transacoesOrdenadas.first()
-            
-            val totalParcelas = primeiraTransacao.totalParcelas
-            val valorParcela = primeiraTransacao.valor
-            val valorTotal = lista.sumOf { it.valor }
 
             val parcelasPagas = lista.count { it.anoMes in faturasPagas }
-            val parcelasRestantes = lista.size - parcelasPagas
-            
-            // Separa as transações que ainda não caíram em uma fatura paga
             val transacoesPendentes = lista.filter { it.anoMes !in faturasPagas }
 
             CompraParceladaAgrupada(
-                descricaoBase = descricaoBase,
-                totalParcelas = totalParcelas,
-                valorParcela = valorParcela,
+                descricaoBase = nomeBaseDaCompra(primeiraTransacao),
+                totalParcelas = primeiraTransacao.totalParcelas,
+                valorParcela = primeiraTransacao.valor,
                 parcelasPagas = parcelasPagas,
-                parcelasRestantes = parcelasRestantes,
-                valorTotal = valorTotal,
+                parcelasRestantes = lista.size - parcelasPagas,
+                valorTotal = lista.sumOf { it.valor },
                 transacoesPendentes = transacoesPendentes,
                 dataCompra = primeiraTransacao.data
             )
-        }.sortedByDescending { it.dataCompra } // Ordena das mais recentes para as mais antigas
+        }.sortedByDescending { it.dataCompra } // Das mais recentes para as mais antigas
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Exclui todas as parcelas futuras que ainda não foram pagas
+    // Exclui todas as parcelas futuras que ainda não foram pagas (tudo ou nada)
     fun cancelarParcelasRestantes(transacoes: List<Transacao>) {
         viewModelScope.launch {
-            transacoes.forEach {
-                repository.excluirTransacao(it)
-            }
+            repository.excluirTransacoes(transacoes)
         }
     }
 }
