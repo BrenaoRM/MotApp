@@ -13,7 +13,10 @@ interface CartaoDao {
 
     @Query("SELECT * FROM cartoes WHERE id = :id")
     fun obterPorId(id: Long): Flow<CartaoEntity?>
-    
+
     @Query("SELECT * FROM cartoes WHERE id = :id")
     suspend fun obterPorIdSync(id: Long): CartaoEntity?
+
+    @Query("SELECT * FROM cartoes")
+    fun listarTodos(): Flow<List<CartaoEntity>>
 }

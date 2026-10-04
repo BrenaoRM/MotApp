@@ -3,7 +3,6 @@ package com.example.financacelular.ui
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -99,6 +98,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import androidx.compose.animation.core.animateFloatAsState
 
 private fun formatarValorMoeda(entrada: String): String {
     val digitos = entrada.filter { it.isDigit() }
@@ -119,10 +119,6 @@ private fun formatarValorMoeda(entrada: String): String {
     }
     return "$reaisFormatado,$centavos"
 }
-
-// ---------------------------------------------------------------------------
-// Componentes visuais reutilizados pela tela
-// ---------------------------------------------------------------------------
 
 @Composable
 private fun SecaoCard(
@@ -290,10 +286,6 @@ private fun PilulaData(texto: String, selecionada: Boolean, cor: Color, aoClicar
     }
 }
 
-// ---------------------------------------------------------------------------
-// Tela
-// ---------------------------------------------------------------------------
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NovaTransacaoScreen(
@@ -323,9 +315,19 @@ fun NovaTransacaoScreen(
     }
 
     val categorias by viewModel.categorias.collectAsState()
+    val listaCartoes by viewModel.listaCartoes.collectAsState()
+
     var categoriaMenuExpandido by remember { mutableStateOf(false) }
+    var cartaoMenuExpandido by remember { mutableStateOf(false) }
     var mostrarDatePicker by remember { mutableStateOf(false) }
     var textoCategoria by remember { mutableStateOf("") }
+
+    // Seleciona o primeiro cartão por defeito se nenhum estiver selecionado
+    LaunchedEffect(listaCartoes) {
+        if (viewModel.cartaoIdSelecionado == null && listaCartoes.isNotEmpty()) {
+            viewModel.onCartaoSelecionado(listaCartoes.first().id)
+        }
+    }
 
     LaunchedEffect(viewModel.tipo) {
         textoCategoria = ""
@@ -333,6 +335,8 @@ fun NovaTransacaoScreen(
     }
 
     val categoriasFiltradas = categorias.filter { it.tipo == viewModel.tipo }
+    val cartaoAtualNome = listaCartoes.find { it.id == viewModel.cartaoIdSelecionado }?.nome ?: "Selecionar cartão"
+
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
     val corTema by animateColorAsState(
@@ -356,7 +360,6 @@ fun NovaTransacaoScreen(
 
     val hoje = remember { LocalDate.now() }
     val ontem = remember { hoje.minusDays(1) }
-
     val scrollState = rememberScrollState()
 
     Surface(
@@ -667,8 +670,55 @@ fun NovaTransacaoScreen(
                                     aoClicar = { viewModel.onFormaPagamentoChange(FormaPagamento.CARTAO_CREDITO) }
                                 )
                             }
+
+                            // SELETOR DE CARTÃO QUANDO FOR CRÉDITO
                             AnimatedVisibility(visible = viewModel.formaPagamento == FormaPagamento.CARTAO_CREDITO) {
                                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    ExposedDropdownMenuBox(
+                                        expanded = cartaoMenuExpandido,
+                                        onExpandedChange = { cartaoMenuExpandido = it }
+                                    ) {
+                                        OutlinedTextField(
+                                            value = cartaoAtualNome,
+                                            onValueChange = {},
+                                            readOnly = true,
+                                            label = { Text("Cartão de Crédito") },
+                                            leadingIcon = {
+                                                Icon(Icons.Filled.CreditCard, contentDescription = null, tint = corTema)
+                                            },
+                                            trailingIcon = {
+                                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = cartaoMenuExpandido)
+                                            },
+                                            shape = formaCampo,
+                                            colors = coresCampo,
+                                            modifier = Modifier
+                                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                                .fillMaxWidth()
+                                        )
+                                        ExposedDropdownMenu(
+                                            expanded = cartaoMenuExpandido,
+                                            onDismissRequest = { cartaoMenuExpandido = false }
+                                        ) {
+                                            if (listaCartoes.isEmpty()) {
+                                                DropdownMenuItem(
+                                                    text = { Text("Nenhum cartão cadastrado") },
+                                                    onClick = { cartaoMenuExpandido = false }
+                                                )
+                                            } else {
+                                                listaCartoes.forEach { cartao ->
+                                                    DropdownMenuItem(
+                                                        text = { Text(cartao.nome) },
+                                                        onClick = {
+                                                            viewModel.onCartaoSelecionado(cartao.id)
+                                                            cartaoMenuExpandido = false
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
                                     LinhaSwitch(
                                         icone = Icons.Filled.CreditCard,
                                         cor = corTema,

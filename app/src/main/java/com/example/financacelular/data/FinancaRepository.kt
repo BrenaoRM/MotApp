@@ -23,20 +23,27 @@ class FinancaRepository(private val database: AppDatabase) {
     private val afazerDao = database.afazerDao()
     private val cartaoDao = database.cartaoDao()
 
+    // ------------------------------------------------------------------
+    // Cartões
+    // ------------------------------------------------------------------
     fun obterCartao(id: Long): Flow<CartaoEntity?> = cartaoDao.obterPorId(id)
     suspend fun obterCartaoSync(id: Long): CartaoEntity? = cartaoDao.obterPorIdSync(id)
     suspend fun salvarCartao(cartao: CartaoEntity) { cartaoDao.inserir(cartao) }
+    fun listarTodosCartoes(): Flow<List<CartaoEntity>> = cartaoDao.listarTodos()
 
+    // ------------------------------------------------------------------
+    // Transações
+    // ------------------------------------------------------------------
     fun listarTransacoes(): Flow<List<Transacao>> =
         dao.listarTransacoes()
 
     fun listarTransacoesFatura(cartaoId: Long, anoMes: String): Flow<List<Transacao>> =
         dao.listarTransacoesFatura(cartaoId, anoMes)
 
-    fun transacoesCartaoNoMes(anoMes: String, cartaoId: Long = 1L): Flow<List<Transacao>> =
+    fun transacoesCartaoNoMes(anoMes: String, cartaoId: Long = ID_CARTAO_PADRAO): Flow<List<Transacao>> =
         dao.transacoesCartaoNoMes(cartaoId, anoMes)
 
-    fun totalCartaoNoMes(anoMes: String, cartaoId: Long = 1L): Flow<Double> =
+    fun totalCartaoNoMes(anoMes: String, cartaoId: Long = ID_CARTAO_PADRAO): Flow<Double> =
         dao.totalCartaoNoMes(cartaoId, anoMes).map { it ?: 0.0 }
 
     suspend fun salvarTransacao(transacao: Transacao) {
@@ -51,14 +58,26 @@ class FinancaRepository(private val database: AppDatabase) {
         dao.excluirTransacao(transacao)
     }
 
-    /** Exclui várias transações de uma vez: ou apaga todas ou nenhuma. */
     suspend fun excluirTransacoes(transacoes: List<Transacao>) {
         database.withTransaction {
             transacoes.forEach { dao.excluirTransacao(it) }
         }
     }
 
-    suspend fun pagarFatura(anoMes: String, valorTotal: Double) {
+    // ------------------------------------------------------------------
+    // Gestão de Faturas (Suporte a múltiplos cartões)
+    // ------------------------------------------------------------------
+    fun verificarFaturaPagaCartao(cartaoId: Long, anoMes: String): Flow<Boolean> =
+        dao.listarTransacoesPorMes(anoMes).map { lista ->
+            lista.any {
+                it.cartaoId == null && (
+                        it.descricao == "Pagamento de Fatura - $anoMes - $cartaoId" ||
+                                (cartaoId == ID_CARTAO_PADRAO && it.descricao == "Pagamento de Fatura - $anoMes")
+                        )
+            }
+        }
+
+    suspend fun pagarFaturaCartao(cartaoId: Long, anoMes: String, valorTotal: Double) {
         val categorias = categoriaDao.listarTodas().first()
         val categoriaFatura = categorias.find { it.nome.equals("Fatura", ignoreCase = true) }
 
@@ -68,12 +87,18 @@ class FinancaRepository(private val database: AppDatabase) {
             categoriaDao.inserir(Categoria(nome = "Fatura", tipo = TipoTransacao.DESPESA))
         }
 
+        val desc = if (cartaoId == ID_CARTAO_PADRAO) {
+            "Pagamento de Fatura - $anoMes"
+        } else {
+            "Pagamento de Fatura - $anoMes - $cartaoId"
+        }
+
         val transacaoPagamento = Transacao(
             valor = valorTotal,
             data = LocalDate.now(),
             categoriaId = catId,
             tipo = TipoTransacao.DESPESA,
-            descricao = "Pagamento de Fatura - $anoMes",
+            descricao = desc,
             formaPagamento = FormaPagamento.DINHEIRO,
             cartaoId = null,
             anoMes = anoMes,
@@ -84,19 +109,26 @@ class FinancaRepository(private val database: AppDatabase) {
         dao.inserirTransacao(transacaoPagamento)
     }
 
-    fun verificarFaturaPaga(anoMes: String): Flow<Boolean> =
-        dao.listarTransacoesPorMes(anoMes).map { lista ->
-            lista.any { it.cartaoId == null && it.descricao == "Pagamento de Fatura - $anoMes" }
-        }
-
-    suspend fun cancelarPagamentoFatura(anoMes: String) {
+    suspend fun cancelarPagamentoFaturaCartao(cartaoId: Long, anoMes: String) {
         val lista = dao.listarTransacoesPorMes(anoMes).first()
-        val pagamento = lista.find { it.cartaoId == null && it.descricao == "Pagamento de Fatura - $anoMes" }
+        val desc1 = "Pagamento de Fatura - $anoMes - $cartaoId"
+        val desc2 = "Pagamento de Fatura - $anoMes"
+        val pagamento = lista.find {
+            it.cartaoId == null && (it.descricao == desc1 || (cartaoId == ID_CARTAO_PADRAO && it.descricao == desc2))
+        }
         if (pagamento != null) {
             dao.excluirTransacao(pagamento)
         }
     }
 
+    // Métodos legados de suporte a cartão único
+    suspend fun pagarFatura(anoMes: String, valorTotal: Double) = pagarFaturaCartao(ID_CARTAO_PADRAO, anoMes, valorTotal)
+    fun verificarFaturaPaga(anoMes: String): Flow<Boolean> = verificarFaturaPagaCartao(ID_CARTAO_PADRAO, anoMes)
+    suspend fun cancelarPagamentoFatura(anoMes: String) = cancelarPagamentoFaturaCartao(ID_CARTAO_PADRAO, anoMes)
+
+    // ------------------------------------------------------------------
+    // Compras Parceladas
+    // ------------------------------------------------------------------
     suspend fun salvarCompraParcelada(
         descricaoBase: String,
         valorTotalOuParcela: Double,
@@ -109,7 +141,6 @@ class FinancaRepository(private val database: AppDatabase) {
         mesInicio: Int
     ) {
         val valorParcela = if (tipoCalculo == "TOTAL") valorTotalOuParcela / numeroParcelas else valorTotalOuParcela
-        // Identifica todas as parcelas desta compra como um grupo
         val grupoId = UUID.randomUUID().toString()
         var anoAtual = anoInicio
         var mesAtual = mesInicio
@@ -146,19 +177,13 @@ class FinancaRepository(private val database: AppDatabase) {
     }
 
     // ------------------------------------------------------------------
-    // Assinaturas / recorrentes (duram até serem canceladas)
+    // Assinaturas / Recorrentes
     // ------------------------------------------------------------------
-
-    /** Texto que identifica as cobranças geradas por uma assinatura. */
     private fun descricaoDaRecorrente(recorrente: DespesaRecorrente): String {
         val sufixo = if (recorrente.tipo == TipoTransacao.RECEITA) "(Recorrente)" else "(Assinatura)"
         return "${recorrente.nome} $sufixo"
     }
 
-    /**
-     * Cria as cobranças de [de] até [ate] (inclusive) que ainda não existem.
-     * Pode ser chamada várias vezes sem duplicar nada.
-     */
     private suspend fun gerarMeses(
         recorrente: DespesaRecorrente,
         formaPagamento: FormaPagamento,
@@ -233,10 +258,6 @@ class FinancaRepository(private val database: AppDatabase) {
         }
     }
 
-    /**
-     * Mantém todas as assinaturas com cobranças geradas até 12 meses à frente.
-     * Chamar ao abrir o app. Nunca gera meses passados.
-     */
     suspend fun gerarRecorrentesPendentes() {
         database.withTransaction {
             val agora = YearMonth.now()
@@ -248,8 +269,6 @@ class FinancaRepository(private val database: AppDatabase) {
                     runCatching { YearMonth.parse(it.anoMes ?: it.data.toString().take(7)) }.getOrNull()
                 }
 
-                // Sem nenhuma cobrança vinculada: começa só no mês que vem
-                // (o mês atual continua aparecendo como "Previsto" no Extrato).
                 val inicio = maxOf(agora, mesDaUltima?.plusMonths(1) ?: agora.plusMonths(1))
                 if (inicio.isAfter(limite)) continue
 
@@ -265,7 +284,6 @@ class FinancaRepository(private val database: AppDatabase) {
         }
     }
 
-    /** Cancela a assinatura: apaga só as cobranças futuras DELA e para de gerar novas. */
     suspend fun excluirRecorrente(despesa: DespesaRecorrente) {
         database.withTransaction {
             val descricoes = listOf("${despesa.nome} (Assinatura)", "${despesa.nome} (Recorrente)")
@@ -274,6 +292,9 @@ class FinancaRepository(private val database: AppDatabase) {
         }
     }
 
+    // ------------------------------------------------------------------
+    // Demais entidades
+    // ------------------------------------------------------------------
     fun listarAfazeres(): Flow<List<AfazerEntity>> = afazerDao.listarTodos()
     suspend fun salvarAfazer(afazer: AfazerEntity) = afazerDao.inserir(afazer)
     suspend fun atualizarAfazer(afazer: AfazerEntity) = afazerDao.atualizar(afazer)

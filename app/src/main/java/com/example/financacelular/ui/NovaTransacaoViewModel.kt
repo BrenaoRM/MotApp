@@ -31,6 +31,13 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
     val categorias: StateFlow<List<Categoria>> = repository.listarCategorias()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val listaCartoes = repository.listarTodosCartoes()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Armazena o ID do cartão selecionado no formulário
+    var cartaoIdSelecionado by mutableStateOf<Long?>(null)
+        private set
+
     var valor by mutableStateOf("")
         private set
 
@@ -54,6 +61,7 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
 
     var numeroParcelas by mutableStateOf("2")
         private set
+
     val parcelasInvalidas: Boolean
         get() = ehParcelado && (numeroParcelas.toIntOrNull() ?: 0) !in 2..60
 
@@ -87,6 +95,10 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
         descricao = novaDescricao
     }
 
+    fun onCartaoSelecionado(id: Long) {
+        cartaoIdSelecionado = id
+    }
+
     fun onFormaPagamentoChange(novaForma: FormaPagamento) {
         formaPagamento = novaForma
         if (novaForma != FormaPagamento.CARTAO_CREDITO) {
@@ -108,7 +120,6 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
         ehRecorrente = recorrente
         if (recorrente) ehParcelado = false
     }
-
 
     fun excluirCategoria(categoria: Categoria, onError: () -> Unit) {
         viewModelScope.launch {
@@ -144,7 +155,9 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
                 }
                 val fallbackTipo = if (tipo == TipoTransacao.RECEITA) "Receita" else "Despesa"
                 val nomeFinal = descricao.ifBlank { nomeCategoriaFinal ?: fallbackTipo }
-                val cartaoIdAsLong = if (formaPagamento == FormaPagamento.CARTAO_CREDITO) 1L else null
+
+                // Usa o ID do cartão selecionado dinamicamente (ou null se for débito)
+                val cartaoIdAsLong = if (formaPagamento == FormaPagamento.CARTAO_CREDITO) cartaoIdSelecionado else null
 
                 val cartao = if (cartaoIdAsLong != null) repository.obterCartaoSync(cartaoIdAsLong) else null
                 val diaFechamento = cartao?.diaFechamento ?: 31
