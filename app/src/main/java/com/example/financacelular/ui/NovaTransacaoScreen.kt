@@ -97,7 +97,7 @@ import com.example.financacelular.ui.theme.Verde
 import com.example.financacelular.ui.theme.dimens
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 private fun formatarValorMoeda(entrada: String): String {
@@ -759,14 +759,19 @@ fun NovaTransacaoScreen(
 
         if (mostrarDatePicker) {
             val datePickerState = rememberDatePickerState(
-                initialSelectedDateMillis = viewModel.data.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                initialSelectedDateMillis = viewModel.data
+                    .atStartOfDay(ZoneOffset.UTC)
+                    .toInstant()
+                    .toEpochMilli()
             )
             DatePickerDialog(
                 onDismissRequest = { mostrarDatePicker = false },
                 confirmButton = {
                     TextButton(onClick = {
                         datePickerState.selectedDateMillis?.let { millis ->
-                            val novaData = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
+                            val novaData = Instant.ofEpochMilli(millis)
+                                .atZone(ZoneOffset.UTC)
+                                .toLocalDate()
                             viewModel.onDataChange(novaData)
                         }
                         mostrarDatePicker = false
