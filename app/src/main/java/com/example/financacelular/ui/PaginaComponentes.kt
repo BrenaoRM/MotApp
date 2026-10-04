@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,6 +36,36 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.financacelular.ui.theme.dimens
+
+private val AzulCartao = Color(0xFF5B8DEF)
+
+/** Etiqueta pequena com o nome do cartão (extrato, recorrentes e parcelados). */
+@Composable
+fun EtiquetaCartao(nome: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(AzulCartao.copy(alpha = 0.14f))
+            .padding(horizontal = 7.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Filled.CreditCard,
+            contentDescription = null,
+            tint = AzulCartao,
+            modifier = Modifier.size(11.dp)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = nome,
+            style = MaterialTheme.typography.labelSmall,
+            color = AzulCartao,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
 
 /** Segunda cor do degradê do cartão principal: a cor da página, um pouco mais escura. */
 fun gradienteDaCor(cor: Color): Color = lerp(cor, Color.Black, 0.28f)

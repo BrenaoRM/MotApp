@@ -369,6 +369,8 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                     checkNotNull(navBackStackEntry)
                                 )
                                 val faturaPaga by cartaoViewModel.faturaPaga.collectAsState()
+                                val podePagar by cartaoViewModel.podePagarFatura.collectAsState()
+                                val naPaginaAdicionar by cartaoViewModel.naPaginaAdicionar.collectAsState()
 
                                 Box(
                                     modifier = Modifier
@@ -377,44 +379,80 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                         .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Button(
-                                        onClick = {
-                                            if (!faturaPaga) {
-                                                cartaoViewModel.pagarFatura {
-                                                    Toast.makeText(context, "Fatura paga e descontada do saldo!", Toast.LENGTH_SHORT).show()
-                                                }
-                                            } else {
-                                                cartaoViewModel.cancelarPagamentoFatura {
-                                                    Toast.makeText(context, "Pagamento cancelado com sucesso.", Toast.LENGTH_SHORT).show()
-                                                }
-                                            }
-                                        },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
-                                            .height(52.dp),
-                                        shape = RoundedCornerShape(20.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (!faturaPaga) Verde else Coral,
-                                            contentColor = Color.White
-                                        ),
-                                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.Center
+                                    if (naPaginaAdicionar) {
+                                        Button(
+                                            onClick = { cartaoViewModel.solicitarAdicionarCartao() },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
+                                                .height(52.dp),
+                                            shape = RoundedCornerShape(20.dp),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color(0xFF5B8DEF),
+                                                contentColor = Color.White
+                                            ),
+                                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
                                         ) {
-                                            Icon(
-                                                imageVector = if (!faturaPaga) Icons.Filled.CheckCircle else Icons.AutoMirrored.Filled.Undo,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(
-                                                text = if (!faturaPaga) "Pagar Fatura" else "Cancelar Pagamento da Fatura",
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 16.sp
-                                            )
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Add,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = "Adicionar Cartão",
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 16.sp
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        Button(
+                                            onClick = {
+                                                if (!faturaPaga) {
+                                                    cartaoViewModel.pagarFatura {
+                                                        Toast.makeText(context, "Fatura paga e descontada do saldo!", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                } else {
+                                                    cartaoViewModel.cancelarPagamentoFatura {
+                                                        Toast.makeText(context, "Pagamento cancelado com sucesso.", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
+                                                .height(52.dp),
+                                            shape = RoundedCornerShape(20.dp),
+                                            enabled = podePagar,
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = if (!faturaPaga) Verde else Coral,
+                                                contentColor = Color.White,
+                                                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                            ),
+                                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (!faturaPaga) Icons.Filled.CheckCircle else Icons.AutoMirrored.Filled.Undo,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = if (!faturaPaga) "Pagar Fatura" else "Cancelar Pagamento da Fatura",
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 16.sp
+                                                )
+                                            }
                                         }
                                     }
                                 }

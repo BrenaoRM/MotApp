@@ -16,37 +16,24 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.example.financacelular.MainActivity
 import com.example.financacelular.data.AppDatabase
+import com.example.financacelular.data.FaturaAVencer
 import com.example.financacelular.data.FinancaRepository
+import com.example.financacelular.data.faturasProximasDoVencimento
 import kotlinx.coroutines.flow.first
-import java.time.LocalDate
-import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
 class LembreteFaturaWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
         val repository = FinancaRepository.getInstance(AppDatabase.getInstance(applicationContext))
-        val cartao = repository.obterCartaoSync(1L) ?: return Result.success()
 
-        val hoje = LocalDate.now()
-        val mesAtual = YearMonth.now()
+        val cartoes = repository.listarTodosCartoesSync()
+        if (cartoes.isEmpty()) return Result.success()
 
-        // Verifica o vencimento deste mês e do próximo: um vencimento no dia 1 ou 2
-        // tem o aviso começando no fim do mês anterior.
-        for (mes in listOf(mesAtual, mesAtual.plusMonths(1))) {
-            val dia = minOf(cartao.diaVencimento, mes.lengthOfMonth())
-            val vencimento = mes.atDay(dia)
+        // Avalia cada cartão separadamente: fatura em aberto, com valor, vencendo em até 2 dias
+        val transacoes = repository.listarTransacoes().first()
+        faturasProximasDoVencimento(cartoes, transacoes).forEach { dispararNotificacao(it) }
 
-            if (hoje in vencimento.minusDays(2)..vencimento) {
-                val anoMesStr = mes.format(DateTimeFormatter.ofPattern("yyyy-MM"))
-                val faturaPaga = repository.verificarFaturaPaga(anoMesStr).first()
-
-                if (!faturaPaga) {
-                    dispararNotificacao()
-                    break
-                }
-            }
-        }
         return Result.success()
     }
 
@@ -63,7 +50,7 @@ class LembreteFaturaWorker(context: Context, params: WorkerParameters) : Corouti
 
     // A permissão é verificada em podeNotificar(); o lint não consegue enxergar isso.
     @SuppressLint("MissingPermission")
-    private fun dispararNotificacao() {
+    private fun dispararNotificacao(fatura: FaturaAVencer) {
         if (!podeNotificar()) return
 
         val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -89,12 +76,13 @@ class LembreteFaturaWorker(context: Context, params: WorkerParameters) : Corouti
 
         val builder = NotificationCompat.Builder(applicationContext, channelId)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
-            .setContentTitle("Fatura próxima do vencimento! ⚠️")
-            .setContentText("Sua fatura do cartão vence em breve. Pague agora para evitar juros!")
+            .setContentTitle("Fatura do ${fatura.cartao.nome} próxima do vencimento! ⚠️")
+            .setContentText("Vence em ${fatura.vencimento.format(DateTimeFormatter.ofPattern("dd/MM"))}. Pague para evitar juros!")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
 
-        notificationManager.notify(1001, builder.build())
+        // Um id por cartão, para que as notificações de cartões diferentes não se sobrescrevam
+        notificationManager.notify(1001 + fatura.cartao.id.toInt(), builder.build())
     }
 }

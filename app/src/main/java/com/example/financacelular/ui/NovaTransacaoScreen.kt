@@ -774,7 +774,10 @@ fun NovaTransacaoScreen(
                 ) {
                     Button(
                         onClick = {
-                            viewModel.salvar(nomeCategoriaDigitada = textoCategoria) {
+                            viewModel.salvar(
+                                nomeCategoriaDigitada = textoCategoria,
+                                aoErro = { mensagem -> Toast.makeText(context, mensagem, Toast.LENGTH_LONG).show() }
+                            ) {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                 Toast.makeText(context, "Transação salva com sucesso!", Toast.LENGTH_SHORT).show()
                                 aoSalvar()

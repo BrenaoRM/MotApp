@@ -2,7 +2,6 @@ package com.example.financacelular.data
 
 import androidx.room.withTransaction
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.YearMonth
@@ -10,7 +9,6 @@ import java.util.Locale
 import java.util.UUID
 
 private const val MESES_A_FRENTE = 12L
-private const val ID_CARTAO_PADRAO = 1L
 
 @Suppress("unused")
 class FinancaRepository(private val database: AppDatabase) {
@@ -29,7 +27,20 @@ class FinancaRepository(private val database: AppDatabase) {
     fun obterCartao(id: Long): Flow<CartaoEntity?> = cartaoDao.obterPorId(id)
     suspend fun obterCartaoSync(id: Long): CartaoEntity? = cartaoDao.obterPorIdSync(id)
     suspend fun salvarCartao(cartao: CartaoEntity) { cartaoDao.inserir(cartao) }
+
+    /**
+     * Exclui o cartão junto com as compras/parcelas/assinaturas lançadas nele (ficariam órfãs,
+     * fora de qualquer fatura). Pagamentos de fatura já registrados no extrato são mantidos.
+     */
+    suspend fun excluirCartao(cartao: CartaoEntity) {
+        database.withTransaction {
+            dao.excluirTransacoesDoCartao(cartao.id)
+            despesaRecorrenteDao.excluirDoCartao(cartao.id)
+            cartaoDao.excluir(cartao)
+        }
+    }
     fun listarTodosCartoes(): Flow<List<CartaoEntity>> = cartaoDao.listarTodos()
+    suspend fun listarTodosCartoesSync(): List<CartaoEntity> = cartaoDao.listarTodosSync()
 
     // ------------------------------------------------------------------
     // Transações
@@ -39,12 +50,6 @@ class FinancaRepository(private val database: AppDatabase) {
 
     fun listarTransacoesFatura(cartaoId: Long, anoMes: String): Flow<List<Transacao>> =
         dao.listarTransacoesFatura(cartaoId, anoMes)
-
-    fun transacoesCartaoNoMes(anoMes: String, cartaoId: Long = ID_CARTAO_PADRAO): Flow<List<Transacao>> =
-        dao.transacoesCartaoNoMes(cartaoId, anoMes)
-
-    fun totalCartaoNoMes(anoMes: String, cartaoId: Long = ID_CARTAO_PADRAO): Flow<Double> =
-        dao.totalCartaoNoMes(cartaoId, anoMes).map { it ?: 0.0 }
 
     suspend fun salvarTransacao(transacao: Transacao) {
         dao.inserirTransacao(transacao)
@@ -69,62 +74,50 @@ class FinancaRepository(private val database: AppDatabase) {
     // ------------------------------------------------------------------
     fun verificarFaturaPagaCartao(cartaoId: Long, anoMes: String): Flow<Boolean> =
         dao.listarTransacoesPorMes(anoMes).map { lista ->
-            lista.any {
-                it.cartaoId == null && (
-                        it.descricao == "Pagamento de Fatura - $anoMes - $cartaoId" ||
-                                (cartaoId == ID_CARTAO_PADRAO && it.descricao == "Pagamento de Fatura - $anoMes")
-                        )
-            }
+            lista.any { it.faturaQuitadaPorEstePagamento() == FaturaChave(cartaoId, anoMes) }
         }
 
     suspend fun pagarFaturaCartao(cartaoId: Long, anoMes: String, valorTotal: Double) {
-        val categorias = categoriaDao.listarTodas().first()
-        val categoriaFatura = categorias.find { it.nome.equals("Fatura", ignoreCase = true) }
+        database.withTransaction<Unit> {
+            // Já existe pagamento deste cartão neste mês? Então não registra outro (evita toque duplo).
+            val jaPaga = dao.pagamentosDeFaturaDoMes(anoMes).any {
+                it.faturaQuitadaPorEstePagamento() == FaturaChave(cartaoId, anoMes)
+            }
+            if (jaPaga) return@withTransaction
 
-        val catId = if (categoriaFatura != null) {
-            categoriaFatura.id
-        } else {
-            categoriaDao.inserir(Categoria(nome = "Fatura", tipo = TipoTransacao.DESPESA))
+            val categorias = categoriaDao.listarTodasSync()
+            val categoriaFatura = categorias.find { it.nome.equals("Fatura", ignoreCase = true) }
+
+            val catId = if (categoriaFatura != null) {
+                categoriaFatura.id
+            } else {
+                categoriaDao.inserir(Categoria(nome = "Fatura", tipo = TipoTransacao.DESPESA))
+            }
+
+            dao.inserirTransacao(
+                Transacao(
+                    valor = valorTotal,
+                    data = LocalDate.now(),
+                    categoriaId = catId,
+                    tipo = TipoTransacao.DESPESA,
+                    descricao = descricaoPagamentoFatura(cartaoId, anoMes),
+                    formaPagamento = FormaPagamento.DINHEIRO,
+                    cartaoId = null,
+                    anoMes = anoMes,
+                    numeroParcela = 1,
+                    totalParcelas = 1
+                )
+            )
         }
-
-        val desc = if (cartaoId == ID_CARTAO_PADRAO) {
-            "Pagamento de Fatura - $anoMes"
-        } else {
-            "Pagamento de Fatura - $anoMes - $cartaoId"
-        }
-
-        val transacaoPagamento = Transacao(
-            valor = valorTotal,
-            data = LocalDate.now(),
-            categoriaId = catId,
-            tipo = TipoTransacao.DESPESA,
-            descricao = desc,
-            formaPagamento = FormaPagamento.DINHEIRO,
-            cartaoId = null,
-            anoMes = anoMes,
-            numeroParcela = 1,
-            totalParcelas = 1
-        )
-
-        dao.inserirTransacao(transacaoPagamento)
     }
 
     suspend fun cancelarPagamentoFaturaCartao(cartaoId: Long, anoMes: String) {
-        val lista = dao.listarTransacoesPorMes(anoMes).first()
-        val desc1 = "Pagamento de Fatura - $anoMes - $cartaoId"
-        val desc2 = "Pagamento de Fatura - $anoMes"
-        val pagamento = lista.find {
-            it.cartaoId == null && (it.descricao == desc1 || (cartaoId == ID_CARTAO_PADRAO && it.descricao == desc2))
-        }
-        if (pagamento != null) {
-            dao.excluirTransacao(pagamento)
+        database.withTransaction {
+            dao.pagamentosDeFaturaDoMes(anoMes)
+                .filter { it.faturaQuitadaPorEstePagamento() == FaturaChave(cartaoId, anoMes) }
+                .forEach { dao.excluirTransacao(it) }
         }
     }
-
-    // Métodos legados de suporte a cartão único
-    suspend fun pagarFatura(anoMes: String, valorTotal: Double) = pagarFaturaCartao(ID_CARTAO_PADRAO, anoMes, valorTotal)
-    fun verificarFaturaPaga(anoMes: String): Flow<Boolean> = verificarFaturaPagaCartao(ID_CARTAO_PADRAO, anoMes)
-    suspend fun cancelarPagamentoFatura(anoMes: String) = cancelarPagamentoFaturaCartao(ID_CARTAO_PADRAO, anoMes)
 
     // ------------------------------------------------------------------
     // Compras Parceladas
@@ -198,7 +191,7 @@ class FinancaRepository(private val database: AppDatabase) {
         while (!mes.isAfter(ate)) {
             val anoMes = String.format(Locale.ROOT, "%04d-%02d", mes.year, mes.monthValue)
 
-            if (dao.contarDaRecorrenteNoMes(recorrente.id, anoMes, descricao) == 0) {
+            if (dao.contarDaRecorrenteNoMes(recorrente.id, anoMes) == 0) {
                 val dia = minOf(recorrente.diaDoMes, mes.lengthOfMonth())
                 novas.add(
                     Transacao(
@@ -232,6 +225,7 @@ class FinancaRepository(private val database: AppDatabase) {
         dataInicio: LocalDate = LocalDate.now()
     ) {
         val isReceita = tipo == TipoTransacao.RECEITA
+        require(isReceita || cartaoId != null) { "Assinatura no cartão exige um cartão selecionado" }
         val formaPag = if (isReceita) FormaPagamento.DEBITO else FormaPagamento.CARTAO_CREDITO
         val cId = if (isReceita) null else cartaoId
 
@@ -242,7 +236,8 @@ class FinancaRepository(private val database: AppDatabase) {
                 categoriaId = categoriaId,
                 diaDoMes = diaDoMes,
                 tipo = tipo,
-                dataCriacao = dataInicio
+                dataCriacao = dataInicio,
+                cartaoId = cId
             )
             val idGerado = despesaRecorrenteDao.inserir(recorrente)
 
@@ -262,6 +257,7 @@ class FinancaRepository(private val database: AppDatabase) {
         database.withTransaction {
             val agora = YearMonth.now()
             val limite = agora.plusMonths(MESES_A_FRENTE)
+            val primeiroCartaoId = cartaoDao.listarTodosSync().firstOrNull()?.id
 
             for (recorrente in despesaRecorrenteDao.listarTodasSync()) {
                 val ultima = dao.ultimaDaRecorrente(recorrente.id)
@@ -273,10 +269,14 @@ class FinancaRepository(private val database: AppDatabase) {
                 if (inicio.isAfter(limite)) continue
 
                 val ehReceita = recorrente.tipo == TipoTransacao.RECEITA
+                // Cartão da própria assinatura; se não houver, o da última cobrança; por fim o primeiro cartão.
+                // Sem nenhum cartão, não gera cobrança (ficaria órfã, fora de qualquer fatura).
+                val cartaoDaAssinatura = if (ehReceita) null
+                else (recorrente.cartaoId ?: ultima?.cartaoId ?: primeiroCartaoId ?: continue)
                 gerarMeses(
                     recorrente = recorrente,
                     formaPagamento = if (ehReceita) FormaPagamento.DEBITO else FormaPagamento.CARTAO_CREDITO,
-                    cartaoId = if (ehReceita) null else (ultima?.cartaoId ?: ID_CARTAO_PADRAO),
+                    cartaoId = cartaoDaAssinatura,
                     de = inicio,
                     ate = limite
                 )

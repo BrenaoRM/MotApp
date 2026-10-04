@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
@@ -50,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.CartaoEntity
+import com.example.financacelular.data.calcularVencimentoFatura
 import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.Verde
 import com.example.financacelular.ui.theme.dimens
@@ -79,13 +81,6 @@ private fun formatarDiaAmigavel(texto: String): String =
             .replace(".", "")
             .replaceFirstChar { it.uppercase() }
     }.getOrElse { formatarDataFatura(texto) }
-
-/** Data de vencimento da fatura do mês exibido (se vence antes de fechar, assume o mês seguinte). */
-private fun calcularVencimento(mes: Int, ano: Int, diaVencimento: Int, diaFechamento: Int): LocalDate {
-    var ym = YearMonth.of(ano, mes)
-    if (diaVencimento < diaFechamento) ym = ym.plusMonths(1)
-    return ym.atDay(diaVencimento.coerceIn(1, ym.lengthOfMonth()))
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -117,11 +112,23 @@ fun CartaoScreen(
 
     var mostrarConfig by remember { mutableStateOf(false) }
     var cartaoParaEditar by remember { mutableStateOf<CartaoEntity?>(null) }
+    var cartaoParaExcluir by remember { mutableStateOf<CartaoEntity?>(null) }
     val sheetStateConfig = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val valorTotalFatura = transacoesFatura.sumOf { it.valor }
     val naPaginaAdicionar = listaCartoes.isEmpty() || pagerState.currentPage >= listaCartoes.size
     val cartaoDaPagina = listaCartoes.getOrNull(pagerState.currentPage)
+
+    // Avisa o ViewModel quando o carrossel está na página "Adicionar cartão" (a barra inferior troca o botão)
+    LaunchedEffect(naPaginaAdicionar) { viewModel.definirNaPaginaAdicionar(naPaginaAdicionar) }
+
+    // Botão "Adicionar cartão" da barra inferior pede para abrir o formulário de novo cartão
+    LaunchedEffect(Unit) {
+        viewModel.pedidoAdicionarCartao.collect {
+            cartaoParaEditar = null
+            mostrarConfig = true
+        }
+    }
 
     // Agrupa os lançamentos por dia (mantém a ordem original)
     val lancamentosPorDia = remember(transacoesFatura) {
@@ -156,11 +163,13 @@ fun CartaoScreen(
                 contentPadding = PaddingValues(horizontal = 4.dp),
                 pageSpacing = 12.dp
             ) { page ->
-                // Páginas vizinhas ficam menores e mais translúcidas
-                val distancia = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction)
-                    .absoluteValue.coerceIn(0f, 1f)
-                val destaque = 1f - distancia
+                // Páginas vizinhas ficam menores e mais translúcidas.
+                // O offset do pager muda a cada frame do arrasto: lê dentro do graphicsLayer
+                // (fase de desenho) para não recompor a tela inteira a cada frame.
                 val pageModifier = Modifier.graphicsLayer {
+                    val distancia = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction)
+                        .absoluteValue.coerceIn(0f, 1f)
+                    val destaque = 1f - distancia
                     val escala = 0.92f + 0.08f * destaque
                     scaleX = escala
                     scaleY = escala
@@ -208,9 +217,8 @@ fun CartaoScreen(
             if (!naPaginaAdicionar && cartaoDaPagina != null) {
                 Spacer(modifier = Modifier.height(16.dp))
                 val vencimento = remember(mesSelecionado, cartaoDaPagina) {
-                    calcularVencimento(
-                        mes = mesSelecionado.month.value,
-                        ano = mesSelecionado.year,
+                    calcularVencimentoFatura(
+                        anoMes = mesSelecionado,
                         diaVencimento = cartaoDaPagina.diaVencimento,
                         diaFechamento = cartaoDaPagina.diaFechamento
                     )
@@ -413,8 +421,57 @@ fun CartaoScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Salvar cartão", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
+
+                if (cartaoParaEditar != null) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = { cartaoParaExcluir = cartaoParaEditar },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp),
+                        shape = RoundedCornerShape(18.dp),
+                        border = BorderStroke(1.dp, Coral.copy(alpha = 0.6f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Coral)
+                    ) {
+                        Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Excluir cartão", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
+                }
             }
         }
+    }
+
+    // CONFIRMAÇÃO DE EXCLUSÃO DO CARTÃO
+    cartaoParaExcluir?.let { cartao ->
+        AlertDialog(
+            onDismissRequest = { cartaoParaExcluir = null },
+            title = { Text("Excluir cartão?", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "O cartão \"${cartao.nome}\" será excluído junto com todas as compras, parcelas e " +
+                            "assinaturas lançadas nele. Os pagamentos de fatura já registrados no extrato " +
+                            "são mantidos. Essa ação não pode ser desfeita."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.excluirCartao(cartao) {
+                            cartaoParaExcluir = null
+                            cartaoParaEditar = null
+                            mostrarConfig = false
+                            Toast.makeText(context, "Cartão excluído.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                ) {
+                    Text("Excluir", color = Coral, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { cartaoParaExcluir = null }) { Text("Cancelar") }
+            }
+        )
     }
 }
 

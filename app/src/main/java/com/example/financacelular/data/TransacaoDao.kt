@@ -24,8 +24,9 @@ interface TransacaoDao {
     @Query("SELECT * FROM transacoes WHERE cartaoId = :cartaoId AND anoMes = :anoMes")
     fun listarTransacoesFatura(cartaoId: Long, anoMes: String): Flow<List<Transacao>>
 
-    @Query("SELECT * FROM transacoes WHERE cartaoId = :cartaoId AND anoMes = :anoMes")
-    fun transacoesCartaoNoMes(cartaoId: Long, anoMes: String): Flow<List<Transacao>>
+    /** Pagamentos de fatura (de qualquer cartão) registrados em um mês. */
+    @Query("SELECT * FROM transacoes WHERE anoMes = :anoMes AND cartaoId IS NULL AND descricao LIKE 'Pagamento de Fatura - %'")
+    suspend fun pagamentosDeFaturaDoMes(anoMes: String): List<Transacao>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun inserirTransacao(transacao: Transacao): Long
@@ -39,9 +40,6 @@ interface TransacaoDao {
     @Delete
     suspend fun excluirTransacao(transacao: Transacao)
 
-    @Query("SELECT SUM(valor) FROM transacoes WHERE cartaoId = :cartaoId AND anoMes = :anoMes")
-    fun totalCartaoNoMes(cartaoId: Long, anoMes: String): Flow<Double?>
-
     @Query("SELECT categoriaId, SUM(valor) as total FROM transacoes WHERE anoMes = :anoMes AND tipo = 'DESPESA' GROUP BY categoriaId")
     fun gastoPorCategoriaNoMes(anoMes: String): Flow<List<GastoCategoria>>
 
@@ -51,9 +49,17 @@ interface TransacaoDao {
     @Query("SELECT * FROM transacoes WHERE recorrenteId = :recorrenteId ORDER BY anoMes DESC, data DESC LIMIT 1")
     suspend fun ultimaDaRecorrente(recorrenteId: Long): Transacao?
 
-    /** Quantas cobranças da assinatura já existem no mês (por vínculo ou pela descrição exata). */
-    @Query("SELECT COUNT(*) FROM transacoes WHERE anoMes = :anoMes AND (recorrenteId = :recorrenteId OR descricao = :descricao)")
-    suspend fun contarDaRecorrenteNoMes(recorrenteId: Long, anoMes: String, descricao: String): Int
+    /**
+     * Quantas cobranças da assinatura já existem no mês. Conta SOMENTE pelo vínculo (recorrenteId):
+     * comparar pela descrição fazia uma assinatura nova com o mesmo nome de outra (ou de uma
+     * cobrança antiga sem vínculo) ser tratada como "já lançada" e nunca gerar as cobranças.
+     */
+    @Query("SELECT COUNT(*) FROM transacoes WHERE anoMes = :anoMes AND recorrenteId = :recorrenteId")
+    suspend fun contarDaRecorrenteNoMes(recorrenteId: Long, anoMes: String): Int
+
+    /** Apaga todas as compras/cobranças lançadas em um cartão (os pagamentos de fatura não têm cartaoId e ficam). */
+    @Query("DELETE FROM transacoes WHERE cartaoId = :cartaoId")
+    suspend fun excluirTransacoesDoCartao(cartaoId: Long)
 
     /**
      * Apaga as cobranças futuras de uma assinatura: as vinculadas por ID e, para dados

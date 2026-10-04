@@ -4,7 +4,12 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.financacelular.data.AppDatabase
+import com.example.financacelular.data.CartaoEntity
 import com.example.financacelular.data.Categoria
+import com.example.financacelular.data.FaturaChave
+import com.example.financacelular.data.conjuntoFaturasPagas
+import com.example.financacelular.data.ehPagamentoDeFatura
+import com.example.financacelular.data.estaComFaturaPaga
 import com.example.financacelular.data.FinancaRepository
 import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.TipoTransacao
@@ -26,54 +31,48 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
     val categorias: StateFlow<List<Categoria>> = repository.listarCategorias()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // Cartões cadastrados (para mostrar o nome do cartão em cada lançamento)
+    val cartoes: StateFlow<List<CartaoEntity>> = repository.listarTodosCartoes()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     // 1. LANÇAMENTOS REALIZADOS (Débito/Dinheiro com data <= hoje OU Crédito cuja fatura já foi PAGA)
     val todasTransacoes: StateFlow<List<Transacao>> = repository.listarTransacoes()
         .map { transacoes ->
             val hoje = LocalDate.now()
-            val faturasPagas = transacoes.asSequence()
-                .filter { it.cartaoId == null && it.descricao?.startsWith("Pagamento de Fatura - ") == true }
-                .mapNotNull { it.anoMes }
-                .toSet()
+            val faturasPagas = conjuntoFaturasPagas(transacoes)
 
-        transacoes.filter { t ->
-            val ehPagamentoFatura = t.descricao?.startsWith("Pagamento de Fatura") == true
-            if (ehPagamentoFatura) return@filter false
+            transacoes.filter { t ->
+                if (t.ehPagamentoDeFatura()) return@filter false
 
-            val anoMesStr = t.anoMes ?: String.format(Locale.ROOT, "%d-%02d", t.data.year, t.data.monthValue)
+                val faturaPaga = t.estaComFaturaPaga(faturasPagas)
+                val ehCartao = t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.cartaoId != null
+                val ehFuturo = t.data.isAfter(hoje)
 
-            val faturaPaga = anoMesStr in faturasPagas
-            val ehCartao = t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.cartaoId != null
-            val ehFuturo = t.data.isAfter(hoje)
-
-            if (ehCartao) {
-                faturaPaga // Compras no cartão entram em "Realizados" assim que a fatura do anoMes for paga
-            } else {
-                !ehFuturo // Débito/Dinheiro entram em "Realizados" pela data de ocorrência
+                if (ehCartao) {
+                    faturaPaga // Compras no cartão entram em "Realizados" assim que a fatura do anoMes for paga
+                } else {
+                    !ehFuturo // Débito/Dinheiro entram em "Realizados" pela data de ocorrência
+                }
             }
-        }
-    }.flowOn(Dispatchers.Default)
+        }.flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // 2. FUTUROS LANÇAMENTOS / PENDENTES (Débito/Dinheiro futuro OU Crédito com Fatura PENDENTE)
     val futurosLancamentos: StateFlow<List<Transacao>> = combine(
         repository.listarTransacoes(),
         repository.listarRecorrentes(),
-        repository.listarTransacoes()
-    ) { transacoes, recorrentes, todas ->
+        repository.listarTodosCartoes()
+    ) { transacoes, recorrentes, cartoes ->
         val hoje = LocalDate.now()
         val mesAtualStr = String.format(Locale.ROOT, "%04d-%02d", hoje.year, hoje.monthValue)
-        val faturasPagas = todas.asSequence()
-            .filter { it.cartaoId == null && it.descricao?.startsWith("Pagamento de Fatura - ") == true }
-            .mapNotNull { it.anoMes }
-            .toSet()
+        val faturasPagas = conjuntoFaturasPagas(transacoes)
+        val primeiroCartaoId = cartoes.firstOrNull()?.id
 
         // Transações de cartão com fatura em aberto OU dinheiro/débito futuros
         val transacoesFuturasBanco = transacoes.filter { t ->
-            val ehPagamentoFatura = t.descricao?.startsWith("Pagamento de Fatura") == true
-            if (ehPagamentoFatura) return@filter false
+            if (t.ehPagamentoDeFatura()) return@filter false
 
-            val anoMesStr = t.anoMes ?: String.format(Locale.ROOT, "%d-%02d", t.data.year, t.data.monthValue)
-            val faturaPaga = anoMesStr in faturasPagas
+            val faturaPaga = t.estaComFaturaPaga(faturasPagas)
             val ehCartao = t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.cartaoId != null
             val ehFuturo = t.data.isAfter(hoje)
 
@@ -86,6 +85,7 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
 
         // Projeta assinaturas/recorrentes do mês atual que ainda não foram lançadas
         val recorrentesPrevistas = recorrentes.mapNotNull { recorrente ->
+            val ehReceita = recorrente.tipo == TipoTransacao.RECEITA
             val diaSeguro = minOf(recorrente.diaDoMes, hoje.lengthOfMonth())
             val dataPrevista = LocalDate.of(hoje.year, hoje.monthValue, diaSeguro)
 
@@ -93,13 +93,22 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
                 val mesmoMes = t.anoMes == mesAtualStr || t.data.toString().startsWith(mesAtualStr)
                 mesmoMes && (
                         t.recorrenteId == recorrente.id ||
-                                t.descricao == "${recorrente.nome} (Assinatura)" ||
-                                t.descricao == "${recorrente.nome} (Recorrente)"
+                                // Descrição só vale para cobranças antigas sem vínculo (evita confundir assinaturas de mesmo nome)
+                                (t.recorrenteId == null && (
+                                        t.descricao == "${recorrente.nome} (Assinatura)" ||
+                                                t.descricao == "${recorrente.nome} (Recorrente)"
+                                        ))
                         )
             }
 
-            val faturaDesteMesPaga = mesAtualStr in faturasPagas
-            if (!jaLancada && (!faturaDesteMesPaga || recorrente.tipo == TipoTransacao.RECEITA)) {
+            // Despesa: cartão da própria assinatura (ou o primeiro cartão, para assinaturas antigas). Receita: sem cartão.
+            val cartaoPrevisto = if (ehReceita) null else (recorrente.cartaoId ?: primeiroCartaoId)
+            val faturaDesteMesPaga = cartaoPrevisto != null &&
+                    FaturaChave(cartaoPrevisto, mesAtualStr) in faturasPagas
+
+            if (!ehReceita && cartaoPrevisto == null) {
+                null // despesa de cartão sem nenhum cartão cadastrado: não há fatura para prever
+            } else if (!jaLancada && (ehReceita || !faturaDesteMesPaga)) {
                 Transacao(
                     id = -1,
                     valor = recorrente.valor,
@@ -107,8 +116,8 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
                     tipo = recorrente.tipo,
                     categoriaId = recorrente.categoriaId,
                     descricao = "${recorrente.nome} (Previsto)",
-                    formaPagamento = FormaPagamento.CARTAO_CREDITO,
-                    cartaoId = 1L,
+                    formaPagamento = if (ehReceita) FormaPagamento.DEBITO else FormaPagamento.CARTAO_CREDITO,
+                    cartaoId = cartaoPrevisto,
                     anoMes = mesAtualStr
                 )
             } else null

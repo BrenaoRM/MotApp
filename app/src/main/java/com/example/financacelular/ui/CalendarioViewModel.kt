@@ -5,12 +5,15 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.financacelular.data.AfazerEntity
 import com.example.financacelular.data.AppDatabase
+import com.example.financacelular.data.conjuntoFaturasPagas
+import com.example.financacelular.data.ehPagamentoDeFatura
+import com.example.financacelular.data.estaComFaturaPaga
 import com.example.financacelular.data.FinancaRepository
 import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.Transacao
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -47,19 +50,15 @@ class CalendarioViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    val transacoesCalendario: StateFlow<List<TransacaoCalendario>> = combine(
-        repository.listarTransacoes(),
-        repository.listarTransacoes()
-    ) { transacoes, todas ->
-        transacoes.filter { t ->
-            t.descricao?.startsWith("Pagamento de Fatura") != true
+    val transacoesCalendario: StateFlow<List<TransacaoCalendario>> = repository.listarTransacoes().map { todas ->
+        val faturasPagas = conjuntoFaturasPagas(todas)
+        todas.filter { t ->
+            !t.ehPagamentoDeFatura()
         }.map { t ->
-            var naoPaga = false
-
-            if (t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.anoMes != null) {
-                val faturaPaga = todas.any { it.cartaoId == null && it.anoMes == t.anoMes && it.descricao == "Pagamento de Fatura - ${t.anoMes}" }
-                naoPaga = !faturaPaga
-            }
+            // Fatura "não paga" = compra de cartão cuja fatura (daquele cartão, naquele mês) ainda não foi paga
+            val naoPaga = t.formaPagamento == FormaPagamento.CARTAO_CREDITO &&
+                    t.anoMes != null &&
+                    !t.estaComFaturaPaga(faturasPagas)
 
             TransacaoCalendario(transacao = t, ehFaturaNaoPaga = naoPaga)
         }

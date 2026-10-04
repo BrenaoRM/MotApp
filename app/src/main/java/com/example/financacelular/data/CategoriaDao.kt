@@ -21,6 +21,9 @@ interface CategoriaDao {
     @Query("SELECT * FROM categorias ORDER BY nome")
     fun listarTodas(): Flow<List<Categoria>>
 
+    @Query("SELECT * FROM categorias ORDER BY nome")
+    suspend fun listarTodasSync(): List<Categoria>
+
     @Query("SELECT * FROM categorias WHERE tipo = :tipo ORDER BY nome")
     fun listarPorTipo(tipo: TipoTransacao): Flow<List<Categoria>>
 }

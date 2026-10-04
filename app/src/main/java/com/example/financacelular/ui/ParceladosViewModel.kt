@@ -6,9 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.financacelular.data.AppDatabase
 import com.example.financacelular.data.FinancaRepository
 import com.example.financacelular.data.Transacao
+import com.example.financacelular.data.conjuntoFaturasPagas
+import com.example.financacelular.data.estaComFaturaPaga
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -21,7 +23,8 @@ data class CompraParceladaAgrupada(
     val parcelasRestantes: Int,
     val valorTotal: Double,
     val transacoesPendentes: List<Transacao>,
-    val dataCompra: LocalDate
+    val dataCompra: LocalDate,
+    val cartaoNome: String?
 )
 
 private val REGEX_SUFIXO_PARCELA = Regex(" \\(\\d+/\\d+\\)$")
@@ -33,14 +36,15 @@ private fun nomeBaseDaCompra(transacao: Transacao): String =
 class ParceladosViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = FinancaRepository.getInstance(AppDatabase.getInstance(application))
 
-    val comprasAgrupadas: StateFlow<List<CompraParceladaAgrupada>> = repository.listarTransacoes().map { transacoes ->
+    val comprasAgrupadas: StateFlow<List<CompraParceladaAgrupada>> = combine(
+        repository.listarTransacoes(),
+        repository.listarTodosCartoes()
+    ) { transacoes, cartoes ->
         // Filtra apenas as transações parceladas (totalParcelas > 1)
         val transacoesParceladas = transacoes.filter { it.totalParcelas > 1 }
 
-        // Descobre quais meses tiveram a fatura paga
-        val faturasPagas = transacoes.filter {
-            it.cartaoId == null && it.descricao?.startsWith("Pagamento de Fatura") == true
-        }.mapNotNull { it.anoMes }.toSet()
+        // Descobre quais faturas (cartão + mês) já foram pagas
+        val faturasPagas = conjuntoFaturasPagas(transacoes)
 
         // Compras novas agrupam pelo ID do grupo; as antigas (sem ID) pelo nome + total de parcelas
         val agrupado = transacoesParceladas.groupBy { t ->
@@ -51,8 +55,8 @@ class ParceladosViewModel(application: Application) : AndroidViewModel(applicati
             val transacoesOrdenadas = lista.sortedBy { it.numeroParcela }
             val primeiraTransacao = transacoesOrdenadas.first()
 
-            val parcelasPagas = lista.count { it.anoMes in faturasPagas }
-            val transacoesPendentes = lista.filter { it.anoMes !in faturasPagas }
+            val parcelasPagas = lista.count { it.estaComFaturaPaga(faturasPagas) }
+            val transacoesPendentes = lista.filter { !it.estaComFaturaPaga(faturasPagas) }
 
             CompraParceladaAgrupada(
                 descricaoBase = nomeBaseDaCompra(primeiraTransacao),
@@ -62,7 +66,8 @@ class ParceladosViewModel(application: Application) : AndroidViewModel(applicati
                 parcelasRestantes = lista.size - parcelasPagas,
                 valorTotal = lista.sumOf { it.valor },
                 transacoesPendentes = transacoesPendentes,
-                dataCompra = primeiraTransacao.data
+                dataCompra = primeiraTransacao.data,
+                cartaoNome = cartoes.find { it.id == primeiraTransacao.cartaoId }?.nome
             )
         }.sortedByDescending { it.dataCompra } // Das mais recentes para as mais antigas
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

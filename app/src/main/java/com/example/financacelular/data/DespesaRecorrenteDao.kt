@@ -14,6 +14,10 @@ interface DespesaRecorrenteDao {
     @Delete
     suspend fun excluir(despesa: DespesaRecorrente)
 
+    /** Apaga todas as assinaturas cobradas em um cartão (usado ao excluir o cartão). */
+    @Query("DELETE FROM despesas_recorrentes WHERE cartaoId = :cartaoId")
+    suspend fun excluirDoCartao(cartaoId: Long)
+
     @Query("SELECT * FROM despesas_recorrentes ORDER BY diaDoMes")
     fun listarTodas(): Flow<List<DespesaRecorrente>>
 

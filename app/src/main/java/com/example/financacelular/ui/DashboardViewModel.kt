@@ -7,9 +7,12 @@ import androidx.lifecycle.viewModelScope
 import com.example.financacelular.data.AppDatabase
 import com.example.financacelular.data.FinancaRepository
 import com.example.financacelular.data.FormaPagamento
-import com.example.financacelular.data.Meta
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.data.Transacao
+import com.example.financacelular.data.conjuntoFaturasPagas
+import com.example.financacelular.data.ehPagamentoDeFatura
+import com.example.financacelular.data.estaComFaturaPaga
+import com.example.financacelular.data.faturasProximasDoVencimento
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -49,18 +52,14 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         get() = getApplication<Application>().getSharedPreferences("financacelular_prefs", Context.MODE_PRIVATE)
             .getString("nome_utilizador", "Usuário") ?: "Usuário"
 
+    // Alerta se QUALQUER cartão tem fatura em aberto (com valor) vencendo em até 2 dias
     val alertaFaturaPendente: StateFlow<Boolean> = combine(
-        repository.obterCartao(1L),
-        repository.verificarFaturaPaga(YearMonth.now().format(DateTimeFormatter.ofPattern("yyyy-MM"))),
+        repository.listarTodosCartoes(),
+        repository.listarTransacoes(),
         _triggerVerificacao
-    ) { cartao, faturaPaga, _ ->
-        if (faturaPaga || cartao == null) return@combine false
+    ) { cartoes, transacoes, _ ->
         if (alertaJaExibidoNestaSessao) return@combine false
-        val hoje = LocalDate.now()
-        val diaVencimentoReal = minOf(cartao.diaVencimento, YearMonth.now().lengthOfMonth())
-        val dataVencimento = YearMonth.now().atDay(diaVencimentoReal)
-        val dataInicioAlerta = dataVencimento.minusDays(2)
-        hoje in dataInicioAlerta..dataVencimento
+        faturasProximasDoVencimento(cartoes, transacoes).isNotEmpty()
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     fun marcarAlertaComoExibido() {
@@ -76,10 +75,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     ) { anoMes, todas, categorias ->
         val hoje = LocalDate.now()
 
-        val faturasPagas = todas.asSequence()
-            .filter { it.cartaoId == null && it.descricao?.startsWith("Pagamento de Fatura - ") == true }
-            .mapNotNull { it.anoMes }
-            .toSet()
+        val faturasPagas = conjuntoFaturasPagas(todas)
 
         val categoriaFaturaId = categorias.find { it.nome.equals("Fatura", ignoreCase = true) }?.id ?: 1L
 
@@ -88,12 +84,11 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             val ehDoMes = anoMesTransacao == anoMes
             if (!ehDoMes) return@filter false
 
-            val ehPagamentoFatura = t.descricao?.startsWith("Pagamento de Fatura") == true
-            if (ehPagamentoFatura) return@filter false
+            if (t.ehPagamentoDeFatura()) return@filter false
 
             val ehFuturo = t.data.isAfter(hoje)
             if (t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.cartaoId != null) {
-                t.anoMes in faturasPagas
+                t.estaComFaturaPaga(faturasPagas)
             } else {
                 !ehFuturo
             }
@@ -124,9 +119,6 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     ) { anoMes, investimentos ->
         investimentos.filter { it.anoMes == anoMes }.sumOf { it.valorInvestido }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
-
-    val metas: StateFlow<List<Meta>> = repository.listarMetas()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val categorias: StateFlow<List<com.example.financacelular.data.Categoria>> = repository.listarCategorias()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

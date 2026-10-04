@@ -4,6 +4,9 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.financacelular.data.AppDatabase
+import com.example.financacelular.data.conjuntoFaturasPagas
+import com.example.financacelular.data.ehPagamentoDeFatura
+import com.example.financacelular.data.estaComFaturaPaga
 import com.example.financacelular.data.FinancaRepository
 import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.TipoTransacao
@@ -51,12 +54,11 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
             val anoMesTransacao = t.anoMes ?: t.data.toString().take(7)
             val ehDoMes = anoMesTransacao == anoMes
             if (!ehDoMes) return@filter false
-            val ehPagamentoFatura = t.descricao?.startsWith("Pagamento de Fatura") == true
-            if (ehPagamentoFatura) return@filter false
+            if (t.ehPagamentoDeFatura()) return@filter false
             val ehFuturo = t.data.isAfter(hoje)
 
             if (t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.cartaoId != null) {
-                t.anoMes in faturasPagas
+                t.estaComFaturaPaga(faturasPagas)
             } else {
                 !ehFuturo
             }
@@ -112,12 +114,11 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
                     val anoMesTransacao = t.anoMes ?: t.data.toString().take(7)
                     val ehDoMes = anoMesTransacao == anoMes
                     if (!ehDoMes) return@filter false
-                    val ehPagamentoFatura = t.descricao?.startsWith("Pagamento de Fatura") == true
-                    if (ehPagamentoFatura) return@filter false
+                    if (t.ehPagamentoDeFatura()) return@filter false
                     val ehFuturo = t.data.isAfter(hoje)
 
                     if (t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.cartaoId != null) {
-                        t.anoMes in faturasPagas
+                        t.estaComFaturaPaga(faturasPagas)
                     } else {
                         if (ym.year == hoje.year && ym.month == hoje.month) !ehFuturo else true
                     }

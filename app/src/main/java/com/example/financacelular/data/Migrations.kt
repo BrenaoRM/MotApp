@@ -29,3 +29,27 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
         )
     }
 }
+
+/**
+ * 9 -> 10: adiciona despesas_recorrentes.cartaoId e preenche, para cada assinatura,
+ * com o cartão da cobrança mais recente já gerada.
+ */
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE despesas_recorrentes ADD COLUMN cartaoId INTEGER")
+
+        db.execSQL(
+            """
+            UPDATE despesas_recorrentes
+            SET cartaoId = (
+                SELECT t.cartaoId
+                FROM transacoes t
+                WHERE t.recorrenteId = despesas_recorrentes.id
+                  AND t.cartaoId IS NOT NULL
+                ORDER BY t.anoMes DESC, t.data DESC
+                LIMIT 1
+            )
+            """.trimIndent()
+        )
+    }
+}

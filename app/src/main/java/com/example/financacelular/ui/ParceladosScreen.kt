@@ -204,6 +204,10 @@ fun ItemCompraParcelada(compra: CompraParceladaAgrupada, viewModel: ParceladosVi
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    if (compra.cartaoNome != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        EtiquetaCartao(nome = compra.cartaoNome)
+                    }
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(

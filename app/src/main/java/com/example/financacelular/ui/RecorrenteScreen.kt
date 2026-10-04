@@ -71,12 +71,19 @@ fun RecorrenteScreen(
     aoVoltar: (() -> Unit)? = null
 ) {
     val recorrentes by viewModel.recorrentes.collectAsState(initial = emptyList())
+    val cartoes by viewModel.cartoes.collectAsState()
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
 
     val receitasRecorrentes = recorrentes.filter { it.tipo == TipoTransacao.RECEITA }
     val despesasRecorrentes = recorrentes.filter { it.tipo == TipoTransacao.DESPESA }
     val totalCobrancas = despesasRecorrentes.sumOf { it.valor }
     val totalGanhosFixos = receitasRecorrentes.sumOf { it.valor }
+
+    // Assinaturas antigas sem cartão gravado são cobradas no primeiro cartão (mesma regra do app)
+    fun nomeDoCartao(item: DespesaRecorrente): String? {
+        if (item.tipo == TipoTransacao.RECEITA) return null
+        return (cartoes.find { it.id == item.cartaoId } ?: cartoes.firstOrNull())?.nome
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -178,6 +185,7 @@ fun RecorrenteScreen(
                     formatoMoeda = formatoMoeda,
                     corTema = Coral,
                     subtitulo = "Cobrança fixa recorrente",
+                    cartaoNome = nomeDoCartao(item),
                     onCancelar = { viewModel.excluir(item) }
                 )
             }
@@ -191,7 +199,8 @@ fun ItemRecorrenteCard(
     formatoMoeda: NumberFormat,
     corTema: Color,
     subtitulo: String,
-    onCancelar: () -> Unit
+    onCancelar: () -> Unit,
+    cartaoNome: String? = null
 ) {
     var expandido by remember { mutableStateOf(false) }
 
@@ -259,6 +268,10 @@ fun ItemRecorrenteCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(subtitulo, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (cartaoNome != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        EtiquetaCartao(nome = cartaoNome)
+                    }
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(

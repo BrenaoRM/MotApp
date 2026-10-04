@@ -132,15 +132,33 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    fun salvar(nomeCategoriaDigitada: String, aoSalvarComSucesso: () -> Unit) {
+    fun salvar(
+        nomeCategoriaDigitada: String,
+        aoErro: (String) -> Unit = {},
+        aoSalvarComSucesso: () -> Unit
+    ) {
         if (salvando) return
         val valorNumerico = valor.replace(".", "").replace(',', '.').toDoubleOrNull() ?: 0.0
         if (valorNumerico <= 0.0) return
         if (parcelasInvalidas) return
 
+        val ehCredito = formaPagamento == FormaPagamento.CARTAO_CREDITO
+        if (ehCredito && cartaoIdSelecionado == null) {
+            aoErro("Cadastre e selecione um cartão para lançar no crédito.")
+            return
+        }
+
         salvando = true
         viewModelScope.launch {
             try {
+                // Compra no crédito sempre precisa de um cartão válido, senão ficaria fora de qualquer fatura
+                val cartaoIdAsLong = if (ehCredito) cartaoIdSelecionado else null
+                val cartao = if (cartaoIdAsLong != null) repository.obterCartaoSync(cartaoIdAsLong) else null
+                if (ehCredito && cartao == null) {
+                    aoErro("O cartão selecionado não foi encontrado. Escolha outro cartão.")
+                    return@launch
+                }
+
                 var catId = categoriaSelecionada?.id
                 var nomeCategoriaFinal = categoriaSelecionada?.nome
                 if (catId == null && nomeCategoriaDigitada.isNotBlank()) {
@@ -156,13 +174,10 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
                 val fallbackTipo = if (tipo == TipoTransacao.RECEITA) "Receita" else "Despesa"
                 val nomeFinal = descricao.ifBlank { nomeCategoriaFinal ?: fallbackTipo }
 
-                // Usa o ID do cartão selecionado dinamicamente (ou null se for débito)
-                val cartaoIdAsLong = if (formaPagamento == FormaPagamento.CARTAO_CREDITO) cartaoIdSelecionado else null
+                // Em meses curtos o cartão fecha no último dia (ex.: fechamento dia 31 em fevereiro)
+                val diaFechamento = minOf(cartao?.diaFechamento ?: 31, data.lengthOfMonth())
 
-                val cartao = if (cartaoIdAsLong != null) repository.obterCartaoSync(cartaoIdAsLong) else null
-                val diaFechamento = cartao?.diaFechamento ?: 31
-
-                val dataFaturaAjustada = if (formaPagamento == FormaPagamento.CARTAO_CREDITO && data.dayOfMonth >= diaFechamento) {
+                val dataFaturaAjustada = if (ehCredito && data.dayOfMonth >= diaFechamento) {
                     data.plusMonths(1)
                 } else {
                     data

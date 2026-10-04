@@ -23,5 +23,7 @@ data class DespesaRecorrente(
     val categoriaId: Long,
     val diaDoMes: Int,
     val tipo: TipoTransacao = TipoTransacao.DESPESA,
-    val dataCriacao: LocalDate = LocalDate.now()
+    val dataCriacao: LocalDate = LocalDate.now(),
+    // Cartão em que a assinatura é cobrada (null para receitas recorrentes)
+    val cartaoId: Long? = null
 )

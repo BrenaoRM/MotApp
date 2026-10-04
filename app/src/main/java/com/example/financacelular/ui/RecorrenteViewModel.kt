@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.financacelular.data.AppDatabase
+import com.example.financacelular.data.CartaoEntity
 import com.example.financacelular.data.Categoria
 import com.example.financacelular.data.DespesaRecorrente
 import com.example.financacelular.data.FinancaRepository
@@ -17,6 +18,9 @@ class RecorrenteViewModel(application: Application) : AndroidViewModel(applicati
     private val repository: FinancaRepository = FinancaRepository.getInstance(AppDatabase.getInstance(application))
 
     val recorrentes: StateFlow<List<DespesaRecorrente>> = repository.listarRecorrentes()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val cartoes: StateFlow<List<CartaoEntity>> = repository.listarTodosCartoes()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val categorias: StateFlow<List<Categoria>> = repository.listarCategorias()

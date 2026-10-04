@@ -83,6 +83,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.financacelular.data.CartaoEntity
 import com.example.financacelular.data.Categoria
 import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.TipoTransacao
@@ -126,6 +127,7 @@ fun ExtratoScreen(
     val transacoes by viewModel.todasTransacoes.collectAsState()
     val futuros by viewModel.futurosLancamentos.collectAsState()
     val categorias by viewModel.categorias.collectAsState()
+    val cartoes by viewModel.cartoes.collectAsState()
 
     var filtroTipo by remember { mutableStateOf<TipoTransacao?>(null) }
     var filtroCategoria by remember { mutableStateOf<Categoria?>(null) }
@@ -347,6 +349,7 @@ fun ExtratoScreen(
                 data = grupo.key,
                 transacoes = grupo.value,
                 categorias = categorias,
+                cartoes = cartoes,
                 formato = formato,
                 pendente = false,
                 aoClicar = { transacaoEmEdicao = it }
@@ -369,6 +372,7 @@ fun ExtratoScreen(
                     data = grupo.key,
                     transacoes = grupo.value,
                     categorias = categorias,
+                    cartoes = cartoes,
                     formato = formato,
                     pendente = true,
                     aoClicar = { transacaoEmEdicao = it }
@@ -780,6 +784,7 @@ private fun GrupoDia(
     data: LocalDate,
     transacoes: List<Transacao>,
     categorias: List<Categoria>,
+    cartoes: List<CartaoEntity>,
     formato: NumberFormat,
     pendente: Boolean,
     aoClicar: (Transacao) -> Unit
@@ -829,6 +834,7 @@ private fun GrupoDia(
                     LinhaTransacao(
                         transacao = transacao,
                         categoria = categorias.find { it.id == transacao.categoriaId },
+                        nomeCartao = transacao.cartaoId?.let { id -> cartoes.find { it.id == id }?.nome },
                         formato = formato,
                         pendente = pendente,
                         aoClicar = { aoClicar(transacao) }
@@ -843,6 +849,7 @@ private fun GrupoDia(
 private fun LinhaTransacao(
     transacao: Transacao,
     categoria: Categoria?,
+    nomeCartao: String?,
     formato: NumberFormat,
     pendente: Boolean,
     aoClicar: () -> Unit
@@ -917,6 +924,10 @@ private fun LinhaTransacao(
                         )
                     }
                 }
+            }
+            if (nomeCartao != null) {
+                Spacer(modifier = Modifier.height(4.dp))
+                EtiquetaCartao(nome = nomeCartao)
             }
         }
 
