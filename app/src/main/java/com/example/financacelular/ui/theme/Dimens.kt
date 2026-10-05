@@ -45,6 +45,7 @@ val MediumDimensions = Dimensions(
 val MaterialTheme.dimens: Dimensions
     @Composable
     @ReadOnlyComposable
+    @Suppress("UnusedReceiverParameter")
     get() {
         val width = LocalConfiguration.current.screenWidthDp
         return when {
