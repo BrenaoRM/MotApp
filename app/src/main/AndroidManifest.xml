@@ -4,11 +4,13 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
 
     <!-- Oculta o aviso de permissão protegida no Android Studio -->
     <uses-permission
         android:name="android.permission.REQUEST_INSTALL_PACKAGES"
-        tools:ignore="ProtectedPermissions" />
+        tools:ignore="ProtectedPermissions,RequestInstallPackagesPolicy" />
 
     <application
         android:allowBackup="true"
