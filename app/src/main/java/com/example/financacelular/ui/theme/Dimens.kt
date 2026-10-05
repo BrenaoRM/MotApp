@@ -1,5 +1,6 @@
 package com.example.financacelular.ui.theme
 
+import android.annotation.SuppressLint
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
@@ -43,9 +44,8 @@ val MediumDimensions = Dimensions(
 )
 
 val MaterialTheme.dimens: Dimensions
-    @Composable
+    @SuppressLint("ConfigurationScreenWidthHeight") @Composable
     @ReadOnlyComposable
-    @Suppress("UnusedReceiverParameter")
     get() {
         val width = LocalConfiguration.current.screenWidthDp
         return when {
