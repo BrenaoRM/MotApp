@@ -307,7 +307,9 @@ fun CalendarioScreen(
             .replaceFirstChar { it.uppercase() } + " " + mesAnoSelecionado.year
     }
 
-    val transacoesDoDia = transacoesCalendario.filter { it.transacao.data == dataSelecionada }
+    // Agrupa uma vez por data (a grade do mês consulta isto para cada dia)
+    val itensPorData = remember(transacoesCalendario) { transacoesCalendario.groupBy { it.transacao.data } }
+    val transacoesDoDia = itensPorData[dataSelecionada].orEmpty()
     val afazeresDoDia = listaAfazeres.filter { it.data == dataSelecionada }
 
     // Evento criado pelo app já aparece como afazer: esconde a cópia vinda do Google Agenda
@@ -316,11 +318,12 @@ fun CalendarioScreen(
                 afazeresDoDia.any { it.titulo == evento.titulo }
     }
 
+    // Pagamentos de fatura e faturas em aberto não entram nas somas: o valor já está nas compras do cartão
     val gastoDoDia = transacoesDoDia
-        .filter { it.transacao.tipo == TipoTransacao.DESPESA }
+        .filter { it.contaNosTotais && it.transacao.tipo == TipoTransacao.DESPESA }
         .sumOf { it.transacao.valor }
     val ganhoDoDia = transacoesDoDia
-        .filter { it.transacao.tipo == TipoTransacao.RECEITA }
+        .filter { it.contaNosTotais && it.transacao.tipo == TipoTransacao.RECEITA }
         .sumOf { it.transacao.valor }
     val afazeresPendentes = afazeresDoDia.count { !it.concluido }
 
@@ -409,8 +412,10 @@ fun CalendarioScreen(
                                             val dataAtualGrid = mesAnoSelecionado.atDay(diaMesReal)
                                             val isSelecionado = dataAtualGrid == dataSelecionada
                                             val ehHoje = dataAtualGrid == hoje
-                                            val temDespesa = transacoesCalendario.any { it.transacao.data == dataAtualGrid && it.transacao.tipo == TipoTransacao.DESPESA }
-                                            val temGanho = transacoesCalendario.any { it.transacao.data == dataAtualGrid && it.transacao.tipo == TipoTransacao.RECEITA }
+                                            val itensDoDia = itensPorData[dataAtualGrid].orEmpty()
+                                            val temDespesa = itensDoDia.any { it.contaNosTotais && it.transacao.tipo == TipoTransacao.DESPESA }
+                                            val temGanho = itensDoDia.any { it.contaNosTotais && it.transacao.tipo == TipoTransacao.RECEITA }
+                                            val temFaturaAberta = itensDoDia.any { it.ehFaturaNaoPaga }
                                             val temAfazer = listaAfazeres.any { it.data == dataAtualGrid && !it.concluido }
                                             val temAgenda = temAfazer || dataAtualGrid in diasComEventosGoogle
 
@@ -461,6 +466,9 @@ fun CalendarioScreen(
                                                             }
                                                             if (temGanho) {
                                                                 Box(modifier = Modifier.size(4.dp).background(if (isSelecionado) Color.White else Verde, CircleShape))
+                                                            }
+                                                            if (temFaturaAberta) {
+                                                                Box(modifier = Modifier.size(4.dp).background(if (isSelecionado) Color.White else AmareloAgenda, CircleShape))
                                                             }
                                                         } else {
                                                             if (temAgenda) {
@@ -522,17 +530,17 @@ fun CalendarioScreen(
                 items(transacoesDoDia) { itemCalendario ->
                     val t = itemCalendario.transacao
                     val categoria = categorias.find { it.id == t.categoriaId }
-                    val cor = if (itemCalendario.ehFaturaNaoPaga) {
-                        AmareloAgenda
-                    } else if (t.tipo == TipoTransacao.DESPESA) {
-                        Coral
-                    } else {
-                        Verde
+                    val nomeCategoria = itemCalendario.categoriaNome ?: categoria?.nome
+                    val cor = when {
+                        itemCalendario.ehFaturaNaoPaga -> AmareloAgenda
+                        itemCalendario.ehPagamentoFatura -> MaterialTheme.colorScheme.onSurfaceVariant
+                        t.tipo == TipoTransacao.DESPESA -> Coral
+                        else -> Verde
                     }
-                    val descricaoFinal = if (itemCalendario.ehFaturaNaoPaga) {
-                        "${t.descricao ?: categoria?.nome} (Não paga)"
-                    } else {
-                        t.descricao ?: (categoria?.nome ?: "Transação")
+                    val prefixoValor = when {
+                        itemCalendario.ehFaturaNaoPaga || itemCalendario.ehPagamentoFatura -> ""
+                        t.tipo == TipoTransacao.DESPESA -> "- "
+                        else -> "+ "
                     }
 
                     Card(
@@ -556,7 +564,7 @@ fun CalendarioScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    iconeParaCategoria(categoria?.nome ?: ""),
+                                    iconeParaCategoria(nomeCategoria ?: ""),
                                     contentDescription = null,
                                     tint = cor,
                                     modifier = Modifier.size(22.dp)
@@ -565,7 +573,7 @@ fun CalendarioScreen(
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    descricaoFinal,
+                                    itemCalendario.titulo,
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface,
@@ -573,7 +581,7 @@ fun CalendarioScreen(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    categoria?.nome ?: "Sem categoria",
+                                    itemCalendario.subtitulo ?: nomeCategoria ?: "Sem categoria",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
@@ -582,7 +590,7 @@ fun CalendarioScreen(
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                (if (t.tipo == TipoTransacao.DESPESA) "- " else "+ ") + formatoMoeda.format(t.valor),
+                                prefixoValor + formatoMoeda.format(t.valor),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = cor,

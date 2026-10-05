@@ -10,6 +10,21 @@ import java.util.UUID
 
 private const val MESES_A_FRENTE = 12L
 
+/**
+ * Data em que o pagamento de uma fatura aparece no calendário/extrato.
+ * - Fatura paga dentro do próprio mês dela (mês da fatura ou mês do vencimento): vale o dia em que foi paga.
+ * - Fatura de outro mês paga fora do mês dela: vale o dia de vencimento da fatura.
+ * Se o cartão não for encontrado, usa o dia em que foi paga.
+ */
+internal fun dataDoPagamentoDeFatura(cartao: CartaoEntity?, anoMes: String, hoje: LocalDate): LocalDate {
+    if (cartao == null) return hoje
+    val mesDaFatura = runCatching { YearMonth.parse(anoMes) }.getOrNull() ?: return hoje
+    val vencimento = calcularVencimentoFatura(mesDaFatura, cartao.diaVencimento, cartao.diaFechamento)
+    val mesDeHoje = YearMonth.from(hoje)
+    val pagouNoMesDela = mesDeHoje == mesDaFatura || mesDeHoje == YearMonth.from(vencimento)
+    return if (pagouNoMesDela) hoje else vencimento
+}
+
 @Suppress("unused")
 class FinancaRepository(private val database: AppDatabase) {
     private val dao = database.transacaoDao()
@@ -94,10 +109,16 @@ class FinancaRepository(private val database: AppDatabase) {
                 categoriaDao.inserir(Categoria(nome = "Fatura", tipo = TipoTransacao.DESPESA))
             }
 
+            val dataPagamento = dataDoPagamentoDeFatura(
+                cartao = cartaoDao.obterPorIdSync(cartaoId),
+                anoMes = anoMes,
+                hoje = LocalDate.now()
+            )
+
             dao.inserirTransacao(
                 Transacao(
                     valor = valorTotal,
-                    data = LocalDate.now(),
+                    data = dataPagamento,
                     categoriaId = catId,
                     tipo = TipoTransacao.DESPESA,
                     descricao = descricaoPagamentoFatura(cartaoId, anoMes),
