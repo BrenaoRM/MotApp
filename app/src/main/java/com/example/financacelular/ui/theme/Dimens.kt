@@ -28,7 +28,7 @@ val UltraCompactDimensions = Dimensions(
 val CompactDimensions = Dimensions(
     paddingSmall = 6.dp,
     paddingMedium = 12.dp,
-    paddingScreen = 16.dp,
+    paddingScreen = 12.dp,
     spaceBetweenCards = 10.dp,
     cardCornerRadius = 16.dp
 )
@@ -37,7 +37,7 @@ val CompactDimensions = Dimensions(
 val MediumDimensions = Dimensions(
     paddingSmall = 10.dp,
     paddingMedium = 16.dp,
-    paddingScreen = 20.dp,
+    paddingScreen = 14.dp,
     spaceBetweenCards = 16.dp,
     cardCornerRadius = 22.dp
 )
