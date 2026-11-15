@@ -5,6 +5,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 // Cantos bem suaves e generosos — cartões arredondados "flutuando",
@@ -17,6 +21,20 @@ private val FinancaShapes = Shapes(
     extraLarge = RoundedCornerShape(32.dp)
 )
 
+/** Cores usadas como texto que mudam com o tema (Verde/Coral seguem para preenchimentos). */
+data class CoresApp(
+    val textoGanho: Color,
+    val textoGasto: Color,
+    val alerta: Color
+)
+
+val LocalCoresApp = staticCompositionLocalOf { CoresClaras }
+
+val MaterialTheme.cores: CoresApp
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalCoresApp.current
+
 @Composable
 fun FinanceAPPTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -24,10 +42,12 @@ fun FinanceAPPTheme(
 ) {
     val colorScheme = if (darkTheme) EsquemaEscuro else EsquemaClaro
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = FinancaTypography,
-        shapes = FinancaShapes,
-        content = content
-    )
+    CompositionLocalProvider(LocalCoresApp provides if (darkTheme) CoresEscuras else CoresClaras) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = FinancaTypography,
+            shapes = FinancaShapes,
+            content = content
+        )
+    }
 }

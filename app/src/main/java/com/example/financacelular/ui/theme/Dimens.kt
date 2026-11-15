@@ -43,6 +43,22 @@ val MediumDimensions = Dimensions(
     cardCornerRadius = 22.dp
 )
 
+object Espaco {
+    val xs = 4.dp
+    val sm = 8.dp
+    val md = 12.dp
+    val lg = 16.dp
+    val xl = 24.dp
+    val xxl = 32.dp
+}
+
+object Tamanho {
+    val toque = 48.dp
+    val controle = 52.dp
+    val icone = 20.dp
+    val iconeGrande = 24.dp
+}
+
 val MaterialTheme.dimens: Dimensions
     @SuppressLint("ConfigurationScreenWidthHeight") @Composable
     @ReadOnlyComposable

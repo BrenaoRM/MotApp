@@ -5,9 +5,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
@@ -37,9 +35,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.TemaPreferencia
+import com.example.financacelular.ui.theme.CorConfiguracoes
 import com.example.financacelular.ui.theme.dimens
-
-private val CorConfiguracoes = Color(0xFF64748B)
 
 private data class OpcaoDeTema(
     val tema: TemaPreferencia,
@@ -66,6 +63,23 @@ fun ConfiguracoesScreen(
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context.encontrarActivity() }
+    val mensagem = LocalMensagem.current
+
+    // Resultado do backup também vira Snackbar (mensagens de progresso terminam em "...")
+    LaunchedEffect(viewModel.statusBackupMessage) {
+        val texto = viewModel.statusBackupMessage
+        if (texto.isNotEmpty() && !texto.endsWith("...")) mensagem(texto)
+    }
+    var confirmarRestauracao by remember { mutableStateOf(false) }
+    if (confirmarRestauracao) {
+        ConfirmarAcaoSheet(
+            titulo = "Restaurar backup?",
+            texto = "Os dados do backup do Google Drive substituem os dados atuais deste aparelho. Essa ação não pode ser desfeita.",
+            textoConfirmar = "Restaurar",
+            onConfirmar = { viewModel.restaurarBackupDaNuvem(activity) },
+            onDismiss = { confirmarRestauracao = false }
+        )
+    }
 
     val authorizationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
@@ -138,7 +152,6 @@ fun ConfiguracoesScreen(
             Card(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
@@ -191,7 +204,6 @@ fun ConfiguracoesScreen(
             Card(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -221,47 +233,31 @@ fun ConfiguracoesScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     if (!logado) {
-                        Button(
+                        BotaoPrincipal(
+                            texto = "Entrar com a Conta Google",
                             onClick = { viewModel.sincronizarOuEntrarGoogle(activity) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp),
-                            shape = RoundedCornerShape(20.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = CorConfiguracoes, contentColor = Color.White),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Entrar com a Conta Google", fontWeight = FontWeight.Bold)
-                        }
+                            modifier = Modifier.fillMaxWidth(),
+                            cor = CorConfiguracoes,
+                            corConteudo = Color.White,
+                            icone = Icons.AutoMirrored.Filled.Login
+                        )
                     } else {
-                        Button(
+                        BotaoPrincipal(
+                            texto = "Fazer Backup Agora",
                             onClick = { viewModel.realizarBackupNaNuvem(activity) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp),
-                            shape = RoundedCornerShape(20.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = CorConfiguracoes, contentColor = Color.White),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
-                        ) {
-                            Icon(Icons.Filled.CloudUpload, contentDescription = null, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Fazer Backup Agora", fontWeight = FontWeight.Bold)
-                        }
+                            modifier = Modifier.fillMaxWidth(),
+                            cor = CorConfiguracoes,
+                            corConteudo = Color.White,
+                            icone = Icons.Filled.CloudUpload
+                        )
                         Spacer(modifier = Modifier.height(10.dp))
-                        OutlinedButton(
-                            onClick = { viewModel.restaurarBackupDaNuvem(activity) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp),
-                            shape = RoundedCornerShape(20.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = CorConfiguracoes),
-                            border = BorderStroke(1.dp, CorConfiguracoes.copy(alpha = 0.5f))
-                        ) {
-                            Icon(Icons.Filled.CloudDownload, contentDescription = null, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Restaurar Backup do Google Drive", fontWeight = FontWeight.Bold)
-                        }
+                        BotaoSecundario(
+                            texto = "Restaurar Backup do Google Drive",
+                            onClick = { confirmarRestauracao = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            cor = CorConfiguracoes,
+                            icone = Icons.Filled.CloudDownload
+                        )
                     }
 
                     if (viewModel.statusBackupMessage.isNotEmpty()) {
@@ -325,11 +321,6 @@ private fun OpcaoDeTemaItem(
             .background(
                 if (selecionada) CorConfiguracoes.copy(alpha = 0.14f)
                 else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-            )
-            .border(
-                width = if (selecionada) 1.5.dp else 0.dp,
-                color = if (selecionada) CorConfiguracoes else Color.Transparent,
-                shape = forma
             )
             .selectable(selected = selecionada, onClick = aoSelecionar, role = Role.RadioButton)
             .padding(vertical = 14.dp),

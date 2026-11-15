@@ -15,8 +15,9 @@ class MetaViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: FinancaRepository = FinancaRepository.getInstance(AppDatabase.getInstance(application))
 
-    val metas: StateFlow<List<Meta>> = repository.listarMetas()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    /** null = carregando. */
+    val metas: StateFlow<List<Meta>?> = repository.listarMetas()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     fun criar(nome: String, valorAlvo: Double) {
         if (nome.isBlank() || valorAlvo <= 0) return

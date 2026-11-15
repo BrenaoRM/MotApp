@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.financacelular.data.AppDatabase
 import com.example.financacelular.data.CartaoEntity
+import com.example.financacelular.data.Categoria
 import com.example.financacelular.data.FinancaRepository
 import com.example.financacelular.data.Transacao
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -17,7 +18,12 @@ class CartaoViewModel(application: Application) : AndroidViewModel(application) 
     private val repository: FinancaRepository = FinancaRepository.getInstance(AppDatabase.getInstance(application))
 
     // Lista de todos os cartões cadastrados
-    val listaCartoes: StateFlow<List<CartaoEntity>> = repository.listarTodosCartoes()
+    // null enquanto carrega
+    val listaCartoes: StateFlow<List<CartaoEntity>?> = repository.listarTodosCartoes()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    // Categorias, para mostrar o ícone da categoria em cada lançamento
+    val categorias: StateFlow<List<Categoria>> = repository.listarCategorias()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // ID do cartão atualmente selecionado no carrossel (null até o carrossel selecionar o primeiro)
@@ -48,7 +54,7 @@ class CartaoViewModel(application: Application) : AndroidViewModel(application) 
     val mesSelecionado: StateFlow<YearMonth> = _mesSelecionado
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val transacoesFatura: StateFlow<List<Transacao>> = combine(_cartaoSelecionadoId, _mesSelecionado) { cartaoId, ym ->
+    val transacoesFatura: StateFlow<List<Transacao>?> = combine(_cartaoSelecionadoId, _mesSelecionado) { cartaoId, ym ->
         cartaoId to ym
     }.flatMapLatest { (cartaoId, ym) ->
         if (cartaoId == null) {
@@ -57,7 +63,7 @@ class CartaoViewModel(application: Application) : AndroidViewModel(application) 
             val anoMesStr = ym.format(DateTimeFormatter.ofPattern("yyyy-MM"))
             repository.listarTransacoesFatura(cartaoId, anoMesStr)
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val faturaPaga: StateFlow<Boolean> = combine(_cartaoSelecionadoId, _mesSelecionado) { cartaoId, ym ->
@@ -75,7 +81,7 @@ class CartaoViewModel(application: Application) : AndroidViewModel(application) 
     val podePagarFatura: StateFlow<Boolean> = combine(
         _naPaginaAdicionar, _cartaoSelecionadoId, transacoesFatura, faturaPaga
     ) { naPaginaAdicionar, cartaoId, transacoes, paga ->
-        !naPaginaAdicionar && cartaoId != null && (paga || transacoes.sumOf { it.valor } > 0.0)
+        !naPaginaAdicionar && cartaoId != null && (paga || (transacoes?.sumOf { it.valor } ?: 0.0) > 0.0)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -92,7 +98,7 @@ class CartaoViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             if (_naPaginaAdicionar.value) return@launch
             val anoMesStr = _mesSelecionado.value.format(DateTimeFormatter.ofPattern("yyyy-MM"))
-            val valor = transacoesFatura.value.sumOf { it.valor }
+            val valor = transacoesFatura.value?.sumOf { it.valor } ?: 0.0
             val cartaoId = _cartaoSelecionadoId.value ?: return@launch
             if (valor > 0.0) {
                 repository.pagarFaturaCartao(cartaoId, anoMesStr, valor)

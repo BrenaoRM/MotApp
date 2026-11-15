@@ -17,8 +17,9 @@ class RecorrenteViewModel(application: Application) : AndroidViewModel(applicati
 
     private val repository: FinancaRepository = FinancaRepository.getInstance(AppDatabase.getInstance(application))
 
-    val recorrentes: StateFlow<List<DespesaRecorrente>> = repository.listarRecorrentes()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    // null enquanto carrega
+    val recorrentes: StateFlow<List<DespesaRecorrente>?> = repository.listarRecorrentes()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val cartoes: StateFlow<List<CartaoEntity>> = repository.listarTodosCartoes()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

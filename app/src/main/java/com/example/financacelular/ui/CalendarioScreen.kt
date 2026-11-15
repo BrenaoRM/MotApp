@@ -1,12 +1,15 @@
 package com.example.financacelular.ui
 
 import android.Manifest
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,35 +19,29 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.EventAvailable
-import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -55,9 +52,7 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -68,7 +63,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TimePickerDefaults
 import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -76,20 +70,24 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.AfazerEntity
@@ -97,8 +95,13 @@ import com.example.financacelular.data.CalendarService
 import com.example.financacelular.data.EventoGoogleAgenda
 import com.example.financacelular.data.ResultadoCalendario
 import com.example.financacelular.data.TipoTransacao
+import com.example.financacelular.ui.theme.AmareloAgenda
+import com.example.financacelular.ui.theme.AzulAgenda
 import com.example.financacelular.ui.theme.Coral
+import com.example.financacelular.ui.theme.RoxoHero
+import com.example.financacelular.ui.theme.Tamanho
 import com.example.financacelular.ui.theme.Verde
+import com.example.financacelular.ui.theme.cores
 import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.Duration
@@ -112,10 +115,6 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
-// Mesmas cores do cartão principal da home
-private val RoxoCalendario = Color(0xFF7B5CF5)
-private val AzulCalendario = Color(0xFF3B82F6)
-private val AmareloAgenda = Color(0xFFF59E0B)
 private val LocalePtBrCalendario: Locale = Locale.Builder().setLanguage("pt").setRegion("BR").build()
 
 /** Resumo do dia selecionado: faixa compacta com data, pendências e totais de ganhos/gastos. */
@@ -129,14 +128,13 @@ private fun ResumoDiaCompacto(
 ) {
     Surface(
         shape = RoundedCornerShape(18.dp),
-        shadowElevation = 3.dp,
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
     ) {
         Column(
             modifier = Modifier
-                .background(Brush.linearGradient(listOf(RoxoCalendario, AzulCalendario)))
+                .background(Brush.linearGradient(listOf(RoxoHero, AzulAgenda)))
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -215,21 +213,23 @@ fun CalendarioScreen(
     aoNovaAgendaAcionada: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val mensagem = LocalMensagem.current
     val transacoesCalendario by viewModel.transacoesCalendario.collectAsState()
     val categorias by viewModel.categorias.collectAsState()
-    val listaAfazeres by viewModel.afazeres.collectAsState()
+    val afazeresCarregados by viewModel.afazeres.collectAsState()
+    val listaAfazeres = afazeresCarregados.orEmpty()
     val eventosGoogle by viewModel.eventosGoogle.collectAsState()
     val diasComEventosGoogle by viewModel.diasComEventosGoogle.collectAsState()
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(LocalePtBrCalendario) }
 
     var mesAnoSelecionado by remember { mutableStateOf(YearMonth.now()) }
     var dataSelecionada by remember { mutableStateOf(LocalDate.now()) }
-    var abaAtiva by remember { mutableStateOf(0) }
+    var abaAtiva by rememberSaveable { mutableStateOf(0) }
 
-    var mostrarSheetNovoAfazer by remember { mutableStateOf(false) }
-    var textoNovoAfazer by remember { mutableStateOf("") }
-    var sincronizarGoogle by remember { mutableStateOf(true) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var mostrarSheetNovoAfazer by rememberSaveable { mutableStateOf(false) }
+    var textoNovoAfazer by rememberSaveable { mutableStateOf("") }
+    // Só começa ligado se o app já tem permissão; ao ligar sem permissão, ela é pedida
+    var sincronizarGoogle by rememberSaveable { mutableStateOf(CalendarService.temPermissaoEscrita(context)) }
 
     val hoje = remember { LocalDate.now() }
 
@@ -243,14 +243,14 @@ fun CalendarioScreen(
             diaInteiro = novo.diaInteiro,
             horaFim = novo.horaFim
         ) { resultado ->
-            val mensagem = when (resultado) {
+            val texto = when (resultado) {
                 null -> "Afazer salvo com sucesso!"
                 ResultadoCalendario.SUCESSO -> "Salvo no Google Agenda!"
                 ResultadoCalendario.SEM_PERMISSAO -> "Salvo só no app: sem permissão para usar o Google Agenda."
                 ResultadoCalendario.SEM_CALENDARIO -> "Salvo só no app: conecte sua conta Google (a mesma do Drive) para usar o Google Agenda."
                 ResultadoCalendario.ERRO -> "Salvo só no app: não foi possível criar o evento no Google Agenda."
             }
-            Toast.makeText(context, mensagem, Toast.LENGTH_SHORT).show()
+            mensagem(texto)
         }
     }
 
@@ -264,9 +264,8 @@ fun CalendarioScreen(
     // Data do novo item: começa no dia selecionado e pode ser trocada no seletor
     var dataNovo by remember(dataSelecionada, mostrarSheetNovoAfazer) { mutableStateOf(dataSelecionada) }
 
-    // Item aberto para edição e item aguardando confirmação de exclusão
+    // Item aberto para edição (a confirmação de exclusão acontece dentro da própria folha)
     var itemEmEdicao by remember { mutableStateOf<ItemAgenda?>(null) }
-    var itemParaExcluir by remember { mutableStateOf<ItemAgenda?>(null) }
 
     val launcherPermissaoCalendario = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -281,15 +280,6 @@ fun CalendarioScreen(
             salvarAfazer(novo, leitura && escrita)
         }
         afazerPendente = null
-    }
-
-    // Pede a permissão do calendário na primeira vez que a tela abre
-    LaunchedEffect(Unit) {
-        if (!CalendarService.temPermissaoLeitura(context)) {
-            launcherPermissaoCalendario.launch(
-                arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)
-            )
-        }
     }
 
     // Atualiza os eventos do Google Agenda quando a data for alterada
@@ -308,7 +298,8 @@ fun CalendarioScreen(
     }
 
     // Agrupa uma vez por data (a grade do mês consulta isto para cada dia)
-    val itensPorData = remember(transacoesCalendario) { transacoesCalendario.groupBy { it.transacao.data } }
+    val itensPorData = remember(transacoesCalendario) { transacoesCalendario.orEmpty().groupBy { it.transacao.data } }
+    val formatoDataCompleta = remember { DateTimeFormatter.ofPattern("EEEE, d 'de' MMMM 'de' yyyy", LocalePtBrCalendario) }
     val transacoesDoDia = itensPorData[dataSelecionada].orEmpty()
     val afazeresDoDia = listaAfazeres.filter { it.data == dataSelecionada }
 
@@ -353,7 +344,7 @@ fun CalendarioScreen(
             )
         ) {
             item {
-                CabecalhoDePagina("Calendário", RoxoCalendario, null)
+                CabecalhoDePagina("Calendário", RoxoHero, null)
                 Spacer(modifier = Modifier.height(16.dp))
                 MesSelectorCard(
                     nomeMes = nomeMesAno,
@@ -376,7 +367,6 @@ fun CalendarioScreen(
                 Card(
                     shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = MaterialTheme.dimens.paddingMedium)) {
@@ -389,7 +379,7 @@ fun CalendarioScreen(
                                     textAlign = TextAlign.Center,
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (indice == 0) Coral.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = if (indice == 0) MaterialTheme.cores.textoGasto else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -420,10 +410,23 @@ fun CalendarioScreen(
                                             val temAgenda = temAfazer || dataAtualGrid in diasComEventosGoogle
 
                                             val fundoDia by animateColorAsState(
-                                                targetValue = if (isSelecionado) RoxoCalendario else Color.Transparent,
+                                                targetValue = if (isSelecionado) RoxoHero else Color.Transparent,
                                                 animationSpec = tween(180),
                                                 label = "fundoDia"
                                             )
+
+                                            val quantidadeDoDia = if (abaAtiva == 0) {
+                                                itensDoDia.size.takeIf { it > 0 }?.let { if (it == 1) "1 lançamento" else "$it lançamentos" }
+                                            } else {
+                                                val afazeresDoDiaGrade = listaAfazeres.count { it.data == dataAtualGrid && !it.concluido }
+                                                when {
+                                                    afazeresDoDiaGrade > 0 -> if (afazeresDoDiaGrade == 1) "1 afazer" else "$afazeresDoDiaGrade afazeres"
+                                                    temAgenda -> "com eventos"
+                                                    else -> null
+                                                }
+                                            }
+                                            val descricaoDia = dataAtualGrid.format(formatoDataCompleta) +
+                                                (quantidadeDoDia?.let { ", $it" } ?: "")
 
                                             Box(
                                                 modifier = Modifier
@@ -434,10 +437,14 @@ fun CalendarioScreen(
                                                     .background(fundoDia)
                                                     .then(
                                                         if (ehHoje && !isSelecionado)
-                                                            Modifier.border(1.5.dp, RoxoCalendario, CircleShape)
+                                                            Modifier.border(1.5.dp, RoxoHero, CircleShape)
                                                         else Modifier
                                                     )
-                                                    .clickable { dataSelecionada = dataAtualGrid },
+                                                    .semantics {
+                                                        contentDescription = descricaoDia
+                                                        selected = isSelecionado
+                                                    }
+                                                    .clickable(role = Role.Button) { dataSelecionada = dataAtualGrid },
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Column(
@@ -448,7 +455,7 @@ fun CalendarioScreen(
                                                         text = diaMesReal.toString(),
                                                         color = when {
                                                             isSelecionado -> Color.White
-                                                            ehHoje -> RoxoCalendario
+                                                            ehHoje -> RoxoHero
                                                             else -> MaterialTheme.colorScheme.onSurface
                                                         },
                                                         style = MaterialTheme.typography.bodyMedium,
@@ -490,120 +497,66 @@ fun CalendarioScreen(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 // ---------------- ABAS ----------------
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(50))
-                        .padding(4.dp)
-                ) {
-                    TabPill(
-                        texto = "Financeiro (${transacoesDoDia.size})",
-                        selecionado = abaAtiva == 0,
-                        modifier = Modifier.weight(1f),
-                        cor = RoxoCalendario
-                    ) { abaAtiva = 0 }
-                    TabPill(
-                        texto = "Agenda (${afazeresDoDia.size + eventosGoogleVisiveis.size})",
-                        selecionado = abaAtiva == 1,
-                        modifier = Modifier.weight(1f),
-                        cor = RoxoCalendario
-                    ) { abaAtiva = 1 }
-                }
-                Spacer(modifier = Modifier.height(20.dp))
-                Text(
-                    text = if (abaAtiva == 0) "Lançamentos Financeiros" else "Afazeres e Eventos",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                SeletorSegmentado(
+                    opcoes = listOf(
+                        "Financeiro (${transacoesDoDia.size})",
+                        "Agenda (${afazeresDoDia.size + eventosGoogleVisiveis.size})"
+                    ),
+                    indiceSelecionado = abaAtiva,
+                    aoSelecionar = { abaAtiva = it },
+                    cor = RoxoHero
                 )
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
             if (abaAtiva == 0) {
-                if (transacoesDoDia.isEmpty()) {
+                if (transacoesCalendario != null && transacoesDoDia.isEmpty()) {
                     item {
-                        EstadoVazioCalendario(
+                        EstadoVazio(
                             icone = Icons.AutoMirrored.Filled.TrendingUp,
                             mensagem = "Nenhum lançamento financeiro neste dia."
                         )
                     }
                 }
-                items(transacoesDoDia) { itemCalendario ->
-                    val t = itemCalendario.transacao
-                    val categoria = categorias.find { it.id == t.categoriaId }
-                    val nomeCategoria = itemCalendario.categoriaNome ?: categoria?.nome
-                    val cor = when {
-                        itemCalendario.ehFaturaNaoPaga -> AmareloAgenda
-                        itemCalendario.ehPagamentoFatura -> MaterialTheme.colorScheme.onSurfaceVariant
-                        t.tipo == TipoTransacao.DESPESA -> Coral
-                        else -> Verde
-                    }
-                    val prefixoValor = when {
-                        itemCalendario.ehFaturaNaoPaga || itemCalendario.ehPagamentoFatura -> ""
-                        t.tipo == TipoTransacao.DESPESA -> "- "
-                        else -> "+ "
-                    }
-
-                    Card(
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 5.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .background(cor.copy(alpha = 0.14f), RoundedCornerShape(14.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    iconeParaCategoria(nomeCategoria ?: ""),
-                                    contentDescription = null,
-                                    tint = cor,
-                                    modifier = Modifier.size(22.dp)
-                                )
+                if (transacoesDoDia.isNotEmpty()) {
+                    item {
+                        GrupoDeLista(transacoesDoDia) { itemCalendario ->
+                            val t = itemCalendario.transacao
+                            val categoria = categorias.find { it.id == t.categoriaId }
+                            val nomeCategoria = itemCalendario.categoriaNome ?: categoria?.nome
+                            val cor = when {
+                                itemCalendario.ehFaturaNaoPaga -> AmareloAgenda
+                                itemCalendario.ehPagamentoFatura -> MaterialTheme.colorScheme.onSurfaceVariant
+                                t.tipo == TipoTransacao.DESPESA -> Coral
+                                else -> Verde
                             }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    itemCalendario.titulo,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    itemCalendario.subtitulo ?: nomeCategoria ?: "Sem categoria",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                            val corValor = when {
+                                itemCalendario.ehFaturaNaoPaga -> MaterialTheme.cores.alerta
+                                itemCalendario.ehPagamentoFatura -> MaterialTheme.colorScheme.onSurfaceVariant
+                                t.tipo == TipoTransacao.DESPESA -> MaterialTheme.cores.textoGasto
+                                else -> MaterialTheme.cores.textoGanho
                             }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                prefixoValor + formatoMoeda.format(t.valor),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = cor,
-                                maxLines = 1
+                            val prefixoValor = when {
+                                itemCalendario.ehFaturaNaoPaga || itemCalendario.ehPagamentoFatura -> ""
+                                t.tipo == TipoTransacao.DESPESA -> "- "
+                                else -> "+ "
+                            }
+                            LinhaDeLista(
+                                icone = iconeParaCategoria(nomeCategoria ?: ""),
+                                cor = cor,
+                                titulo = itemCalendario.titulo,
+                                subtitulo = itemCalendario.subtitulo ?: nomeCategoria ?: "Sem categoria",
+                                valor = prefixoValor + formatoMoeda.format(t.valor),
+                                corValor = corValor
                             )
                         }
                     }
                 }
             } else {
                 // ---------------- LISTA UNIFICADA: EVENTOS DO GOOGLE AGENDA + AFAZERES ----------------
-                if (afazeresDoDia.isEmpty() && eventosGoogleVisiveis.isEmpty()) {
+                if (afazeresCarregados != null && afazeresDoDia.isEmpty() && eventosGoogleVisiveis.isEmpty()) {
                     item {
-                        EstadoVazioCalendario(
+                        EstadoVazio(
                             icone = Icons.Filled.EventAvailable,
                             mensagem = "Nenhum afazer ou evento cadastrado para este dia."
                         )
@@ -624,7 +577,7 @@ fun CalendarioScreen(
                                 } else {
                                     "Este calendário é somente leitura."
                                 }
-                                Toast.makeText(context, aviso, Toast.LENGTH_SHORT).show()
+                                mensagem(aviso)
                             }
                         }
                     )
@@ -644,7 +597,7 @@ fun CalendarioScreen(
         }
     }
 
-    // ---------------- SHEET: EDITAR ITEM ----------------
+    // ---------------- SHEET: EDITAR ITEM (a exclusão é confirmada dentro dele) ----------------
     itemEmEdicao?.let { item ->
         FolhaEdicaoAgenda(
             item = item,
@@ -660,93 +613,91 @@ fun CalendarioScreen(
                         horaFim = horaFim,
                         diaInteiro = diaInteiro
                     ) { resultado ->
-                        Toast.makeText(context, mensagemEdicao(resultado, "Evento atualizado!"), Toast.LENGTH_SHORT).show()
+                        mensagem(mensagemEdicao(resultado, "Evento atualizado!"))
                     }
                     is ItemAgenda.Afazer -> {
                         viewModel.atualizarAfazer(item.afazer, titulo, data)
-                        Toast.makeText(context, "Afazer atualizado!", Toast.LENGTH_SHORT).show()
+                        mensagem("Afazer atualizado!")
                     }
                 }
                 itemEmEdicao = null
             },
             onExcluir = {
-                itemParaExcluir = item
-                itemEmEdicao = null
-            }
-        )
-    }
-
-    // ---------------- SHEET: CONFIRMAR EXCLUSÃO ----------------
-    itemParaExcluir?.let { item ->
-        FolhaConfirmarExclusao(
-            item = item,
-            onDismiss = { itemParaExcluir = null },
-            onConfirmar = {
                 when (item) {
                     is ItemAgenda.Evento -> viewModel.excluirEvento(item.evento) { resultado ->
-                        Toast.makeText(context, mensagemEdicao(resultado, "Evento excluído."), Toast.LENGTH_SHORT).show()
+                        mensagem(mensagemEdicao(resultado, "Evento excluído."))
                     }
                     is ItemAgenda.Afazer -> viewModel.excluirAfazer(item.afazer)
                 }
-                itemParaExcluir = null
+                itemEmEdicao = null
             }
         )
     }
 
     // ---------------- SHEET: NOVO AFAZER ----------------
     if (mostrarSheetNovoAfazer) {
-        ModalBottomSheet(
-            onDismissRequest = { mostrarSheetNovoAfazer = false },
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surface,
-            dragHandle = { BottomSheetDefaults.DragHandle() },
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            contentWindowInsets = { WindowInsets.statusBars }
-        ) {
-            Column(
+        FolhaApp(onDismiss = { mostrarSheetNovoAfazer = false }) {
+            CabecalhoDeFolha(titulo = "Adicionar Afazer", aoFechar = { mostrarSheetNovoAfazer = false })
+            Spacer(modifier = Modifier.height(16.dp))
+            OutlinedTextField(
+                value = textoNovoAfazer,
+                onValueChange = { textoNovoAfazer = it },
+                label = { Text("Descreva a tarefa...") },
+                singleLine = true,
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = RoxoHero,
+                    focusedLabelColor = RoxoHero,
+                    cursorColor = RoxoHero
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Switch para opção de Sincronização com o Google Agenda
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = MaterialTheme.dimens.paddingScreen)
-                    .navigationBarsPadding()
-                    .imePadding()
-                    .verticalScroll(rememberScrollState())
-                    .padding(bottom = 10.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "Adicionar Afazer",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.CalendarMonth,
+                        contentDescription = null,
+                        tint = RoxoHero,
+                        modifier = Modifier.size(20.dp)
                     )
-                    IconButton(
-                        onClick = { mostrarSheetNovoAfazer = false },
-                        modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
-                    ) {
-                        Icon(Icons.Filled.Close, contentDescription = "Fechar")
-                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        "Salvar no Google Agenda",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
-                Spacer(modifier = Modifier.height(16.dp))
-                OutlinedTextField(
-                    value = textoNovoAfazer,
-                    onValueChange = { textoNovoAfazer = it },
-                    label = { Text("Descreva a tarefa...") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = RoxoCalendario,
-                        focusedLabelColor = RoxoCalendario,
-                        cursorColor = RoxoCalendario
-                    ),
-                    modifier = Modifier.fillMaxWidth()
+                Switch(
+                    checked = sincronizarGoogle,
+                    onCheckedChange = { ativar ->
+                        sincronizarGoogle = ativar
+                        if (ativar && !CalendarService.temPermissaoEscrita(context)) {
+                            launcherPermissaoCalendario.launch(
+                                arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)
+                            )
+                        }
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = RoxoHero
+                    )
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+            }
 
-                // Switch para opção de Sincronização com o Google Agenda
+            // Horário ou dia inteiro (só vale para o que vai para o Google Agenda)
+            if (sincronizarGoogle) {
+                Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -756,172 +707,68 @@ fun CalendarioScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Filled.CalendarMonth,
-                            contentDescription = null,
-                            tint = RoxoCalendario,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            "Salvar no Google Agenda",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
+                    Text("Dia inteiro", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                     Switch(
-                        checked = sincronizarGoogle,
-                        onCheckedChange = { sincronizarGoogle = it },
+                        checked = diaInteiroNovo,
+                        onCheckedChange = { diaInteiroNovo = it },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
-                            checkedTrackColor = RoxoCalendario
+                            checkedTrackColor = RoxoHero
                         )
                     )
                 }
 
-                // Horário ou dia inteiro (só vale para o que vai para o Google Agenda)
-                if (sincronizarGoogle) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                            .padding(horizontal = 14.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Dia inteiro", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                        Switch(
-                            checked = diaInteiroNovo,
-                            onCheckedChange = { diaInteiroNovo = it },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = RoxoCalendario
-                            )
-                        )
-                    }
-
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-                SeletorDataHora(
-                    data = dataNovo,
-                    hora = horaNovo,
-                    horaFim = horaFimNovo,
-                    diaInteiro = diaInteiroNovo,
-                    mostrarHorario = sincronizarGoogle,
-                    onData = { dataNovo = it },
-                    onHorario = { inicio, fim -> horaNovo = inicio; horaFimNovo = fim }
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-                Button(
-                    onClick = {
-                        if (textoNovoAfazer.isNotBlank()) {
-                            val novo = NovoItemAgenda(
-                                titulo = textoNovoAfazer.trim(),
-                                data = dataNovo,
-                                hora = horaNovo,
-                                horaFim = horaFimNovo,
-                                diaInteiro = diaInteiroNovo
-                            )
-
-                            if (sincronizarGoogle && !CalendarService.temPermissaoEscrita(context)) {
-                                // Pede a permissão e salva o item assim que o usuário responder
-                                afazerPendente = novo
-                                launcherPermissaoCalendario.launch(
-                                    arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)
-                                )
-                            } else {
-                                salvarAfazer(novo, sincronizarGoogle)
-                            }
-
-                            textoNovoAfazer = ""
-                            diaInteiroNovo = false
-                            horaNovo = LocalTime.of(9, 0)
-                            horaFimNovo = LocalTime.of(10, 0)
-                            mostrarSheetNovoAfazer = false
-                        }
-                    },
-                    enabled = textoNovoAfazer.isNotBlank() &&
-                            !(sincronizarGoogle && !diaInteiroNovo && horaFimNovo == horaNovo),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
-                        .height(52.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = RoxoCalendario, contentColor = Color.White),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
-                ) {
-                    Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Salvar na Agenda", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
             }
-        }
-    }
-}
 
-@Composable
-private fun EstadoVazioCalendario(icone: androidx.compose.ui.graphics.vector.ImageVector, mensagem: String) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                icone,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                modifier = Modifier.size(32.dp)
-            )
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                mensagem,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center
+            SeletorDataHora(
+                data = dataNovo,
+                hora = horaNovo,
+                horaFim = horaFimNovo,
+                diaInteiro = diaInteiroNovo,
+                mostrarHorario = sincronizarGoogle,
+                onData = { dataNovo = it },
+                onHorario = { inicio, fim -> horaNovo = inicio; horaFimNovo = fim }
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+            BotaoPrincipal(
+                texto = "Salvar na Agenda",
+                onClick = {
+                    if (textoNovoAfazer.isNotBlank()) {
+                        val novo = NovoItemAgenda(
+                            titulo = textoNovoAfazer.trim(),
+                            data = dataNovo,
+                            hora = horaNovo,
+                            horaFim = horaFimNovo,
+                            diaInteiro = diaInteiroNovo
+                        )
+
+                        if (sincronizarGoogle && !CalendarService.temPermissaoEscrita(context)) {
+                            // Pede a permissão e salva o item assim que o usuário responder
+                            afazerPendente = novo
+                            launcherPermissaoCalendario.launch(
+                                arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)
+                            )
+                        } else {
+                            salvarAfazer(novo, sincronizarGoogle)
+                        }
+
+                        textoNovoAfazer = ""
+                        diaInteiroNovo = false
+                        horaNovo = LocalTime.of(9, 0)
+                        horaFimNovo = LocalTime.of(10, 0)
+                        mostrarSheetNovoAfazer = false
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                cor = RoxoHero,
+                corConteudo = Color.White,
+                icone = Icons.Filled.Check,
+                enabled = textoNovoAfazer.isNotBlank() &&
+                        !(sincronizarGoogle && !diaInteiroNovo && horaFimNovo == horaNovo)
             )
         }
-    }
-}
-
-@Composable
-fun TabPill(
-    texto: String,
-    selecionado: Boolean,
-    modifier: Modifier = Modifier,
-    cor: Color = MaterialTheme.colorScheme.primary,
-    onClick: () -> Unit
-) {
-    val backgroundColor by animateColorAsState(
-        targetValue = if (selecionado) cor else Color.Transparent,
-        animationSpec = tween(200),
-        label = "fundoTabPill"
-    )
-    val textColor = if (selecionado) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(50))
-            .background(backgroundColor)
-            .clickable { onClick() }
-            .padding(vertical = 10.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = texto,
-            color = textColor,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = if (selecionado) FontWeight.Bold else FontWeight.Medium,
-            textAlign = TextAlign.Center,
-            maxLines = 1
-        )
     }
 }
 
@@ -951,17 +798,16 @@ private fun CartaoAgenda(
     onClickIcone: (() -> Unit)? = null
 ) {
     val formaCartao = RoundedCornerShape(20.dp)
-    val corIcone = if (concluido) Verde else RoxoCalendario
+    val corIcone = if (concluido) Verde else RoxoHero
 
     Card(
         shape = formaCartao,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
-        border = BorderStroke(1.dp, RoxoCalendario.copy(alpha = 0.2f)),
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .clip(formaCartao)
-            .clickable(onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
     ) {
         Row(
             modifier = Modifier
@@ -971,10 +817,10 @@ private fun CartaoAgenda(
         ) {
             Box(
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(Tamanho.toque)
                     .clip(CircleShape)
                     .background(corIcone.copy(alpha = 0.15f))
-                    .then(if (onClickIcone != null) Modifier.clickable(onClick = onClickIcone) else Modifier),
+                    .then(if (onClickIcone != null) Modifier.clickable(role = Role.Button, onClick = onClickIcone) else Modifier),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -1016,8 +862,10 @@ private fun CartaoAgenda(
     }
 }
 
-/** Folha para editar (ou excluir) um afazer ou um evento do Google Agenda. */
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Folha para editar (ou excluir) um afazer ou um evento do Google Agenda.
+ * Ao tocar em Excluir, a confirmação troca o conteúdo da própria folha (campos preservados ao cancelar).
+ */
 @Composable
 private fun FolhaEdicaoAgenda(
     item: ItemAgenda,
@@ -1025,7 +873,6 @@ private fun FolhaEdicaoAgenda(
     onSalvar: (titulo: String, descricao: String?, data: LocalDate, hora: LocalTime, horaFim: LocalTime, diaInteiro: Boolean) -> Unit,
     onExcluir: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val evento = (item as? ItemAgenda.Evento)?.evento
     val afazer = (item as? ItemAgenda.Afazer)?.afazer
 
@@ -1047,249 +894,147 @@ private fun FolhaEdicaoAgenda(
         )
     }
     var diaInteiro by remember(item) { mutableStateOf(evento?.diaInteiro ?: false) }
+    var confirmandoExclusao by remember(item) { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
 
     val coresCampo = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = RoxoCalendario,
-        focusedLabelColor = RoxoCalendario,
-        cursorColor = RoxoCalendario
+        focusedBorderColor = RoxoHero,
+        focusedLabelColor = RoxoHero,
+        cursorColor = RoxoHero
     )
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        contentWindowInsets = { WindowInsets.statusBars }
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = MaterialTheme.dimens.paddingScreen)
-                .navigationBarsPadding()
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 10.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    if (evento != null) "Editar evento" else "Editar afazer",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
-                ) {
-                    Icon(Icons.Filled.Close, contentDescription = "Fechar")
-                }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = titulo,
-                onValueChange = { titulo = it },
-                label = { Text("Título") },
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
-                colors = coresCampo,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            if (evento != null) {
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = descricao,
-                    onValueChange = { descricao = it },
-                    label = { Text("Descrição") },
-                    maxLines = 4,
-                    shape = RoundedCornerShape(14.dp),
-                    colors = coresCampo,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            if (evento != null) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                        .padding(horizontal = 14.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Dia inteiro", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                    Switch(
-                        checked = diaInteiro,
-                        onCheckedChange = { diaInteiro = it },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = RoxoCalendario
+    FolhaApp(onDismiss = onDismiss) {
+        AnimatedContent(
+            targetState = confirmandoExclusao,
+            transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) using SizeTransform() },
+            label = "confirmacaoExclusaoAgenda"
+        ) { confirmando ->
+            if (confirmando) {
+                ConfirmarAcaoConteudo(
+                    titulo = if (evento != null) "Excluir evento?" else "Excluir afazer?",
+                    texto = if (evento != null) {
+                        "Ele também será removido do Google Agenda. Essa ação não pode ser desfeita."
+                    } else {
+                        "Esse afazer será removido. Essa ação não pode ser desfeita."
+                    },
+                    textoConfirmar = "Excluir",
+                    onConfirmar = onExcluir,
+                    onCancelar = { confirmandoExclusao = false },
+                    resumo = {
+                        Text(
+                            evento?.titulo ?: afazer?.titulo ?: "",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.fillMaxWidth()
                         )
+                    }
+                )
+            } else {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    CabecalhoDeFolha(
+                        titulo = if (evento != null) "Editar evento" else "Editar afazer",
+                        aoFechar = onDismiss
                     )
-                }
-            }
+                    Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(12.dp))
-            SeletorDataHora(
-                data = data,
-                hora = hora,
-                horaFim = horaFim,
-                diaInteiro = diaInteiro,
-                mostrarHorario = evento != null,
-                onData = { data = it },
-                onHorario = { inicio, fim -> hora = inicio; horaFim = fim }
-            )
+                    OutlinedTextField(
+                        value = titulo,
+                        onValueChange = { titulo = it },
+                        label = { Text("Título") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = coresCampo,
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
-            Spacer(modifier = Modifier.height(20.dp))
-            Button(
-                onClick = {
-                    val descricaoFinal = if (evento != null) {
-                        // Mantém a marca interna dos eventos criados pelo app quando o campo fica vazio
-                        descricao.trim().ifEmpty {
-                            if (evento.descricao == CalendarService.DESCRICAO_EVENTO_APP) CalendarService.DESCRICAO_EVENTO_APP else ""
+                    if (evento != null) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = descricao,
+                            onValueChange = { descricao = it },
+                            label = { Text("Descrição") },
+                            maxLines = 4,
+                            shape = RoundedCornerShape(14.dp),
+                            colors = coresCampo,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    if (evento != null) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                                .padding(horizontal = 14.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Dia inteiro", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            Switch(
+                                checked = diaInteiro,
+                                onCheckedChange = { diaInteiro = it },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = RoxoHero
+                                )
+                            )
                         }
-                    } else null
-                    onSalvar(titulo.trim(), descricaoFinal, data, hora, horaFim, diaInteiro)
-                },
-                enabled = titulo.isNotBlank() && !(evento != null && !diaInteiro && horaFim == hora),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = RoxoCalendario, contentColor = Color.White)
-            ) {
-                Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Salvar alterações", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            }
+                    }
 
-            Spacer(modifier = Modifier.height(4.dp))
-            TextButton(
-                onClick = onExcluir,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Filled.DeleteOutline, contentDescription = null, tint = Coral, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    if (evento != null) "Excluir evento" else "Excluir afazer",
-                    color = Coral,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-    }
-}
+                    Spacer(modifier = Modifier.height(12.dp))
+                    SeletorDataHora(
+                        data = data,
+                        hora = hora,
+                        horaFim = horaFim,
+                        diaInteiro = diaInteiro,
+                        mostrarHorario = evento != null,
+                        onData = { data = it },
+                        onHorario = { inicio, fim -> hora = inicio; horaFim = fim }
+                    )
 
-/** Folha (abre de baixo para cima) para confirmar a exclusão de um afazer ou evento. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FolhaConfirmarExclusao(
-    item: ItemAgenda,
-    onConfirmar: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val ehEvento = item is ItemAgenda.Evento
-    val tituloItem = when (item) {
-        is ItemAgenda.Evento -> item.evento.titulo
-        is ItemAgenda.Afazer -> item.afazer.titulo
-    }
+                    Spacer(modifier = Modifier.height(20.dp))
+                    BotaoPrincipal(
+                        texto = "Salvar alterações",
+                        onClick = {
+                            val descricaoFinal = if (evento != null) {
+                                // Mantém a marca interna dos eventos criados pelo app quando o campo fica vazio
+                                descricao.trim().ifEmpty {
+                                    if (evento.descricao == CalendarService.DESCRICAO_EVENTO_APP) CalendarService.DESCRICAO_EVENTO_APP else ""
+                                }
+                            } else null
+                            onSalvar(titulo.trim(), descricaoFinal, data, hora, horaFim, diaInteiro)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        cor = RoxoHero,
+                        corConteudo = Color.White,
+                        icone = Icons.Filled.Check,
+                        enabled = titulo.isNotBlank() && !(evento != null && !diaInteiro && horaFim == hora)
+                    )
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        contentWindowInsets = { WindowInsets.statusBars }
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = MaterialTheme.dimens.paddingScreen)
-                .navigationBarsPadding()
-                .padding(bottom = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(72.dp)
-                    .clip(CircleShape)
-                    .background(Coral.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Filled.DeleteOutline,
-                    contentDescription = null,
-                    tint = Coral,
-                    modifier = Modifier.size(34.dp)
-                )
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                if (ehEvento) "Excluir evento?" else "Excluir afazer?",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(14.dp))
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                border = BorderStroke(1.dp, Coral.copy(alpha = 0.25f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    tituloItem,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                )
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                if (ehEvento) {
-                    "Ele também será removido do Google Agenda. Essa ação não pode ser desfeita."
-                } else {
-                    "Esse afazer será removido. Essa ação não pode ser desfeita."
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            Button(
-                onClick = onConfirmar,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Coral, contentColor = Color.White)
-            ) {
-                Icon(Icons.Filled.DeleteOutline, contentDescription = null, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Excluir", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            TextButton(
-                onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    "Cancelar",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Bold
-                )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    TextButton(
+                        onClick = {
+                            focusManager.clearFocus()
+                            confirmandoExclusao = true
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = Tamanho.toque)
+                    ) {
+                        Icon(Icons.Filled.DeleteOutline, contentDescription = null, tint = MaterialTheme.cores.textoGasto, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            if (evento != null) "Excluir evento" else "Excluir afazer",
+                            color = MaterialTheme.cores.textoGasto,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
         }
     }
@@ -1324,7 +1069,6 @@ private fun SeletorDataHora(
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-        border = BorderStroke(1.dp, RoxoCalendario.copy(alpha = 0.2f)),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
@@ -1332,17 +1076,18 @@ private fun SeletorDataHora(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
-                    .clickable { dialogo = DialogoSeletor.DATA },
+                    .heightIn(min = Tamanho.toque)
+                    .clickable(role = Role.Button) { dialogo = DialogoSeletor.DATA },
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(RoxoCalendario.copy(alpha = 0.15f)),
+                        .background(RoxoHero.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = RoxoCalendario, modifier = Modifier.size(22.dp))
+                    Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = RoxoHero, modifier = Modifier.size(22.dp))
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -1360,7 +1105,7 @@ private fun SeletorDataHora(
                 Text(
                     "Alterar",
                     style = MaterialTheme.typography.labelMedium,
-                    color = RoxoCalendario,
+                    color = RoxoHero,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -1368,7 +1113,7 @@ private fun SeletorDataHora(
             if (mostrarHorario && !diaInteiro) {
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 12.dp),
-                    color = RoxoCalendario.copy(alpha = 0.15f)
+                    color = RoxoHero.copy(alpha = 0.15f)
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1407,7 +1152,7 @@ private fun SeletorDataHora(
                     Text(
                         "O fim precisa ser diferente do início.",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Coral
+                        color = MaterialTheme.cores.textoGasto
                     )
                 } else if (horaFim.isBefore(hora)) {
                     Spacer(modifier = Modifier.height(8.dp))
@@ -1455,14 +1200,13 @@ private fun BlocoHorario(
     erro: Boolean = false,
     onClick: () -> Unit
 ) {
-    val cor = if (erro) Coral else RoxoCalendario
+    val cor = if (erro) Coral else RoxoHero
     val forma = RoundedCornerShape(16.dp)
     Column(
         modifier = modifier
             .clip(forma)
             .background(cor.copy(alpha = 0.10f))
-            .border(1.dp, cor.copy(alpha = 0.25f), forma)
-            .clickable(onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 10.dp)
     ) {
         Text(
@@ -1485,15 +1229,17 @@ private fun ChipDuracao(texto: String, selecionado: Boolean, onClick: () -> Unit
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .background(if (selecionado) RoxoCalendario else RoxoCalendario.copy(alpha = 0.10f))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 6.dp)
+            .background(if (selecionado) RoxoHero else RoxoHero.copy(alpha = 0.10f))
+            .heightIn(min = Tamanho.toque)
+            .selectable(selected = selecionado, role = Role.RadioButton, onClick = onClick)
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.Center
     ) {
         Text(
             texto,
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
-            color = if (selecionado) Color.White else RoxoCalendario
+            color = if (selecionado) Color.White else RoxoHero
         )
     }
 }
@@ -1535,13 +1281,13 @@ private fun DialogoHora(
                     colors = TimePickerDefaults.colors(
                         containerColor = MaterialTheme.colorScheme.surface,
                         // Mostrador e ponteiro
-                        clockDialColor = RoxoCalendario.copy(alpha = 0.10f),
-                        selectorColor = RoxoCalendario,
+                        clockDialColor = RoxoHero.copy(alpha = 0.10f),
+                        selectorColor = RoxoHero,
                         clockDialSelectedContentColor = Color.White,
                         clockDialUnselectedContentColor = MaterialTheme.colorScheme.onSurface,
                         // Caixas de hora e minuto
-                        timeSelectorSelectedContainerColor = RoxoCalendario.copy(alpha = 0.15f),
-                        timeSelectorSelectedContentColor = RoxoCalendario,
+                        timeSelectorSelectedContainerColor = RoxoHero.copy(alpha = 0.15f),
+                        timeSelectorSelectedContentColor = RoxoHero,
                         timeSelectorUnselectedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                         timeSelectorUnselectedContentColor = MaterialTheme.colorScheme.onSurface
                     )
@@ -1559,7 +1305,7 @@ private fun DialogoHora(
                     Button(
                         onClick = { onConfirmar(LocalTime.of(estado.hour, estado.minute)) },
                         shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = RoxoCalendario, contentColor = Color.White)
+                        colors = ButtonDefaults.buttonColors(containerColor = RoxoHero, contentColor = Color.White)
                     ) { Text("OK", fontWeight = FontWeight.Bold) }
                 }
             }
@@ -1590,7 +1336,7 @@ private fun DialogoData(
                     } ?: onDismiss()
                 },
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = RoxoCalendario, contentColor = Color.White)
+                colors = ButtonDefaults.buttonColors(containerColor = RoxoHero, contentColor = Color.White)
             ) { Text("OK", fontWeight = FontWeight.Bold) }
         },
         dismissButton = {
@@ -1603,13 +1349,13 @@ private fun DialogoData(
             state = estado,
             colors = DatePickerDefaults.colors(
                 containerColor = MaterialTheme.colorScheme.surface,
-                selectedDayContainerColor = RoxoCalendario,
+                selectedDayContainerColor = RoxoHero,
                 selectedDayContentColor = Color.White,
-                todayDateBorderColor = RoxoCalendario,
-                todayContentColor = RoxoCalendario,
-                selectedYearContainerColor = RoxoCalendario,
+                todayDateBorderColor = RoxoHero,
+                todayContentColor = RoxoHero,
+                selectedYearContainerColor = RoxoHero,
                 selectedYearContentColor = Color.White,
-                currentYearContentColor = RoxoCalendario
+                currentYearContentColor = RoxoHero
             )
         )
     }

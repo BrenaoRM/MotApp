@@ -36,7 +36,8 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // 1. LANÇAMENTOS REALIZADOS (Débito/Dinheiro com data <= hoje OU Crédito cuja fatura já foi PAGA)
-    val todasTransacoes: StateFlow<List<Transacao>> = repository.listarTransacoes()
+    // null = ainda carregando (a tela não mostra o estado vazio enquanto isso)
+    val todasTransacoes: StateFlow<List<Transacao>?> = repository.listarTransacoes()
         .map { transacoes ->
             val hoje = LocalDate.now()
             val faturasPagas = conjuntoFaturasPagas(transacoes)
@@ -55,7 +56,7 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
         }.flowOn(Dispatchers.Default)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     // 2. FUTUROS LANÇAMENTOS / PENDENTES (Débito/Dinheiro futuro OU Crédito com Fatura PENDENTE)
     val futurosLancamentos: StateFlow<List<Transacao>> = combine(

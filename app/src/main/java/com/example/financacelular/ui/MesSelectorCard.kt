@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.financacelular.ui.theme.Tamanho
 import com.example.financacelular.ui.theme.dimens
 
 @Composable
@@ -47,7 +48,7 @@ fun MesSelectorCard(
         ) {
             IconButton(
                 onClick = onMesAnterior,
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(Tamanho.toque)
             ) {
                 Icon(
                     imageVector = Icons.Filled.ChevronLeft,
@@ -69,7 +70,7 @@ fun MesSelectorCard(
 
             IconButton(
                 onClick = onMesSeguinte,
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(Tamanho.toque)
             ) {
                 Icon(
                     imageVector = Icons.Filled.ChevronRight,

@@ -1,18 +1,21 @@
 package com.example.financacelular.ui
 
-import android.widget.Toast
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
@@ -25,7 +28,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Event
@@ -34,6 +36,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,17 +46,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.CartaoEntity
 import com.example.financacelular.data.calcularVencimentoFatura
+import com.example.financacelular.ui.theme.AmareloAlerta
+import com.example.financacelular.ui.theme.AzulCartao
 import com.example.financacelular.ui.theme.Coral
+import com.example.financacelular.ui.theme.Espaco
+import com.example.financacelular.ui.theme.Tamanho
 import com.example.financacelular.ui.theme.Verde
+import com.example.financacelular.ui.theme.cores
 import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.LocalDate
@@ -64,8 +72,6 @@ import java.time.temporal.ChronoUnit
 import java.util.Locale
 import kotlin.math.absoluteValue
 
-private val AzulFatura = Color(0xFF5B8DEF)
-private val AmareloAlerta = Color(0xFFF5A524)
 private val LocalePtBr: Locale = Locale.forLanguageTag("pt-BR")
 
 private fun formatarDataFatura(texto: String): String {
@@ -88,11 +94,16 @@ fun CartaoScreen(
     viewModel: CartaoViewModel = viewModel(),
     aoVoltar: (() -> Unit)? = null
 ) {
-    val context = LocalContext.current
-    val listaCartoes by viewModel.listaCartoes.collectAsState()
+    val mensagem = LocalMensagem.current
+    val focusManager = LocalFocusManager.current
+    val listaCartoesCarregada by viewModel.listaCartoes.collectAsState()
+    val listaCartoes = listaCartoesCarregada.orEmpty()
+    val categorias by viewModel.categorias.collectAsState()
+    val categoriaPorId = remember(categorias) { categorias.associateBy { it.id } }
     val cartaoSelecionadoId by viewModel.cartaoSelecionadoId.collectAsState()
     val mesSelecionado by viewModel.mesSelecionado.collectAsState()
-    val transacoesFatura by viewModel.transacoesFatura.collectAsState()
+    val transacoesFaturaCarregada by viewModel.transacoesFatura.collectAsState()
+    val transacoesFatura = transacoesFaturaCarregada.orEmpty()
     val faturaPaga by viewModel.faturaPaga.collectAsState()
 
     val pagerState = rememberPagerState(pageCount = { listaCartoes.size + 1 })
@@ -110,22 +121,35 @@ fun CartaoScreen(
     }
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(LocalePtBr) }
 
-    var mostrarConfig by remember { mutableStateOf(false) }
-    var cartaoParaEditar by remember { mutableStateOf<CartaoEntity?>(null) }
-    var cartaoParaExcluir by remember { mutableStateOf<CartaoEntity?>(null) }
-    val sheetStateConfig = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var mostrarConfig by rememberSaveable { mutableStateOf(false) }
+    var cartaoParaEditarId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val cartaoParaEditar = listaCartoes.firstOrNull { it.id == cartaoParaEditarId }
+    var confirmandoExclusao by rememberSaveable { mutableStateOf(false) }
 
     val valorTotalFatura = transacoesFatura.sumOf { it.valor }
     val naPaginaAdicionar = listaCartoes.isEmpty() || pagerState.currentPage >= listaCartoes.size
     val cartaoDaPagina = listaCartoes.getOrNull(pagerState.currentPage)
 
     // Avisa o ViewModel quando o carrossel está na página "Adicionar cartão" (a barra inferior troca o botão)
-    LaunchedEffect(naPaginaAdicionar) { viewModel.definirNaPaginaAdicionar(naPaginaAdicionar) }
+    LaunchedEffect(naPaginaAdicionar, listaCartoesCarregada != null) {
+        if (listaCartoesCarregada != null) viewModel.definirNaPaginaAdicionar(naPaginaAdicionar)
+    }
+
+    // Ao criar um cartão, o carrossel vai para ele (a página "Adicionar" tem key própria e não acompanha o índice)
+    var qtdCartoesAnterior by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(listaCartoes.size, listaCartoesCarregada != null) {
+        if (listaCartoesCarregada != null) {
+            val anterior = qtdCartoesAnterior
+            if (anterior != null && listaCartoes.size > anterior) pagerState.animateScrollToPage(anterior)
+            qtdCartoesAnterior = listaCartoes.size
+        }
+    }
 
     // Botão "Adicionar cartão" da barra inferior pede para abrir o formulário de novo cartão
     LaunchedEffect(Unit) {
         viewModel.pedidoAdicionarCartao.collect {
-            cartaoParaEditar = null
+            cartaoParaEditarId = null
+            confirmandoExclusao = false
             mostrarConfig = true
         }
     }
@@ -145,7 +169,7 @@ fun CartaoScreen(
         item {
             CabecalhoDePagina(
                 titulo = "Cartões",
-                corIcone = AzulFatura,
+                corIcone = AzulCartao,
                 aoVoltar = aoVoltar
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -158,10 +182,11 @@ fun CartaoScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             // CARROSSEL DE CARTÕES
-            HorizontalPager(
+            if (listaCartoesCarregada != null) HorizontalPager(
                 state = pagerState,
                 contentPadding = PaddingValues(horizontal = 4.dp),
-                pageSpacing = 12.dp
+                pageSpacing = 12.dp,
+                key = { page -> listaCartoes.getOrNull(page)?.id ?: -1L }
             ) { page ->
                 // Páginas vizinhas ficam menores e mais translúcidas.
                 // O offset do pager muda a cada frame do arrasto: lê dentro do graphicsLayer
@@ -188,7 +213,8 @@ fun CartaoScreen(
                         formatoMoeda = formatoMoeda,
                         modifier = pageModifier,
                         onAbrirConfig = {
-                            cartaoParaEditar = cartao
+                            cartaoParaEditarId = cartao.id
+                            confirmandoExclusao = false
                             mostrarConfig = true
                         }
                     )
@@ -196,7 +222,8 @@ fun CartaoScreen(
                     CardAdicionarCartao(
                         modifier = pageModifier,
                         onClick = {
-                            cartaoParaEditar = null
+                            cartaoParaEditarId = null
+                            confirmandoExclusao = false
                             mostrarConfig = true
                         }
                     )
@@ -235,18 +262,18 @@ fun CartaoScreen(
                 ) {
                     Text(
                         "Lançamentos",
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Surface(
                         shape = CircleShape,
-                        color = AzulFatura.copy(alpha = 0.12f)
+                        color = AzulCartao.copy(alpha = 0.12f)
                     ) {
                         Text(
                             text = if (transacoesFatura.size == 1) "1 item" else "${transacoesFatura.size} itens",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
-                            color = AzulFatura,
+                            color = AzulCartao,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
                         )
                     }
@@ -256,222 +283,181 @@ fun CartaoScreen(
         }
 
         if (!naPaginaAdicionar) {
-            if (transacoesFatura.isEmpty()) {
-                item { EstadoVazioLancamentos() }
+            if (transacoesFaturaCarregada?.isEmpty() == true) {
+                item(key = "vazio") {
+                    EstadoVazio(
+                        icone = Icons.AutoMirrored.Filled.ReceiptLong,
+                        mensagem = "Não há compras na fatura deste mês para este cartão.",
+                        modifier = Modifier.animateItem()
+                    )
+                }
             }
 
             lancamentosPorDia.forEach { (dia, lancamentos) ->
-                item {
-                    CabecalhoDoDia(
-                        titulo = formatarDiaAmigavel(dia),
-                        total = formatoMoeda.format(lancamentos.sumOf { it.valor })
-                    )
-                }
-                itemsIndexed(lancamentos) { index, transacao ->
-                    LinhaLancamento(
-                        descricao = transacao.descricao,
-                        valor = formatoMoeda.format(transacao.valor),
-                        posicao = index,
-                        total = lancamentos.size
-                    )
+                item(key = "dia-$dia") {
+                    Column(modifier = Modifier.animateItem()) {
+                        CabecalhoDoDia(
+                            titulo = formatarDiaAmigavel(dia),
+                            total = formatoMoeda.format(lancamentos.sumOf { it.valor })
+                        )
+                        GrupoDeLista(lancamentos) { transacao ->
+                            val categoria = categoriaPorId[transacao.categoriaId]
+                            LinhaDeLista(
+                                icone = iconeParaCategoria(categoria?.nome.orEmpty()),
+                                cor = AzulCartao,
+                                titulo = transacao.descricao ?: "Compra no cartão",
+                                subtitulo = categoria?.nome,
+                                valor = formatoMoeda.format(transacao.valor),
+                                corValor = MaterialTheme.cores.textoGasto
+                            )
+                        }
+                    }
                 }
             }
         }
     }
 
-    // BOTTOM SHEET DE CONFIGURAÇÃO / CRIAÇÃO DE CARTÃO
+    // BOTTOM SHEET DE CONFIGURAÇÃO / CRIAÇÃO DE CARTÃO (a confirmação de exclusão troca o conteúdo dele)
     if (mostrarConfig) {
-        var nomeCartao by remember(cartaoParaEditar) { mutableStateOf(cartaoParaEditar?.nome ?: "") }
-        var diaFechamento by remember(cartaoParaEditar) { mutableStateOf(cartaoParaEditar?.diaFechamento?.toString() ?: "") }
-        var diaVencimento by remember(cartaoParaEditar) { mutableStateOf(cartaoParaEditar?.diaVencimento?.toString() ?: "") }
+        var nomeCartao by rememberSaveable(cartaoParaEditarId) { mutableStateOf(cartaoParaEditar?.nome ?: "") }
+        var diaFechamento by rememberSaveable(cartaoParaEditarId) { mutableStateOf(cartaoParaEditar?.diaFechamento?.toString() ?: "") }
+        var diaVencimento by rememberSaveable(cartaoParaEditarId) { mutableStateOf(cartaoParaEditar?.diaVencimento?.toString() ?: "") }
 
         fun diaInvalido(valor: String): Boolean {
             val n = valor.toIntOrNull()
             return valor.isNotEmpty() && (n == null || n !in 1..31)
         }
 
-        ModalBottomSheet(
-            onDismissRequest = { mostrarConfig = false },
-            sheetState = sheetStateConfig,
-            containerColor = MaterialTheme.colorScheme.surface,
-            dragHandle = { BottomSheetDefaults.DragHandle() },
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            contentWindowInsets = { WindowInsets.statusBars }
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = MaterialTheme.dimens.paddingScreen)
-                    .navigationBarsPadding()
-                    .imePadding()
-                    .padding(bottom = 12.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(AzulFatura.copy(alpha = 0.14f), RoundedCornerShape(16.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Filled.CreditCard, contentDescription = null, tint = AzulFatura)
-                    }
-                    Spacer(modifier = Modifier.width(14.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            if (cartaoParaEditar == null) "Novo cartão" else "Configurar cartão",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            if (cartaoParaEditar == null) "Defina as datas da fatura"
-                            else cartaoParaEditar?.nome.orEmpty(),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    IconButton(
-                        onClick = { mostrarConfig = false },
-                        modifier = Modifier.background(
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            CircleShape
-                        )
-                    ) {
-                        Icon(Icons.Filled.Close, contentDescription = "Fechar")
-                    }
-                }
+        fun fecharConfig() {
+            mostrarConfig = false
+            confirmandoExclusao = false
+        }
 
-                Spacer(modifier = Modifier.height(24.dp))
+        LaunchedEffect(confirmandoExclusao) {
+            if (confirmandoExclusao) focusManager.clearFocus()
+        }
 
-                OutlinedTextField(
-                    value = nomeCartao,
-                    onValueChange = { nomeCartao = it },
-                    label = { Text("Nome do cartão") },
-                    placeholder = { Text("Ex: Nubank, Inter") },
-                    leadingIcon = { Icon(Icons.Filled.CreditCard, contentDescription = null) },
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = diaFechamento,
-                        onValueChange = { diaFechamento = it.filter { c -> c.isDigit() }.take(2) },
-                        label = { Text("Fechamento") },
-                        placeholder = { Text("18") },
-                        leadingIcon = { Icon(Icons.Filled.Event, contentDescription = null) },
-                        supportingText = { Text("Dia de 1 a 31") },
-                        isError = diaInvalido(diaFechamento),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = diaVencimento,
-                        onValueChange = { diaVencimento = it.filter { c -> c.isDigit() }.take(2) },
-                        label = { Text("Vencimento") },
-                        placeholder = { Text("25") },
-                        leadingIcon = { Icon(Icons.Filled.CalendarToday, contentDescription = null) },
-                        supportingText = { Text("Dia de 1 a 31") },
-                        isError = diaInvalido(diaVencimento),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Button(
-                    onClick = {
-                        val fechamentoInt = diaFechamento.toIntOrNull()?.takeIf { it in 1..31 }
-                        val vencimentoInt = diaVencimento.toIntOrNull()?.takeIf { it in 1..31 }
-                        if (nomeCartao.isNotBlank() && fechamentoInt != null && vencimentoInt != null) {
-                            viewModel.criarOuAtualizarCartao(
-                                cartaoId = cartaoParaEditar?.id,
-                                nome = nomeCartao.trim(),
-                                diaFechamento = fechamentoInt,
-                                diaVencimento = vencimentoInt
-                            ) {
-                                mostrarConfig = false
-                                Toast.makeText(context, "Cartão salvo com sucesso!", Toast.LENGTH_SHORT).show()
+        FolhaApp(onDismiss = { fecharConfig() }) {
+            AnimatedContent(
+                targetState = confirmandoExclusao,
+                transitionSpec = {
+                    (fadeIn(tween(200)) togetherWith fadeOut(tween(150))) using SizeTransform()
+                },
+                label = "confirmarExclusaoCartao"
+            ) { confirmando ->
+                if (confirmando) {
+                    ConfirmarAcaoConteudo(
+                        titulo = "Excluir cartão?",
+                        texto = "O cartão \"${cartaoParaEditar?.nome.orEmpty()}\" será excluído junto com todas as compras, parcelas e " +
+                                "assinaturas lançadas nele. Os pagamentos de fatura já registrados no extrato " +
+                                "são mantidos. Essa ação não pode ser desfeita.",
+                        textoConfirmar = "Excluir",
+                        onConfirmar = {
+                            cartaoParaEditar?.let { cartao ->
+                                viewModel.excluirCartao(cartao) {
+                                    cartaoParaEditarId = null
+                                    fecharConfig()
+                                    mensagem("Cartão excluído.")
+                                }
                             }
-                        } else {
-                            Toast.makeText(
-                                context,
-                                "Preencha todos os campos corretamente (dias de 1 a 31).",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(54.dp),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = AzulFatura, contentColor = Color.White)
-                ) {
-                    Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Salvar cartão", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
+                        },
+                        onCancelar = { confirmandoExclusao = false }
+                    )
+                } else {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        CabecalhoDeFolha(
+                            titulo = if (cartaoParaEditar == null) "Novo cartão" else "Configurar cartão",
+                            aoFechar = { fecharConfig() },
+                            subtitulo = if (cartaoParaEditar == null) "Defina as datas da fatura"
+                            else cartaoParaEditar.nome
+                        )
 
-                if (cartaoParaEditar != null) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedButton(
-                        onClick = { cartaoParaExcluir = cartaoParaEditar },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(54.dp),
-                        shape = RoundedCornerShape(18.dp),
-                        border = BorderStroke(1.dp, Coral.copy(alpha = 0.6f)),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Coral)
-                    ) {
-                        Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Excluir cartão", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        OutlinedTextField(
+                            value = nomeCartao,
+                            onValueChange = { nomeCartao = it },
+                            label = { Text("Nome do cartão") },
+                            placeholder = { Text("Ex: Nubank, Inter") },
+                            leadingIcon = { Icon(Icons.Filled.CreditCard, contentDescription = null) },
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            OutlinedTextField(
+                                value = diaFechamento,
+                                onValueChange = { diaFechamento = it.filter { c -> c.isDigit() }.take(2) },
+                                label = { Text("Fechamento") },
+                                placeholder = { Text("18") },
+                                leadingIcon = { Icon(Icons.Filled.Event, contentDescription = null) },
+                                supportingText = { Text("Dia de 1 a 31") },
+                                isError = diaInvalido(diaFechamento),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier.weight(1f),
+                                singleLine = true
+                            )
+                            OutlinedTextField(
+                                value = diaVencimento,
+                                onValueChange = { diaVencimento = it.filter { c -> c.isDigit() }.take(2) },
+                                label = { Text("Vencimento") },
+                                placeholder = { Text("25") },
+                                leadingIcon = { Icon(Icons.Filled.CalendarToday, contentDescription = null) },
+                                supportingText = { Text("Dia de 1 a 31") },
+                                isError = diaInvalido(diaVencimento),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier.weight(1f),
+                                singleLine = true
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        BotaoPrincipal(
+                            texto = "Salvar cartão",
+                            onClick = {
+                                val fechamentoInt = diaFechamento.toIntOrNull()?.takeIf { it in 1..31 }
+                                val vencimentoInt = diaVencimento.toIntOrNull()?.takeIf { it in 1..31 }
+                                if (nomeCartao.isNotBlank() && fechamentoInt != null && vencimentoInt != null) {
+                                    viewModel.criarOuAtualizarCartao(
+                                        cartaoId = cartaoParaEditar?.id,
+                                        nome = nomeCartao.trim(),
+                                        diaFechamento = fechamentoInt,
+                                        diaVencimento = vencimentoInt
+                                    ) {
+                                        fecharConfig()
+                                        mensagem("Cartão salvo com sucesso!")
+                                    }
+                                } else {
+                                    mensagem("Preencha todos os campos corretamente (dias de 1 a 31).")
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            cor = AzulCartao,
+                            corConteudo = Color.White,
+                            icone = Icons.Filled.Check
+                        )
+
+                        if (cartaoParaEditar != null) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            BotaoSecundario(
+                                texto = "Excluir cartão",
+                                onClick = { confirmandoExclusao = true },
+                                modifier = Modifier.fillMaxWidth(),
+                                cor = MaterialTheme.cores.textoGasto,
+                                icone = Icons.Filled.Delete
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(Espaco.sm))
                     }
                 }
             }
         }
-    }
-
-    // CONFIRMAÇÃO DE EXCLUSÃO DO CARTÃO
-    cartaoParaExcluir?.let { cartao ->
-        AlertDialog(
-            onDismissRequest = { cartaoParaExcluir = null },
-            title = { Text("Excluir cartão?", fontWeight = FontWeight.Bold) },
-            text = {
-                Text(
-                    "O cartão \"${cartao.nome}\" será excluído junto com todas as compras, parcelas e " +
-                            "assinaturas lançadas nele. Os pagamentos de fatura já registrados no extrato " +
-                            "são mantidos. Essa ação não pode ser desfeita."
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.excluirCartao(cartao) {
-                            cartaoParaExcluir = null
-                            cartaoParaEditar = null
-                            mostrarConfig = false
-                            Toast.makeText(context, "Cartão excluído.", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                ) {
-                    Text("Excluir", color = Coral, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { cartaoParaExcluir = null }) { Text("Cancelar") }
-            }
-        )
     }
 }
 
@@ -492,8 +478,8 @@ private fun CartaoHeroIndividual(
         animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
         label = "transicaoFaturaColor"
     )
-    val corInicial = lerp(AzulFatura, Verde, animProgress)
-    val corFinal = lerp(gradienteDaCor(AzulFatura), gradienteDaCor(Verde), animProgress)
+    val corInicial = lerp(AzulCartao, Verde, animProgress)
+    val corFinal = lerp(gradienteDaCor(AzulCartao), gradienteDaCor(Verde), animProgress)
     val forma = RoundedCornerShape(28.dp)
 
     Box(
@@ -554,18 +540,25 @@ private fun CartaoHeroIndividual(
                 Spacer(modifier = Modifier.width(8.dp))
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(Tamanho.toque)
                         .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.2f))
-                        .clickable(onClick = onAbrirConfig),
+                        .clickable(role = Role.Button, onClick = onAbrirConfig),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Settings,
-                        contentDescription = "Configurar cartão",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = "Configurar cartão",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
 
@@ -578,7 +571,7 @@ private fun CartaoHeroIndividual(
             )
             Text(
                 text = formatoMoeda.format(valorTotal),
-                style = MaterialTheme.typography.displaySmall,
+                style = MaterialTheme.typography.displayMedium,
                 color = Color.White,
                 fontWeight = FontWeight.ExtraBold,
                 maxLines = 1,
@@ -613,13 +606,13 @@ private fun CardAdicionarCartao(modifier: Modifier = Modifier, onClick: () -> Un
     val forma = RoundedCornerShape(28.dp)
     Surface(
         shape = forma,
-        color = AzulFatura.copy(alpha = 0.06f),
-        border = BorderStroke(1.5.dp, AzulFatura.copy(alpha = 0.35f)),
+        color = Color.Transparent,
+        border = BorderStroke(1.5.dp, AzulCartao.copy(alpha = 0.35f)),
         modifier = modifier
             .fillMaxWidth()
             .height(212.dp)
             .clip(forma)
-            .clickable(onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
     ) {
         Column(
             modifier = Modifier
@@ -631,13 +624,13 @@ private fun CardAdicionarCartao(modifier: Modifier = Modifier, onClick: () -> Un
             Box(
                 modifier = Modifier
                     .size(60.dp)
-                    .background(AzulFatura.copy(alpha = 0.15f), CircleShape),
+                    .background(AzulCartao.copy(alpha = 0.15f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Filled.Add,
                     contentDescription = null,
-                    tint = AzulFatura,
+                    tint = AzulCartao,
                     modifier = Modifier.size(30.dp)
                 )
             }
@@ -668,7 +661,7 @@ private fun IndicadorDePaginas(pagerState: PagerState, modifier: Modifier = Modi
             val selecionado = pagerState.currentPage == index
             val largura by animateDpAsState(if (selecionado) 24.dp else 8.dp, label = "larguraDot")
             val cor by animateColorAsState(
-                if (selecionado) AzulFatura else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f),
+                if (selecionado) AzulCartao else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f),
                 label = "corDot"
             )
             Box(
@@ -714,7 +707,7 @@ private fun BannerStatusFatura(faturaPaga: Boolean, vencimento: LocalDate) {
             detalhe = "Vencimento em $dataTexto"
         }
         else -> {
-            cor = if (dias <= 3) AmareloAlerta else AzulFatura
+            cor = if (dias <= 3) AmareloAlerta else AzulCartao
             icone = Icons.Filled.Schedule
             titulo = if (dias == 1) "Vence amanhã" else "Vence em $dias dias"
             detalhe = "Vencimento em $dataTexto"
@@ -724,7 +717,6 @@ private fun BannerStatusFatura(faturaPaga: Boolean, vencimento: LocalDate) {
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = cor.copy(alpha = 0.10f),
-        border = BorderStroke(1.dp, cor.copy(alpha = 0.20f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -772,114 +764,5 @@ private fun CabecalhoDoDia(titulo: String, total: String) {
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
         )
-    }
-}
-
-/** Linhas do mesmo dia formam um único bloco: cantos grandes nas pontas, pequenos no meio. */
-@Composable
-private fun LinhaLancamento(
-    descricao: String?,
-    valor: String,
-    posicao: Int,
-    total: Int
-) {
-    val grande = 20.dp
-    val pequeno = 6.dp
-    val forma = RoundedCornerShape(
-        topStart = if (posicao == 0) grande else pequeno,
-        topEnd = if (posicao == 0) grande else pequeno,
-        bottomStart = if (posicao == total - 1) grande else pequeno,
-        bottomEnd = if (posicao == total - 1) grande else pequeno
-    )
-
-    Surface(
-        shape = forma,
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 1.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .background(AzulFatura.copy(alpha = 0.12f), RoundedCornerShape(14.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Filled.CreditCard,
-                    contentDescription = null,
-                    tint = AzulFatura,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                descricao ?: "Compra no cartão",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                valor,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = Coral,
-                maxLines = 1
-            )
-        }
-    }
-}
-
-@Composable
-private fun EstadoVazioLancamentos() {
-    Surface(
-        shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 12.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 36.dp, horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(AzulFatura.copy(alpha = 0.12f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ReceiptLong,
-                    contentDescription = null,
-                    tint = AzulFatura,
-                    modifier = Modifier.size(30.dp)
-                )
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                "Nenhum lançamento",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                "Não há compras na fatura deste mês para este cartão.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
     }
 }

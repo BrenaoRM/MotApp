@@ -2,9 +2,7 @@ package com.example.financacelular.ui
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -14,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
@@ -33,44 +32,34 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.TipoTransacao
+import com.example.financacelular.ui.theme.AmareloInvestimento
+import com.example.financacelular.ui.theme.AzulAgenda
+import com.example.financacelular.ui.theme.AzulCartao
 import com.example.financacelular.ui.theme.Coral
+import com.example.financacelular.ui.theme.Espaco
+import com.example.financacelular.ui.theme.LilasRecorrente
+import com.example.financacelular.ui.theme.RoxoHero
+import com.example.financacelular.ui.theme.RoxoMeta
+import com.example.financacelular.ui.theme.Tamanho
+import com.example.financacelular.ui.theme.TealParcelados
 import com.example.financacelular.ui.theme.Verde
+import com.example.financacelular.ui.theme.VerdeOrcamento
+import com.example.financacelular.ui.theme.cores
 import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.format.TextStyle
 import java.util.Locale
-
-private val AmareloInvestimento = Color(0xFFF2A93B)
-private val HeroInicio = Color(0xFF7B5CF5)
-private val HeroFim = Color(0xFF3B82F6)
-private val HeroNegativoInicio = Color(0xFFA85560)
-private val HeroNegativoFim = Color(0xFFA85560)
-
-private val ConsumirExcedenteDeScroll = object : NestedScrollConnection {
-    override fun onPostScroll(
-        consumed: Offset,
-        available: Offset,
-        source: NestedScrollSource
-    ): Offset = available
-
-    override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity = available
-}
 
 private fun saudacaoPorHorario(): String {
     val hora = java.time.LocalTime.now().hour
@@ -107,16 +96,18 @@ fun DashboardScreen(
 
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
     val saldo = totalReceitas - totalDespesas
-    var saldoVisivel by remember { mutableStateOf(true) }
+    var saldoVisivel by rememberSaveable { mutableStateOf(true) }
 
-    var mostrarFiltros by remember { mutableStateOf(false) }
-    var filtroTipo by remember { mutableStateOf<TipoTransacao?>(null) }
-    var ordemFiltro by remember { mutableStateOf("VALOR") }
+    var mostrarFiltros by rememberSaveable { mutableStateOf(false) }
+    var filtroTipo by rememberSaveable { mutableStateOf<TipoTransacao?>(null) }
+    var ordemFiltro by rememberSaveable { mutableStateOf("VALOR") }
     val filtrosAtivos = filtroTipo != null || ordemFiltro != "VALOR"
 
-    var categoriaDetalheSelecionada by remember { mutableStateOf<ResumoMovimentacao?>(null) }
-    val sheetStateDetalhes = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val sheetStateFiltros = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // Guarda só a chave (categoriaId-tipo); o resumo é buscado no resumo do mês atual
+    var chaveCategoriaDetalhe by rememberSaveable { mutableStateOf<String?>(null) }
+    val categoriaDetalheSelecionada = chaveCategoriaDetalhe?.let { chave ->
+        resumoDoMes.find { "${it.categoriaId}-${it.tipo}" == chave }
+    }
 
     val alertaFaturaPendente by viewModel.alertaFaturaPendente.collectAsState()
     val nomeUsuario = viewModel.nomeUtilizador
@@ -143,12 +134,12 @@ fun DashboardScreen(
 
     // O cartão principal muda de cor quando o saldo fica negativo
     val corHero1 by animateColorAsState(
-        targetValue = if (saldo >= 0) HeroInicio else HeroNegativoInicio,
+        targetValue = if (saldo >= 0) RoxoHero else CorHeroAlerta,
         animationSpec = tween(600),
         label = "corHero1"
     )
     val corHero2 by animateColorAsState(
-        targetValue = if (saldo >= 0) HeroFim else HeroNegativoFim,
+        targetValue = if (saldo >= 0) AzulAgenda else CorHeroAlerta,
         animationSpec = tween(600),
         label = "corHero2"
     )
@@ -185,11 +176,10 @@ fun DashboardScreen(
                     }
                     Box(
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(Tamanho.toque)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.surface)
-                            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f), CircleShape)
-                            .clickable(onClick = aoAbrirConfiguracoes),
+                            .clickable(role = Role.Button, onClick = aoAbrirConfiguracoes),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -201,6 +191,17 @@ fun DashboardScreen(
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
+
+                if (alertaFaturaPendente) {
+                    FaixaFaturaVencendo(
+                        aoVerFatura = {
+                            viewModel.marcarAlertaComoExibido()
+                            aoAbrirCartao()
+                        },
+                        aoDispensar = { viewModel.marcarAlertaComoExibido() }
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
 
                 MesSelectorCard(
                     nomeMes = nomeMes,
@@ -245,11 +246,11 @@ fun DashboardScreen(
                             )
                             IconButton(
                                 onClick = { saldoVisivel = !saldoVisivel },
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(Tamanho.toque)
                             ) {
                                 Icon(
                                     if (saldoVisivel) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                                    contentDescription = "Ocultar valor",
+                                    contentDescription = if (saldoVisivel) "Ocultar valores" else "Mostrar valores",
                                     tint = Color.White.copy(alpha = 0.9f),
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -272,15 +273,15 @@ fun DashboardScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             IndicadorGlass(
-                                "ENTRADAS", formatoMoeda.format(totalReceitas),
+                                "ENTRADAS", if (saldoVisivel) formatoMoeda.format(totalReceitas) else "R$ ••••",
                                 Icons.AutoMirrored.Filled.TrendingUp, Modifier.weight(1f)
                             )
                             IndicadorGlass(
-                                "SAÍDAS", formatoMoeda.format(totalDespesas),
+                                "SAÍDAS", if (saldoVisivel) formatoMoeda.format(totalDespesas) else "R$ ••••",
                                 Icons.AutoMirrored.Filled.TrendingDown, Modifier.weight(1f)
                             )
                             IndicadorGlass(
-                                "INVESTIDO", formatoMoeda.format(totalInvestido),
+                                "INVESTIDO", if (saldoVisivel) formatoMoeda.format(totalInvestido) else "R$ ••••",
                                 Icons.Filled.Savings, Modifier.weight(1f)
                             )
                         }
@@ -315,12 +316,12 @@ fun DashboardScreen(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    AtalhoRapidoCard("Fatura", Icons.Filled.CreditCard, Color(0xFF5B8DEF), aoAbrirCartao)
-                    AtalhoRapidoCard("Assinaturas", Icons.Filled.Repeat, Color(0xFFB07CE8), aoAbrirAssinaturas)
-                    AtalhoRapidoCard("Parcelados", Icons.AutoMirrored.Filled.ReceiptLong, Color(0xFF2EC4B6), aoAbrirParcelados)
+                    AtalhoRapidoCard("Fatura", Icons.Filled.CreditCard, AzulCartao, aoAbrirCartao)
+                    AtalhoRapidoCard("Assinaturas", Icons.Filled.Repeat, LilasRecorrente, aoAbrirAssinaturas)
+                    AtalhoRapidoCard("Parcelados", Icons.AutoMirrored.Filled.ReceiptLong, TealParcelados, aoAbrirParcelados)
                     AtalhoRapidoCard("Investir", Icons.Filled.Savings, AmareloInvestimento, aoAbrirInvestimento)
-                    AtalhoRapidoCard("Metas", Icons.Filled.Flag, Color(0xFF8B5CF6), aoAbrirMetas)
-                    AtalhoRapidoCard("Orçamento", Icons.Filled.PieChart, Color(0xFF5FB36B), aoAbrirOrcamento)
+                    AtalhoRapidoCard("Metas", Icons.Filled.Flag, RoxoMeta, aoAbrirMetas)
+                    AtalhoRapidoCard("Orçamento", Icons.Filled.PieChart, VerdeOrcamento, aoAbrirOrcamento)
                 }
 
                 Spacer(modifier = Modifier.height(28.dp))
@@ -334,19 +335,21 @@ fun DashboardScreen(
                     Text("Resumo por Categoria", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Box(
                         modifier = Modifier
+                            .heightIn(min = Tamanho.toque)
                             .clip(RoundedCornerShape(50))
                             .background(
                                 if (filtrosAtivos) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                             )
-                            .clickable { mostrarFiltros = true }
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .clickable(role = Role.Button) { mostrarFiltros = true }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
                     ) {
                         val corFiltro = if (filtrosAtivos) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 Icons.Filled.FilterList,
-                                contentDescription = "Filtros",
+                                contentDescription = null,
                                 tint = corFiltro,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -384,6 +387,7 @@ fun DashboardScreen(
             items(resumosFiltrados, key = { "${it.categoriaId}-${it.tipo}" }) { resumo ->
                 val nomeCategoria = resumo.titulo
                 val cor = if (resumo.tipo == TipoTransacao.DESPESA) Coral else Verde
+                val corTexto = if (resumo.tipo == TipoTransacao.DESPESA) MaterialTheme.cores.textoGasto else MaterialTheme.cores.textoGanho
                 val sinal = if (resumo.tipo == TipoTransacao.DESPESA) "- " else "+ "
                 val totalDoTipo = totaisPorTipo[resumo.tipo] ?: 0.0
                 val fracao = if (totalDoTipo > 0.0) (resumo.total / totalDoTipo).toFloat().coerceIn(0f, 1f) else 0f
@@ -391,10 +395,9 @@ fun DashboardScreen(
                 val rotuloTipo = if (resumo.tipo == TipoTransacao.DESPESA) "das saídas" else "das entradas"
 
                 Card(
-                    onClick = { categoriaDetalheSelecionada = resumo },
+                    onClick = { chaveCategoriaDetalhe = "${resumo.categoriaId}-${resumo.tipo}" },
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 5.dp)
@@ -435,7 +438,7 @@ fun DashboardScreen(
                             Text(
                                 "$sinal${formatoMoeda.format(resumo.total)}",
                                 style = MaterialTheme.typography.titleSmall,
-                                color = cor,
+                                color = corTexto,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1
                             )
@@ -457,307 +460,147 @@ fun DashboardScreen(
 
         // ---------------- SHEET: DETALHES DA CATEGORIA ----------------
         categoriaDetalheSelecionada?.let { resumo ->
-            val corCategoria = if (resumo.tipo == TipoTransacao.DESPESA) Coral else Verde
-            ModalBottomSheet(
-                onDismissRequest = { categoriaDetalheSelecionada = null },
-                sheetState = sheetStateDetalhes,
-                containerColor = MaterialTheme.colorScheme.surface,
-                dragHandle = { BottomSheetDefaults.DragHandle() },
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                contentWindowInsets = { WindowInsets.statusBars }
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                ) {
-                    Box(
+            FolhaApp(onDismiss = { chaveCategoriaDetalhe = null }) {
+                CabecalhoDeFolha(
+                    titulo = resumo.titulo,
+                    aoFechar = { chaveCategoriaDetalhe = null },
+                    subtitulo = if (resumo.transacoes.size == 1) "1 lançamento" else "${resumo.transacoes.size} lançamentos"
+                )
+                Spacer(modifier = Modifier.height(Espaco.lg))
+
+                if (resumo.transacoes.isEmpty()) {
+                    Text(
+                        text = "Nenhum lançamento encontrado.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(corCategoria.copy(alpha = 0.16f), Color.Transparent)
-                                )
-                            )
-                            .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 16.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                modifier = Modifier.weight(1f),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .background(corCategoria, RoundedCornerShape(16.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        iconeParaCategoria(resumo.titulo),
-                                        contentDescription = null,
-                                        tint = Color.White
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Column {
-                                    Text(
-                                        text = resumo.titulo,
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1
-                                    )
-                                    Text(
-                                        text = if (resumo.transacoes.size == 1) "1 lançamento" else "${resumo.transacoes.size} lançamentos",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                            IconButton(
-                                onClick = { categoriaDetalheSelecionada = null },
-                                modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
-                            ) {
-                                Icon(Icons.Filled.Close, contentDescription = "Fechar")
-                            }
-                        }
-                    }
-
-                    if (resumo.transacoes.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Nenhum lançamento encontrado.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f, fill = false)
-                                .nestedScroll(ConsumirExcedenteDeScroll),
-                            contentPadding = PaddingValues(
-                                start = MaterialTheme.dimens.paddingScreen,
-                                end = MaterialTheme.dimens.paddingScreen,
-                                top = 4.dp,
-                                bottom = 16.dp
-                            ),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            items(resumo.transacoes) { transacao ->
-                                val corItem = if (transacao.tipo == TipoTransacao.DESPESA) Coral else Verde
-                                val sinalItem = if (transacao.tipo == TipoTransacao.DESPESA) "- " else "+ "
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .background(corItem.copy(alpha = 0.14f), CircleShape),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            if (transacao.tipo == TipoTransacao.DESPESA) Icons.AutoMirrored.Filled.TrendingDown
-                                            else Icons.AutoMirrored.Filled.TrendingUp,
-                                            contentDescription = null,
-                                            tint = corItem,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = transacao.descricao ?: resumo.titulo,
-                                            style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            maxLines = 1
-                                        )
-                                        Text(
-                                            text = formatarDataIso(transacao.data.toString()),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "$sinalItem${formatoMoeda.format(transacao.valor)}",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = corItem,
-                                        maxLines = 1
-                                    )
-                                }
-                            }
-                        }
+                            .padding(Espaco.xxl)
+                    )
+                } else {
+                    GrupoDeLista(itens = resumo.transacoes) { transacao ->
+                        val ehGasto = transacao.tipo == TipoTransacao.DESPESA
+                        LinhaDeLista(
+                            icone = if (ehGasto) Icons.AutoMirrored.Filled.TrendingDown else Icons.AutoMirrored.Filled.TrendingUp,
+                            cor = if (ehGasto) Coral else Verde,
+                            titulo = transacao.descricao ?: resumo.titulo,
+                            subtitulo = formatarDataIso(transacao.data.toString()),
+                            valor = (if (ehGasto) "- " else "+ ") + formatoMoeda.format(transacao.valor),
+                            corValor = if (ehGasto) MaterialTheme.cores.textoGasto else MaterialTheme.cores.textoGanho
+                        )
                     }
                 }
+                Spacer(modifier = Modifier.height(Espaco.lg))
             }
         }
 
         // ---------------- SHEET: FILTROS ----------------
         if (mostrarFiltros) {
-            ModalBottomSheet(
-                onDismissRequest = { mostrarFiltros = false },
-                sheetState = sheetStateFiltros,
-                containerColor = MaterialTheme.colorScheme.surface,
-                dragHandle = { BottomSheetDefaults.DragHandle() },
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                contentWindowInsets = { WindowInsets.statusBars }
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = MaterialTheme.dimens.paddingScreen)
-                        .navigationBarsPadding()
-                        .padding(bottom = 10.dp)
+            FolhaApp(onDismiss = { mostrarFiltros = false }) {
+                CabecalhoDeFolha(titulo = "Opções de visualização", aoFechar = { mostrarFiltros = false })
+                Spacer(modifier = Modifier.height(24.dp))
+                Text("EXIBIR TIPO DE MOVIMENTAÇÃO", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(modifier = Modifier.height(10.dp))
+                SeletorSegmentado(
+                    opcoes = listOf("Tudo", "Ganhos", "Gastos"),
+                    indiceSelecionado = when (filtroTipo) {
+                        null -> 0
+                        TipoTransacao.RECEITA -> 1
+                        TipoTransacao.DESPESA -> 2
+                    },
+                    aoSelecionar = { indice ->
+                        filtroTipo = when (indice) {
+                            1 -> TipoTransacao.RECEITA
+                            2 -> TipoTransacao.DESPESA
+                            else -> null
+                        }
+                    },
+                    cor = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Text("ORDENAR CATEGORIAS POR", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(modifier = Modifier.height(10.dp))
+                SeletorSegmentado(
+                    opcoes = listOf("Maior valor", "A-Z"),
+                    indiceSelecionado = if (ordemFiltro == "VALOR") 0 else 1,
+                    aoSelecionar = { indice -> ordemFiltro = if (indice == 0) "VALOR" else "NOME" },
+                    cor = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(32.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Espaco.md)
                 ) {
-                    Text(
-                        text = "Opções de Visualização",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                    BotaoSecundario(
+                        texto = "Limpar filtros",
+                        onClick = {
+                            filtroTipo = null
+                            ordemFiltro = "VALOR"
+                        },
+                        modifier = Modifier.weight(1f)
                     )
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Text("EXIBIR TIPO DE MOVIMENTAÇÃO", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(50))
-                            .padding(4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        SegmentedButton(
-                            text = "Tudo",
-                            selected = filtroTipo == null,
-                            onClick = { filtroTipo = null },
-                            modifier = Modifier.weight(1f)
-                        )
-                        SegmentedButton(
-                            text = "Só Ganhos",
-                            selected = filtroTipo == TipoTransacao.RECEITA,
-                            onClick = { filtroTipo = TipoTransacao.RECEITA },
-                            modifier = Modifier.weight(1f)
-                        )
-                        SegmentedButton(
-                            text = "Só Gastos",
-                            selected = filtroTipo == TipoTransacao.DESPESA,
-                            onClick = { filtroTipo = TipoTransacao.DESPESA },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Text("ORDENAR CATEGORIAS POR", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(50))
-                            .padding(4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        SegmentedButton(
-                            text = "Maior Valor",
-                            selected = ordemFiltro == "VALOR",
-                            onClick = { ordemFiltro = "VALOR" },
-                            modifier = Modifier.weight(1f)
-                        )
-                        SegmentedButton(
-                            text = "Ordem A-Z",
-                            selected = ordemFiltro == "NOME",
-                            onClick = { ordemFiltro = "NOME" },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(32.dp))
-                    Button(
+                    BotaoPrincipal(
+                        texto = "Concluir",
                         onClick = { mostrarFiltros = false },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
-                            .height(52.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
-                    ) {
-                        Text("Aplicar Filtros", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    }
+                        modifier = Modifier.weight(1f)
+                    )
                 }
+                Spacer(modifier = Modifier.height(Espaco.lg))
             }
-        }
-
-        if (alertaFaturaPendente) {
-            AlertDialog(
-                onDismissRequest = { viewModel.marcarAlertaComoExibido() },
-                shape = RoundedCornerShape(24.dp),
-                containerColor = MaterialTheme.colorScheme.surface,
-                title = {
-                    Text("Fatura Vencendo! ⚠️", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                },
-                text = {
-                    Text("Sua fatura do cartão de crédito vence nos próximos dias. Não se esqueça de realizar o pagamento para evitar juros.", style = MaterialTheme.typography.bodyMedium)
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            viewModel.marcarAlertaComoExibido()
-                            aoAbrirCartao()
-                        }
-                    ) { Text("Ver Fatura", fontWeight = FontWeight.Bold) }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = {
-                            viewModel.marcarAlertaComoExibido()
-                        }
-                    ) { Text("Lembrar depois") }
-                }
-            )
         }
     }
 }
 
+/** Faixa no topo do Dashboard avisando que a fatura do cartão vence nos próximos dias. */
 @Composable
-private fun SegmentedButton(
-    text: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val backgroundColor by animateColorAsState(
-        targetValue = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
-        animationSpec = tween(200),
-        label = "fundoSegmento"
-    )
-    val textColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(50))
-            .background(backgroundColor)
-            .clickable { onClick() }
-            .padding(vertical = 10.dp),
-        contentAlignment = Alignment.Center
+private fun FaixaFaturaVencendo(aoVerFatura: () -> Unit, aoDispensar: () -> Unit) {
+    val cor = MaterialTheme.cores.alerta
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = cor.copy(alpha = 0.10f),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Text(
-            text = text,
-            color = textColor,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            textAlign = TextAlign.Center,
-            maxLines = 1
-        )
+        Row(
+            modifier = Modifier.padding(start = Espaco.lg, top = Espaco.sm, bottom = Espaco.sm, end = Espaco.xs),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(cor.copy(alpha = 0.18f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.Warning, contentDescription = null, tint = cor, modifier = Modifier.size(Tamanho.icone))
+            }
+            Spacer(modifier = Modifier.width(Espaco.md))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Fatura vencendo",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "Pague nos próximos dias para evitar juros.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            TextButton(
+                onClick = aoVerFatura,
+                modifier = Modifier.heightIn(min = Tamanho.toque)
+            ) {
+                Text("Ver fatura", fontWeight = FontWeight.Bold, color = cor)
+            }
+            IconButton(onClick = aoDispensar, modifier = Modifier.size(Tamanho.toque)) {
+                Icon(
+                    Icons.Filled.Close,
+                    contentDescription = "Dispensar",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(Tamanho.icone)
+                )
+            }
+        }
     }
 }
 
@@ -767,7 +610,6 @@ private fun AtalhoRapidoCard(titulo: String, icone: ImageVector, cor: Color, onC
         onClick = onClick,
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = cor.copy(alpha = 0.10f)),
-        border = BorderStroke(1.dp, cor.copy(alpha = 0.2f)),
         modifier = Modifier
             .width(104.dp)
             .height(92.dp)

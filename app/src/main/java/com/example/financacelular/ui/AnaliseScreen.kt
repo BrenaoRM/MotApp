@@ -1,13 +1,9 @@
 package com.example.financacelular.ui
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,41 +56,28 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.financacelular.ui.theme.AmareloInvestimento
+import com.example.financacelular.ui.theme.AzulAgenda
 import com.example.financacelular.ui.theme.Coral
+import com.example.financacelular.ui.theme.CoresCategoria
+import com.example.financacelular.ui.theme.CoresCategoriaGanhos
+import com.example.financacelular.ui.theme.RoxoHero
 import com.example.financacelular.ui.theme.Verde
+import com.example.financacelular.ui.theme.cores
 import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.format.TextStyle
 import java.util.Locale
 import kotlinx.coroutines.launch
 
-// Mesmas cores do cartão principal da home
-private val RoxoAnalise = Color(0xFF7B5CF5)
-private val AzulAnalise = Color(0xFF3B82F6)
-private val AmareloInvestimento = Color(0xFFF2A93B)
 private val AlturaGrafico = 130.dp
-
-private val CoresCategoria = listOf(
-    Coral,
-    Color(0xFF5B8DEF),
-    Color(0xFFB07CE8),
-    Color(0xFFF2A93B),
-    Verde,
-    Color(0xFF2EC4B6)
-)
-private val CoresCategoriaGanhos = listOf(
-    Verde,
-    Color(0xFF2EC4B6),
-    Color(0xFF81C784),
-    Color(0xFF00B4D8),
-    Color(0xFF4CAF50),
-    Color(0xFF009688)
-)
 
 private val LocalePtBr: Locale = Locale.Builder().setLanguage("pt").setRegion("BR").build()
 private val MesesAbreviados = listOf("Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez")
@@ -166,7 +149,7 @@ fun AnaliseScreen(
     ) {
         // ---------------- CABEÇALHO + MÊS ----------------
         item {
-            CabecalhoDePagina("Análise", RoxoAnalise, null) // tela principal: sem seta de voltar
+            CabecalhoDePagina("Análise", RoxoHero, null) // tela principal: sem seta de voltar
             Spacer(modifier = Modifier.height(16.dp))
             MesSelectorCard(
                 nomeMes = nomeMes,
@@ -179,8 +162,8 @@ fun AnaliseScreen(
         // ---------------- CARTÃO PRINCIPAL ----------------
         item {
             CartaoHeroDePagina(
-                corInicio = if (saldoPositivo) RoxoAnalise else CorHeroAlerta,
-                corFim = if (saldoPositivo) AzulAnalise else gradienteDaCor(CorHeroAlerta)
+                corInicio = if (saldoPositivo) RoxoHero else CorHeroAlerta,
+                corFim = if (saldoPositivo) AzulAgenda else gradienteDaCor(CorHeroAlerta)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -247,7 +230,7 @@ fun AnaliseScreen(
         // ---------------- TOP 5 ----------------
         if (topDespesas.isEmpty()) {
             item {
-                EstadoVazioAnalise("Nenhuma despesa registrada neste mês.")
+                EstadoVazio(Icons.AutoMirrored.Filled.TrendingDown, "Nenhuma despesa registrada neste mês.")
                 Spacer(modifier = Modifier.height(16.dp))
             }
         } else {
@@ -258,7 +241,6 @@ fun AnaliseScreen(
                 Card(
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 5.dp)
@@ -302,7 +284,7 @@ fun AnaliseScreen(
                             Text(
                                 "- ${formato.format(despesa.valor)}",
                                 style = MaterialTheme.typography.titleSmall,
-                                color = Coral,
+                                color = MaterialTheme.cores.textoGasto,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1
                             )
@@ -344,7 +326,7 @@ fun AnaliseScreen(
                     TituloComIcone(
                         titulo = "Distribuição",
                         icone = Icons.Filled.PieChart,
-                        cor = RoxoAnalise
+                        cor = RoxoHero
                     ) {
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                             repeat(2) { i ->
@@ -354,7 +336,7 @@ fun AnaliseScreen(
                                         .height(6.dp)
                                         .width(if (ativa) 18.dp else 6.dp)
                                         .background(
-                                            if (ativa) RoxoAnalise else MaterialTheme.colorScheme.outlineVariant,
+                                            if (ativa) RoxoHero else MaterialTheme.colorScheme.outlineVariant,
                                             CircleShape
                                         )
                                 )
@@ -362,25 +344,12 @@ fun AnaliseScreen(
                         }
                     }
                     Spacer(modifier = Modifier.height(14.dp))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(50))
-                            .padding(4.dp)
-                    ) {
-                        SeletorPilulaAnalise(
-                            texto = "Gastos",
-                            selecionado = pagerState.currentPage == 0,
-                            cor = Coral,
-                            modifier = Modifier.weight(1f)
-                        ) { escopo.launch { pagerState.animateScrollToPage(0) } }
-                        SeletorPilulaAnalise(
-                            texto = "Ganhos",
-                            selecionado = pagerState.currentPage == 1,
-                            cor = Verde,
-                            modifier = Modifier.weight(1f)
-                        ) { escopo.launch { pagerState.animateScrollToPage(1) } }
-                    }
+                    SeletorSegmentado(
+                        opcoes = listOf("Gastos", "Ganhos"),
+                        indiceSelecionado = pagerState.currentPage,
+                        aoSelecionar = { escopo.launch { pagerState.animateScrollToPage(it) } },
+                        cor = if (pagerState.currentPage == 0) Coral else Verde
+                    )
                     Spacer(modifier = Modifier.height(20.dp))
                     HorizontalPager(
                         state = pagerState,
@@ -393,9 +362,18 @@ fun AnaliseScreen(
 
                         Column(modifier = Modifier.fillMaxWidth()) {
                             if (dados.isEmpty()) {
-                                EstadoVazioAnalise("Nenhum registro para este gráfico no mês.")
+                                EstadoVazio(Icons.Filled.PieChart, "Nenhum registro para este gráfico no mês.")
                             } else {
-                                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
+                                val maiorFatia = dados.maxByOrNull { it.total }
+                                val descricaoRosca = (if (page == 0) "Distribuição de gastos" else "Distribuição de ganhos") +
+                                    ": total ${formato.format(total)}" +
+                                    (maiorFatia?.let { ", maior categoria ${it.nomeCategoria}, ${formato.format(it.total)}" } ?: "")
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .semantics(mergeDescendants = true) { contentDescription = descricaoRosca }
+                                ) {
                                     Canvas(modifier = Modifier.size(180.dp)) {
                                         val larguraTraco = 24.dp.toPx()
                                         val raio = (size.minDimension - larguraTraco) / 2
@@ -499,7 +477,7 @@ fun AnaliseScreen(
         item {
             if (graficosProntos) {
                 CartaoAnalise {
-                    TituloComIcone("Fluxo de Caixa", Icons.Filled.BarChart, AzulAnalise) {
+                    TituloComIcone("Fluxo de Caixa", Icons.Filled.BarChart, AzulAgenda) {
                         Text(
                             "6 meses",
                             style = MaterialTheme.typography.labelMedium,
@@ -513,12 +491,13 @@ fun AnaliseScreen(
                     }
                     Spacer(modifier = Modifier.height(20.dp))
                     if (evolucaoMensal.isEmpty()) {
-                        EstadoVazioAnalise("Ainda não há dados suficientes para exibir o histórico.")
+                        EstadoVazio(Icons.Filled.BarChart, "Ainda não há dados suficientes para exibir o histórico.")
                     } else {
                         val maiorValor = evolucaoMensal.maxOfOrNull { maxOf(it.totalReceitas, it.totalDespesas) }?.coerceAtLeast(1.0) ?: 1.0
                         GraficoBase(
                             maiorValor = maiorValor,
-                            rotulos = evolucaoMensal.map { rotuloMes(it.anoMes) }
+                            rotulos = evolucaoMensal.map { rotuloMes(it.anoMes) },
+                            descricao = "Fluxo de caixa dos últimos ${evolucaoMensal.size} meses: ganhos somam ${formato.format(evolucaoMensal.sumOf { it.totalReceitas })} e gastos somam ${formato.format(evolucaoMensal.sumOf { it.totalDespesas })}"
                         ) {
                             evolucaoMensal.forEach { item ->
                                 val fracaoReceita = (item.totalReceitas / maiorValor).toFloat()
@@ -568,12 +547,13 @@ fun AnaliseScreen(
                     LegendaPonto(AmareloInvestimento, "Valor investido")
                     Spacer(modifier = Modifier.height(20.dp))
                     if (evolucaoInvestimentos.isEmpty()) {
-                        EstadoVazioAnalise("Ainda não há dados suficientes para exibir o histórico de aportes.")
+                        EstadoVazio(Icons.Filled.Savings, "Ainda não há dados suficientes para exibir o histórico de aportes.")
                     } else {
                         val maiorInv = evolucaoInvestimentos.maxOfOrNull { it.total }?.coerceAtLeast(1.0) ?: 1.0
                         GraficoBase(
                             maiorValor = maiorInv,
-                            rotulos = evolucaoInvestimentos.map { rotuloMes(it.anoMes) }
+                            rotulos = evolucaoInvestimentos.map { rotuloMes(it.anoMes) },
+                            descricao = "Aportes dos últimos ${evolucaoInvestimentos.size} meses: total ${formato.format(evolucaoInvestimentos.sumOf { it.total })}, maior mês ${rotuloMes(evolucaoInvestimentos.maxByOrNull { it.total }?.anoMes.orEmpty())}"
                         ) {
                             evolucaoInvestimentos.forEach { item ->
                                 val fracao = (item.total / maiorInv).toFloat()
@@ -611,7 +591,6 @@ private fun CartaoAnalise(
     Card(
         shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(
@@ -662,64 +641,20 @@ private fun LegendaPonto(cor: Color, texto: String) {
     }
 }
 
-@Composable
-private fun EstadoVazioAnalise(mensagem: String) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text(
-            mensagem,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(20.dp)
-        )
-    }
-}
-
-@Composable
-private fun SeletorPilulaAnalise(
-    texto: String,
-    selecionado: Boolean,
-    cor: Color,
-    modifier: Modifier = Modifier,
-    aoClicar: () -> Unit
-) {
-    val fundo by animateColorAsState(
-        targetValue = if (selecionado) cor else Color.Transparent,
-        animationSpec = tween(200),
-        label = "fundoSeletorAnalise"
-    )
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(50))
-            .background(fundo)
-            .clickable(onClick = aoClicar)
-            .padding(vertical = 9.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            texto,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = if (selecionado) FontWeight.Bold else FontWeight.Medium,
-            color = if (selecionado) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1
-        )
-    }
-}
-
 /** Eixo Y, grade tracejada e rótulos dos meses. As barras são desenhadas pelo [barras]. */
 @Composable
 private fun GraficoBase(
     maiorValor: Double,
     rotulos: List<String>,
+    descricao: String,
     barras: @Composable RowScope.() -> Unit
 ) {
     val corGrade = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
     val corEixo = MaterialTheme.colorScheme.onSurfaceVariant
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) { contentDescription = descricao },
         verticalAlignment = Alignment.Top
     ) {
         Column(

@@ -171,7 +171,7 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
                     salvando = false
                     return@launch
                 }
-                val fallbackTipo = if (tipo == TipoTransacao.RECEITA) "Receita" else "Despesa"
+                val fallbackTipo = if (tipo == TipoTransacao.RECEITA) "Ganho" else "Gasto"
                 val nomeFinal = descricao.ifBlank { nomeCategoriaFinal ?: fallbackTipo }
 
                 // Em meses curtos o cartão fecha no último dia (ex.: fechamento dia 31 em fevereiro)

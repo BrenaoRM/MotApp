@@ -1,8 +1,6 @@
 package com.example.financacelular.ui
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +12,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -33,8 +32,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -57,8 +54,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -66,12 +63,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.ui.theme.Coral
+import com.example.financacelular.ui.theme.Tamanho
+import com.example.financacelular.ui.theme.VerdeOrcamento
 import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.util.Locale
 import java.time.format.TextStyle as JavaTextStyle
-
-private val VerdeOrcamento = Color(0xFF5FB36B)
 
 /**
  * Converte qualquer entrada numérica (usando vírgula ou ponto) para Double com segurança.
@@ -269,7 +266,6 @@ fun OrcamentoScreen(
                 Card(
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 5.dp)
@@ -433,16 +429,12 @@ fun OrcamentoScreen(
                                             if (selecionada) VerdeOrcamento.copy(alpha = 0.14f)
                                             else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
                                         )
-                                        .border(
-                                            width = if (selecionada) 1.5.dp else 0.dp,
-                                            color = if (selecionada) VerdeOrcamento else Color.Transparent,
-                                            shape = RoundedCornerShape(50)
-                                        )
-                                        .clickable {
+                                        .clickable(role = Role.Button) {
                                             categoriaEmEdicao = opcao
                                             valorInput = limiteParaTexto(opcao.limite)
                                         }
-                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                        .heightIn(min = Tamanho.toque)
+                                        .padding(horizontal = 14.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
@@ -473,27 +465,18 @@ fun OrcamentoScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(28.dp))
-                    Button(
+                    BotaoPrincipal(
+                        texto = "Definir Limite",
                         onClick = {
                             val valorDouble = converterTextoParaDouble(valorInput)
                             item?.let { viewModel.definirLimite(it.categoria, valorDouble) }
                             mostrarSheet = false
                         },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
-                            .height(52.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = VerdeOrcamento,
-                            contentColor = Color.White
-                        ),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
-                    ) {
-                        Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Definir Limite", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                    }
+                        modifier = Modifier.fillMaxWidth(),
+                        cor = VerdeOrcamento,
+                        corConteudo = Color.White,
+                        icone = Icons.Filled.Check
+                    )
                 }
             }
         }

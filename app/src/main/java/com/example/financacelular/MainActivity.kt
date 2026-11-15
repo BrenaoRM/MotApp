@@ -4,11 +4,14 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.graphics.Color
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.DisposableEffect
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -74,6 +77,23 @@ class MainActivity : ComponentActivity() {
                 TemaPreferencia.CLARO -> false
                 TemaPreferencia.ESCURO -> true
                 TemaPreferencia.SISTEMA -> temaEscuroSistema
+            }
+
+            // Barras do sistema acompanham o tema escolhido no app (não só o do sistema)
+            DisposableEffect(temaEscuro) {
+                enableEdgeToEdge(
+                    statusBarStyle = SystemBarStyle.auto(
+                        Color.TRANSPARENT,
+                        Color.TRANSPARENT,
+                        detectDarkMode = { temaEscuro }
+                    ),
+                    navigationBarStyle = SystemBarStyle.auto(
+                        Color.argb(0xe6, 0xFF, 0xFF, 0xFF),
+                        Color.argb(0x80, 0x1b, 0x1b, 0x1b),
+                        detectDarkMode = { temaEscuro }
+                    )
+                )
+                onDispose { }
             }
 
             FinanceAPPTheme(darkTheme = temaEscuro) {

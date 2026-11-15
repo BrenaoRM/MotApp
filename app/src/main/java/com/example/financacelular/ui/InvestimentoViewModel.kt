@@ -25,11 +25,13 @@ data class InvestimentoAgrupado(
 class InvestimentoViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: FinancaRepository = FinancaRepository.getInstance(AppDatabase.getInstance(application))
 
-    val investimentos: StateFlow<List<InvestimentoEntity>> = repository.listarInvestimentos()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    /** null = carregando. */
+    val investimentos: StateFlow<List<InvestimentoEntity>?> = repository.listarInvestimentos()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     // Agrupa os investimentos pelo nome somando os valores e calculando % da carteira
-    val investimentosAgrupados: StateFlow<List<InvestimentoAgrupado>> = investimentos.map { lista ->
+    val investimentosAgrupados: StateFlow<List<InvestimentoAgrupado>?> = investimentos.map { lista ->
+        if (lista == null) return@map null
         val patrimonioTotal = lista.sumOf { it.valorInvestido }
         lista.groupBy { it.nome.trim().lowercase() }.map { (_, grupo) ->
             val primeiro = grupo.first()
@@ -43,7 +45,7 @@ class InvestimentoViewModel(application: Application) : AndroidViewModel(applica
                 aportes = grupo.sortedByDescending { it.data }
             )
         }.sortedByDescending { it.valorTotal }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     fun inserirAporte(nome: String, categoria: String, valor: Double, dataAporte: LocalDate) {
         viewModelScope.launch {

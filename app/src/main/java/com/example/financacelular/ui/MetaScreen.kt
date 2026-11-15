@@ -1,9 +1,13 @@
 package com.example.financacelular.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +19,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -34,8 +39,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,7 +47,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -54,23 +56,26 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.Meta
+import com.example.financacelular.ui.theme.Coral
+import com.example.financacelular.ui.theme.RoxoMeta
+import com.example.financacelular.ui.theme.Tamanho
 import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.util.Locale
-
-private val RoxoMeta = Color(0xFF8B5CF6)
 
 private val ValoresRapidos = listOf(50, 100, 200, 500)
 
@@ -87,26 +92,28 @@ fun MetaScreen(
     aoGuardarValorAcionado: () -> Unit = {},
     aoVoltar: (() -> Unit)? = null
 ) {
-    val metas by viewModel.metas.collectAsState()
+    val metasCarregadas by viewModel.metas.collectAsState()
+    val metas = metasCarregadas ?: emptyList()
     val formato = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
 
-    var mostrarSheetNovaMeta by remember { mutableStateOf(false) }
-    var metaParaEditar by remember { mutableStateOf<Meta?>(null) }
-    var metaParaAdicionarValor by remember { mutableStateOf<Meta?>(null) }
-    var mostrarSheetGuardarValor by remember { mutableStateOf(false) }
+    var mostrarSheetNovaMeta by rememberSaveable { mutableStateOf(false) }
+    var metaParaEditarId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var metaParaAdicionarValorId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var mostrarSheetGuardarValor by rememberSaveable { mutableStateOf(false) }
+    val metaParaEditar: Meta? = metas.firstOrNull { it.id == metaParaEditarId }
+    val metaParaAdicionarValor: Meta? = metas.firstOrNull { it.id == metaParaAdicionarValorId }
 
-    val sheetStateCriarOuEditar = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val sheetStateAdicionarValor = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    var novoNome by remember { mutableStateOf("") }
-    var novoValorAlvo by remember { mutableStateOf("") }
+    var novoNome by rememberSaveable { mutableStateOf("") }
+    var novoValorAlvo by rememberSaveable { mutableStateOf("") }
 
     val totalAcumulado = metas.sumOf { it.valorAtual }
     val totalAlvo = metas.sumOf { it.valorAlvo }
 
     LaunchedEffect(acionarNovaMetaExterna) {
         if (acionarNovaMetaExterna) {
-            metaParaEditar = null
+            metaParaEditarId = null
             novoNome = ""
             novoValorAlvo = ""
             mostrarSheetNovaMeta = true
@@ -114,16 +121,16 @@ fun MetaScreen(
         }
     }
 
-    LaunchedEffect(acionarGuardarValorExterno) {
-        if (acionarGuardarValorExterno) {
+    LaunchedEffect(acionarGuardarValorExterno, metasCarregadas != null) {
+        if (acionarGuardarValorExterno && metasCarregadas != null) {
             if (metas.isEmpty()) {
                 // Sem metas ainda: leva direto para criar a primeira
-                metaParaEditar = null
+                metaParaEditarId = null
                 novoNome = ""
                 novoValorAlvo = ""
                 mostrarSheetNovaMeta = true
             } else {
-                metaParaAdicionarValor = metas.firstOrNull { it.valorAtual < it.valorAlvo } ?: metas.first()
+                metaParaAdicionarValorId = (metas.firstOrNull { it.valorAtual < it.valorAlvo } ?: metas.first()).id
                 mostrarSheetGuardarValor = true
             }
             aoGuardarValorAcionado()
@@ -192,16 +199,22 @@ fun MetaScreen(
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            if (metas.isEmpty()) {
+            if (metasCarregadas != null && metas.isEmpty()) {
                 item {
-                    Text(
-                        "Nenhuma meta cadastrada ainda. Toque em 'Nova Meta' abaixo para criar o seu primeiro objetivo.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    EstadoVazio(
+                        icone = Icons.Filled.Flag,
+                        mensagem = "Nenhuma meta cadastrada ainda. Crie o seu primeiro objetivo.",
+                        textoAcao = "Nova meta",
+                        aoAcao = {
+                            metaParaEditarId = null
+                            novoNome = ""
+                            novoValorAlvo = ""
+                            mostrarSheetNovaMeta = true
+                        }
                     )
                 }
             } else {
-                items(metas) { meta ->
+                items(metas, key = { it.id }) { meta ->
                     val progresso = if (meta.valorAlvo > 0)
                         (meta.valorAtual / meta.valorAlvo).toFloat().coerceIn(0f, 1f) else 0f
                     val percentual = (progresso * 100).toInt()
@@ -209,13 +222,13 @@ fun MetaScreen(
                     Card(
                         shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
                         modifier = Modifier
+                            .animateItem()
                             .fillMaxWidth()
                             .padding(vertical = 5.dp)
                             .clip(RoundedCornerShape(20.dp))
-                            .clickable {
-                                metaParaEditar = meta
+                            .clickable(role = Role.Button) {
+                                metaParaEditarId = meta.id
                                 novoNome = meta.nome
                                 novoValorAlvo = meta.valorAlvo.toString()
                                 mostrarSheetNovaMeta = true
@@ -270,114 +283,91 @@ fun MetaScreen(
             }
         }
 
-        // --- Bottom Sheet para Criar/Editar Meta ---
+        // --- Sheet para Criar/Editar Meta (a confirmação de excluir troca o conteúdo do mesmo sheet) ---
         if (mostrarSheetNovaMeta) {
-            ModalBottomSheet(
-                onDismissRequest = { mostrarSheetNovaMeta = false },
-                sheetState = sheetStateCriarOuEditar,
-                containerColor = MaterialTheme.colorScheme.surface,
-                dragHandle = { BottomSheetDefaults.DragHandle() },
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                contentWindowInsets = { WindowInsets.statusBars }
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = MaterialTheme.dimens.paddingScreen)
-                        .navigationBarsPadding()
-                        .imePadding()
-                        .padding(bottom = 10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (metaParaEditar == null) "Nova Meta" else "Editar Meta",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(
-                            onClick = { mostrarSheetNovaMeta = false },
-                            modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
-                        ) {
-                            Icon(Icons.Filled.Close, contentDescription = "Fechar")
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    OutlinedTextField(
-                        value = novoNome,
-                        onValueChange = { novoNome = it },
-                        label = { Text("Nome da Meta (ex: Viagem de Férias)") },
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    OutlinedTextField(
-                        value = novoValorAlvo,
-                        onValueChange = { novoValorAlvo = it },
-                        label = { Text("Valor Alvo (R$)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
-                    Spacer(modifier = Modifier.height(32.dp))
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        if (metaParaEditar != null) {
-                            OutlinedButton(
-                                onClick = {
-                                    viewModel.excluir(metaParaEditar!!)
-                                    mostrarSheetNovaMeta = false
-                                },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(52.dp),
-                                shape = RoundedCornerShape(20.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                            ) {
-                                Icon(Icons.Filled.DeleteOutline, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text("Excluir", fontWeight = FontWeight.Bold)
-                            }
-                        }
-
-                        Button(
-                            onClick = {
-                                val valorDouble = novoValorAlvo.replace(",", ".").toDoubleOrNull() ?: 0.0
-                                if (novoNome.isNotBlank() && valorDouble > 0) {
-                                    if (metaParaEditar == null) {
-                                        viewModel.criar(novoNome, valorDouble)
-                                    } else {
-                                        viewModel.atualizar(metaParaEditar!!.copy(nome = novoNome, valorAlvo = valorDouble))
-                                    }
-                                    mostrarSheetNovaMeta = false
-                                }
+            var confirmandoExclusao by rememberSaveable { mutableStateOf(false) }
+            FolhaApp(onDismiss = { mostrarSheetNovaMeta = false }) {
+                val focusManager = LocalFocusManager.current
+                AnimatedContent(
+                    targetState = confirmandoExclusao,
+                    transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) using SizeTransform() },
+                    label = "confirmarExclusaoMeta"
+                ) { confirmando ->
+                    if (confirmando && metaParaEditar != null) {
+                        ConfirmarAcaoConteudo(
+                            titulo = "Excluir meta?",
+                            texto = "A meta \"${metaParaEditar.nome}\" e o valor já guardado nela serão removidos. Essa ação não pode ser desfeita.",
+                            textoConfirmar = "Excluir",
+                            onConfirmar = {
+                                viewModel.excluir(metaParaEditar)
+                                mostrarSheetNovaMeta = false
                             },
-                            modifier = Modifier
-                                .weight(1f)
-                                .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
-                                .height(52.dp),
-                            shape = RoundedCornerShape(20.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = RoxoMeta, contentColor = Color.White),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
-                        ) {
-                            Text(
-                                if (metaParaEditar == null) "Criar Meta" else "Salvar Meta",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
+                            onCancelar = { confirmandoExclusao = false }
+                        )
+                    } else {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            CabecalhoDeFolha(
+                                titulo = if (metaParaEditar == null) "Nova Meta" else "Editar Meta",
+                                aoFechar = { mostrarSheetNovaMeta = false }
                             )
+
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            OutlinedTextField(
+                                value = novoNome,
+                                onValueChange = { novoNome = it },
+                                label = { Text("Nome da Meta (ex: Viagem de Férias)") },
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            OutlinedTextField(
+                                value = novoValorAlvo,
+                                onValueChange = { novoValorAlvo = it },
+                                label = { Text("Valor Alvo (R$)") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            Spacer(modifier = Modifier.height(32.dp))
+
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                if (metaParaEditar != null) {
+                                    BotaoSecundario(
+                                        texto = "Excluir",
+                                        onClick = {
+                                            focusManager.clearFocus()
+                                            confirmandoExclusao = true
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        cor = Coral,
+                                        icone = Icons.Filled.DeleteOutline
+                                    )
+                                }
+
+                                BotaoPrincipal(
+                                    texto = if (metaParaEditar == null) "Criar Meta" else "Salvar Meta",
+                                    onClick = {
+                                        val valorDouble = novoValorAlvo.replace(",", ".").toDoubleOrNull() ?: 0.0
+                                        if (novoNome.isNotBlank() && valorDouble > 0) {
+                                            if (metaParaEditar == null) {
+                                                viewModel.criar(novoNome, valorDouble)
+                                            } else {
+                                                viewModel.atualizar(metaParaEditar.copy(nome = novoNome, valorAlvo = valorDouble))
+                                            }
+                                            mostrarSheetNovaMeta = false
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    cor = RoxoMeta,
+                                    corConteudo = Color.White
+                                )
+                            }
                         }
                     }
                 }
@@ -386,7 +376,7 @@ fun MetaScreen(
 
         // --- Bottom Sheet "Guardar valor": escolhe a meta, valores rápidos e prévia do progresso ---
         if (mostrarSheetGuardarValor) {
-            var valorInput by remember { mutableStateOf("") }
+            var valorInput by rememberSaveable { mutableStateOf("") }
             val metaAtual = metaParaAdicionarValor
             val valorDigitado = valorInput.replace(",", ".").toDoubleOrNull() ?: 0.0
 
@@ -451,12 +441,7 @@ fun MetaScreen(
                                         if (selecionada) RoxoMeta.copy(alpha = 0.14f)
                                         else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
                                     )
-                                    .border(
-                                        width = if (selecionada) 1.5.dp else 0.dp,
-                                        color = if (selecionada) RoxoMeta else Color.Transparent,
-                                        shape = RoundedCornerShape(16.dp)
-                                    )
-                                    .clickable { metaParaAdicionarValor = m }
+                                    .clickable(role = Role.Button) { metaParaAdicionarValorId = m.id }
                                     .padding(12.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -517,8 +502,8 @@ fun MetaScreen(
                                         .weight(1f)
                                         .clip(RoundedCornerShape(12.dp))
                                         .background(RoxoMeta.copy(alpha = 0.12f))
-                                        .clickable { valorInput = valorParaTexto(valorDigitado + rapido) }
-                                        .padding(vertical = 10.dp),
+                                        .clickable(role = Role.Button) { valorInput = valorParaTexto(valorDigitado + rapido) }
+                                        .heightIn(min = Tamanho.toque),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
@@ -575,31 +560,19 @@ fun MetaScreen(
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        Button(
+                        BotaoPrincipal(
+                            texto = if (valorDigitado > 0) "Guardar ${formato.format(valorDigitado)}" else "Confirmar Aporte",
                             onClick = {
                                 if (metaAtual != null && valorDigitado > 0) {
                                     viewModel.adicionarValor(metaAtual, valorDigitado)
                                     mostrarSheetGuardarValor = false
                                 }
                             },
-                            enabled = metaAtual != null && valorDigitado > 0,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
-                                .height(52.dp),
-                            shape = RoundedCornerShape(20.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = RoxoMeta,
-                                contentColor = Color.White
-                            ),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
-                        ) {
-                            Text(
-                                text = if (valorDigitado > 0) "Guardar ${formato.format(valorDigitado)}" else "Confirmar Aporte",
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                        }
+                            modifier = Modifier.fillMaxWidth(),
+                            cor = RoxoMeta,
+                            corConteudo = Color.White,
+                            enabled = metaAtual != null && valorDigitado > 0
+                        )
                     }
                 }
             }

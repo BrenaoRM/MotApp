@@ -15,9 +15,10 @@ val FinancaTypography = Typography(
         fontFamily = Sans, fontWeight = FontWeight.Black,
         fontSize = 34.sp, lineHeight = 40.sp, letterSpacing = (-0.5).sp
     ),
+    // Valor principal de cada tela (saldo, total, fatura): sempre maior que os títulos.
     displayMedium = TextStyle(
         fontFamily = Sans, fontWeight = FontWeight.Bold,
-        fontSize = 24.sp, lineHeight = 30.sp
+        fontSize = 30.sp, lineHeight = 36.sp
     ),
     headlineLarge = TextStyle(
         fontFamily = Sans, fontWeight = FontWeight.Bold,

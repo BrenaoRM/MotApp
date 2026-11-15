@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 data class CompraParceladaAgrupada(
+    val chave: String,
     val descricaoBase: String,
     val totalParcelas: Int,
     val valorParcela: Double,
@@ -36,7 +37,8 @@ private fun nomeBaseDaCompra(transacao: Transacao): String =
 class ParceladosViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = FinancaRepository.getInstance(AppDatabase.getInstance(application))
 
-    val comprasAgrupadas: StateFlow<List<CompraParceladaAgrupada>> = combine(
+    // null enquanto carrega
+    val comprasAgrupadas: StateFlow<List<CompraParceladaAgrupada>?> = combine(
         repository.listarTransacoes(),
         repository.listarTodosCartoes()
     ) { transacoes, cartoes ->
@@ -51,7 +53,7 @@ class ParceladosViewModel(application: Application) : AndroidViewModel(applicati
             t.grupoParcelamentoId ?: "legado|${nomeBaseDaCompra(t)}|${t.totalParcelas}"
         }
 
-        agrupado.values.map { lista ->
+        agrupado.map { (chave, lista) ->
             val transacoesOrdenadas = lista.sortedBy { it.numeroParcela }
             val primeiraTransacao = transacoesOrdenadas.first()
 
@@ -59,6 +61,7 @@ class ParceladosViewModel(application: Application) : AndroidViewModel(applicati
             val transacoesPendentes = lista.filter { !it.estaComFaturaPaga(faturasPagas) }
 
             CompraParceladaAgrupada(
+                chave = chave,
                 descricaoBase = nomeBaseDaCompra(primeiraTransacao),
                 totalParcelas = primeiraTransacao.totalParcelas,
                 valorParcela = primeiraTransacao.valor,
@@ -70,7 +73,7 @@ class ParceladosViewModel(application: Application) : AndroidViewModel(applicati
                 cartaoNome = cartoes.find { it.id == primeiraTransacao.cartaoId }?.nome
             )
         }.sortedByDescending { it.dataCompra } // Das mais recentes para as mais antigas
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     // Exclui todas as parcelas futuras que ainda não foram pagas (tudo ou nada)
     fun cancelarParcelasRestantes(transacoes: List<Transacao>) {

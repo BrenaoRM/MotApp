@@ -2,7 +2,6 @@ package com.example.financacelular.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,45 +25,43 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.financacelular.ui.theme.Coral
-import com.example.financacelular.ui.theme.Verde
+import com.example.financacelular.ui.theme.TealParcelados
+import com.example.financacelular.ui.theme.cores
 import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-
-private val TealParcelados = Color(0xFF2EC4B6)
 
 @Composable
 fun ParceladosScreen(
     viewModel: ParceladosViewModel = viewModel(),
     aoVoltar: (() -> Unit)? = null
 ) {
-    val comprasAgrupadas by viewModel.comprasAgrupadas.collectAsState()
+    val comprasCarregadas by viewModel.comprasAgrupadas.collectAsState()
+    val comprasAgrupadas = comprasCarregadas.orEmpty()
     val formatoMoedaResumo = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
     val totalRestante = comprasAgrupadas.sumOf { it.parcelasRestantes * it.valorParcela }
     val parcelasPagas = comprasAgrupadas.sumOf { it.parcelasPagas }
@@ -132,32 +129,30 @@ fun ParceladosScreen(
             Spacer(modifier = Modifier.height(12.dp))
         }
 
-        if (comprasAgrupadas.isEmpty()) {
-            item {
-                Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        "Nenhuma compra parcelada em andamento.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(24.dp)
-                    )
-                }
+        if (comprasCarregadas?.isEmpty() == true) {
+            item(key = "vazio") {
+                EstadoVazio(
+                    icone = Icons.Filled.ShoppingCart,
+                    mensagem = "Nenhuma compra parcelada em andamento.",
+                    modifier = Modifier.animateItem()
+                )
             }
         }
 
-        items(comprasAgrupadas) { compra ->
-            ItemCompraParcelada(compra = compra, viewModel = viewModel)
+        items(comprasAgrupadas, key = { it.chave }) { compra ->
+            ItemCompraParcelada(
+                compra = compra,
+                viewModel = viewModel,
+                modifier = Modifier.animateItem()
+            )
         }
     }
 }
 
 @Composable
-fun ItemCompraParcelada(compra: CompraParceladaAgrupada, viewModel: ParceladosViewModel) {
-    var expandido by remember { mutableStateOf(false) }
+fun ItemCompraParcelada(compra: CompraParceladaAgrupada, viewModel: ParceladosViewModel, modifier: Modifier = Modifier) {
+    var expandido by rememberSaveable { mutableStateOf(false) }
+    var confirmarCancelamento by rememberSaveable { mutableStateOf(false) }
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
 
     val progresso = if (compra.totalParcelas > 0) compra.parcelasPagas.toFloat() / compra.totalParcelas else 0f
@@ -166,12 +161,11 @@ fun ItemCompraParcelada(compra: CompraParceladaAgrupada, viewModel: ParceladosVi
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 5.dp)
             .clip(RoundedCornerShape(20.dp))
-            .clickable { expandido = !expandido }
+            .clickable(role = Role.Button) { expandido = !expandido }
     ) {
         Column(
             modifier = Modifier
@@ -219,7 +213,7 @@ fun ItemCompraParcelada(compra: CompraParceladaAgrupada, viewModel: ParceladosVi
                     )
                     Icon(
                         imageVector = if (expandido) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                        contentDescription = "Expandir detalhes",
+                        contentDescription = if (expandido) "Recolher detalhes" else "Expandir detalhes",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -234,7 +228,7 @@ fun ItemCompraParcelada(compra: CompraParceladaAgrupada, viewModel: ParceladosVi
                         .weight(1f)
                         .height(8.dp)
                         .clip(RoundedCornerShape(4.dp)),
-                    color = if (compra.parcelasRestantes == 0) Verde else TealParcelados,
+                    color = if (compra.parcelasRestantes == 0) MaterialTheme.cores.textoGanho else TealParcelados,
                     trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 )
                 Spacer(modifier = Modifier.width(12.dp))
@@ -261,32 +255,50 @@ fun ItemCompraParcelada(compra: CompraParceladaAgrupada, viewModel: ParceladosVi
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Total já pago:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(formatoMoeda.format(compra.parcelasPagas * compra.valorParcela), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = Verde)
+                        Text(formatoMoeda.format(compra.parcelasPagas * compra.valorParcela), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = MaterialTheme.cores.textoGanho)
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Restante a pagar:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(formatoMoeda.format(compra.parcelasRestantes * compra.valorParcela), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = Coral)
+                        Text(formatoMoeda.format(compra.parcelasRestantes * compra.valorParcela), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = MaterialTheme.cores.textoGasto)
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
                     if (compra.parcelasRestantes > 0) {
-                        OutlinedButton(
-                            onClick = { viewModel.cancelarParcelasRestantes(compra.transacoesPendentes) },
+                        BotaoSecundario(
+                            texto = "Cancelar ${compra.parcelasRestantes} parcelas restantes",
+                            onClick = { confirmarCancelamento = true },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Coral),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Cancelar ${compra.parcelasRestantes} parcelas restantes")
+                            cor = MaterialTheme.cores.textoGasto
+                        )
+                        if (confirmarCancelamento) {
+                            ConfirmarAcaoSheet(
+                                titulo = "Cancelar parcelas?",
+                                texto = "As ${compra.parcelasRestantes} parcelas restantes serão removidas. Essa ação não pode ser desfeita.",
+                                textoConfirmar = "Cancelar parcelas",
+                                onConfirmar = { viewModel.cancelarParcelasRestantes(compra.transacoesPendentes) },
+                                onDismiss = { confirmarCancelamento = false }
+                            )
                         }
                     } else {
-                        Text(
-                            "Compra totalmente quitada! 🎉",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = Verde,
-                            modifier = Modifier.align(Alignment.CenterHorizontally)
-                        )
+                        Row(
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Filled.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.cores.textoGanho,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Compra totalmente quitada!",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.cores.textoGanho
+                            )
+                        }
                     }
                 }
             }

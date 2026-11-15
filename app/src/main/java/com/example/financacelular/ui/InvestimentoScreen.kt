@@ -1,12 +1,10 @@
 package com.example.financacelular.ui
 
-import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -50,8 +48,6 @@ import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DatePicker
@@ -86,17 +82,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.financacelular.ui.theme.AmareloEscuroGradiente
+import com.example.financacelular.ui.theme.AmareloInvestimento
 import com.example.financacelular.ui.theme.Coral
+import com.example.financacelular.ui.theme.Tamanho
+import com.example.financacelular.ui.theme.cores
 import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.Instant
@@ -104,9 +100,6 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-
-private val AmareloInvestimento = Color(0xFFF2A93B)
-private val AmareloEscuroGradiente = Color(0xFFD97706)
 
 /** Guarda os dados do aporte aguardando confirmação de exclusão. */
 private data class AporteParaExcluir(
@@ -124,9 +117,10 @@ fun InvestimentoScreen(
     aoAporteAcionado: () -> Unit = {},
     aoVoltar: (() -> Unit)? = null
 ) {
-    val context = LocalContext.current
+    val mensagem = LocalMensagem.current
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
-    val listaAtivosAgrupados by viewModel.investimentosAgrupados.collectAsState()
+    val ativosCarregados by viewModel.investimentosAgrupados.collectAsState()
+    val listaAtivosAgrupados = ativosCarregados ?: emptyList()
     val patrimonioTotal = listaAtivosAgrupados.sumOf { it.valorTotal }
 
     var categoriaFiltro by remember { mutableStateOf("Todas") }
@@ -139,7 +133,6 @@ fun InvestimentoScreen(
 
     val sheetStateAporte = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val sheetStateResgate = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val sheetStateExcluir = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var aporteParaExcluir by remember { mutableStateOf<AporteParaExcluir?>(null) }
 
     var novoNome by remember { mutableStateOf("") }
@@ -290,31 +283,12 @@ fun InvestimentoScreen(
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            if (ativosFiltrados.isEmpty()) {
+            if (ativosCarregados != null && ativosFiltrados.isEmpty()) {
                 item {
-                    Card(
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                Icons.Filled.Savings,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                modifier = Modifier.size(40.dp)
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                "Nenhum investimento registrado nesta categoria.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                    EstadoVazio(
+                        icone = Icons.Filled.Savings,
+                        mensagem = "Nenhum investimento registrado nesta categoria."
+                    )
                 }
             } else {
                 items(ativosFiltrados) { ativo ->
@@ -324,7 +298,6 @@ fun InvestimentoScreen(
                     Card(
                         shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 5.dp)
@@ -429,7 +402,8 @@ fun InvestimentoScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
-                                        Button(
+                                        BotaoPrincipal(
+                                            texto = "Aporte",
                                             onClick = {
                                                 novoNome = ativo.nome
                                                 novaCategoria = ativo.categoria
@@ -437,29 +411,23 @@ fun InvestimentoScreen(
                                                 dataSelecionada = LocalDate.now()
                                                 mostrarSheetNovoAporte = true
                                             },
-                                            modifier = Modifier.weight(1f).heightIn(min = 42.dp),
-                                            shape = RoundedCornerShape(12.dp),
-                                            colors = ButtonDefaults.buttonColors(containerColor = AmareloInvestimento)
-                                        ) {
-                                            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Aporte", fontWeight = FontWeight.Bold)
-                                        }
+                                            modifier = Modifier.weight(1f),
+                                            cor = AmareloInvestimento,
+                                            corConteudo = Color.White,
+                                            icone = Icons.Filled.Add
+                                        )
 
-                                        OutlinedButton(
+                                        BotaoSecundario(
+                                            texto = "Resgatar",
                                             onClick = {
                                                 ativoParaAporteOuResgate = ativo
                                                 valorResgateInput = ""
                                                 mostrarSheetResgate = true
                                             },
-                                            modifier = Modifier.weight(1f).heightIn(min = 42.dp),
-                                            shape = RoundedCornerShape(12.dp),
-                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Coral)
-                                        ) {
-                                            Icon(Icons.Filled.Remove, contentDescription = null, modifier = Modifier.size(16.dp))
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Resgatar", fontWeight = FontWeight.Bold)
-                                        }
+                                            modifier = Modifier.weight(1f),
+                                            cor = MaterialTheme.cores.textoGasto,
+                                            icone = Icons.Filled.Remove
+                                        )
                                     }
 
                                     Spacer(modifier = Modifier.height(16.dp))
@@ -498,13 +466,13 @@ fun InvestimentoScreen(
                                                                     confirmar = { viewModel.deletarAporte(aporte) }
                                                                 )
                                                             },
-                                                            modifier = Modifier.size(28.dp)
+                                                            modifier = Modifier.size(Tamanho.toque)
                                                         ) {
                                                             Icon(
                                                                 Icons.Filled.DeleteOutline,
-                                                                contentDescription = "Eliminar",
-                                                                tint = Coral,
-                                                                modifier = Modifier.size(16.dp)
+                                                                contentDescription = "Excluir aporte",
+                                                                tint = MaterialTheme.cores.textoGasto,
+                                                                modifier = Modifier.size(Tamanho.icone)
                                                             )
                                                         }
                                                     }
@@ -521,121 +489,40 @@ fun InvestimentoScreen(
         }
 
         aporteParaExcluir?.let { pendente ->
-            ModalBottomSheet(
-                onDismissRequest = { aporteParaExcluir = null },
-                sheetState = sheetStateExcluir,
-                containerColor = MaterialTheme.colorScheme.surface,
-                dragHandle = { BottomSheetDefaults.DragHandle() },
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                contentWindowInsets = { WindowInsets.statusBars }
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .imePadding()
-                        .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .background(Coral.copy(alpha = 0.14f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Filled.DeleteOutline,
-                            contentDescription = null,
-                            tint = Coral,
-                            modifier = Modifier.size(28.dp)
+            ConfirmarAcaoSheet(
+                titulo = "Excluir aporte?",
+                texto = "Esta ação não pode ser desfeita e o valor será removido do patrimônio.",
+                textoConfirmar = "Excluir",
+                onConfirmar = {
+                    pendente.confirmar()
+                    mensagem("Aporte removido!")
+                },
+                onDismiss = { aporteParaExcluir = null },
+                resumo = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                pendente.nomeAtivo,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                "Aporte de ${pendente.data.format(formatoData)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Text(
+                            formatoMoeda.format(pendente.valor),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = AmareloInvestimento
                         )
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        "Excluir aporte?",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        "Esta ação não pode ser desfeita e o valor será removido do patrimônio.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    pendente.nomeAtivo,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    "Aporte de ${pendente.data.format(formatoData)}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Text(
-                                formatoMoeda.format(pendente.valor),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = AmareloInvestimento
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = { aporteParaExcluir = null },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(52.dp),
-                            shape = RoundedCornerShape(20.dp)
-                        ) {
-                            Text("Cancelar", fontWeight = FontWeight.Bold)
-                        }
-                        Button(
-                            onClick = {
-                                pendente.confirmar()
-                                aporteParaExcluir = null
-                                Toast.makeText(context, "Aporte removido!", Toast.LENGTH_SHORT).show()
-                            },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(52.dp),
-                            shape = RoundedCornerShape(20.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Coral,
-                                contentColor = Color.White
-                            )
-                        ) {
-                            Text("Excluir", fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
-            }
+            )
         }
 
         if (mostrarSheetResgate && ativoParaAporteOuResgate != null) {
@@ -692,7 +579,7 @@ fun InvestimentoScreen(
                                     val valorCalc = valorTotalAtivo * perc
                                     valorResgateInput = String.format(Locale.ROOT, "%.2f", valorCalc)
                                 },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.weight(1f).heightIn(min = Tamanho.toque),
                                 shape = RoundedCornerShape(10.dp)
                             ) {
                                 Text(label, style = MaterialTheme.typography.labelSmall)
@@ -714,47 +601,25 @@ fun InvestimentoScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    Button(
+                    BotaoPrincipal(
+                        texto = "Confirmar Resgate",
                         onClick = {
                             val valorResgate = valorResgateInput.replace(",", ".").toDoubleOrNull() ?: 0.0
                             if (valorResgate > 0) {
                                 if (valorResgate > valorTotalAtivo) {
-                                    Toast.makeText(context, "Valor superior ao saldo do ativo!", Toast.LENGTH_SHORT).show()
+                                    mensagem("Valor superior ao saldo do ativo!")
                                 } else {
                                     viewModel.resgatarDoAtivo(ativo.aportes, valorResgate)
                                     mostrarSheetResgate = false
-                                    Toast.makeText(context, "Resgate efetuado com sucesso!", Toast.LENGTH_SHORT).show()
+                                    mensagem("Resgate efetuado com sucesso!")
                                 }
                             }
                         },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
-                            .height(52.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Coral,
-                            contentColor = Color.White
-                        ),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Confirmar Resgate",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            )
-                        }
-                    }
+                        modifier = Modifier.fillMaxWidth(),
+                        cor = Coral,
+                        corConteudo = Color.White,
+                        icone = Icons.Filled.Check
+                    )
                 }
             }
         }
@@ -873,7 +738,8 @@ fun InvestimentoScreen(
 
                     Spacer(modifier = Modifier.height(28.dp))
 
-                    Button(
+                    BotaoPrincipal(
+                        texto = "Salvar Aporte",
                         onClick = {
                             val valorDouble = novoValor.replace(",", ".").toDoubleOrNull() ?: 0.0
                             if (novoNome.isNotBlank() && valorDouble > 0) {
@@ -884,37 +750,14 @@ fun InvestimentoScreen(
                                     dataAporte = dataSelecionada
                                 )
                                 mostrarSheetNovoAporte = false
-                                Toast.makeText(context, "Aporte guardado com sucesso!", Toast.LENGTH_SHORT).show()
+                                mensagem("Aporte guardado com sucesso!")
                             }
                         },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
-                            .height(52.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = AmareloInvestimento,
-                            contentColor = Color.White
-                        ),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Salvar Aporte",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            )
-                        }
-                    }
+                        modifier = Modifier.fillMaxWidth(),
+                        cor = AmareloInvestimento,
+                        corConteudo = Color.White,
+                        icone = Icons.Filled.Check
+                    )
                 }
             }
         }

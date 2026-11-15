@@ -3,7 +3,6 @@ package com.example.financacelular.ui
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,25 +29,24 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -56,21 +54,22 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.DespesaRecorrente
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.ui.theme.Coral
+import com.example.financacelular.ui.theme.LilasRecorrente
 import com.example.financacelular.ui.theme.Verde
+import com.example.financacelular.ui.theme.cores
 import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 
-private val LilasRecorrente = Color(0xFFB07CE8)
-
 @Composable
 fun RecorrenteScreen(
     viewModel: RecorrenteViewModel = viewModel(),
     aoVoltar: (() -> Unit)? = null
 ) {
-    val recorrentes by viewModel.recorrentes.collectAsState(initial = emptyList())
+    val recorrentesCarregados by viewModel.recorrentes.collectAsState()
+    val recorrentes = recorrentesCarregados.orEmpty()
     val cartoes by viewModel.cartoes.collectAsState()
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
 
@@ -128,20 +127,13 @@ fun RecorrenteScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
 
-        if (recorrentes.isEmpty()) {
-            item {
-                Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        "Nenhum item recorrente cadastrado.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(24.dp)
-                    )
-                }
+        if (recorrentesCarregados?.isEmpty() == true) {
+            item(key = "vazio") {
+                EstadoVazio(
+                    icone = Icons.Filled.Repeat,
+                    mensagem = "Nenhum item recorrente cadastrado.",
+                    modifier = Modifier.animateItem()
+                )
             }
         }
 
@@ -151,13 +143,14 @@ fun RecorrenteScreen(
                     "Ganhos Recorrentes",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Verde
+                    color = MaterialTheme.cores.textoGanho
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            items(receitasRecorrentes) { item ->
+            items(receitasRecorrentes, key = { it.id }) { item ->
                 ItemRecorrenteCard(
+                    modifier = Modifier.animateItem(),
                     item = item,
                     formatoMoeda = formatoMoeda,
                     corTema = Verde,
@@ -174,13 +167,14 @@ fun RecorrenteScreen(
                     "Cobranças e Assinaturas",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Coral
+                    color = MaterialTheme.cores.textoGasto
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            items(despesasRecorrentes) { item ->
+            items(despesasRecorrentes, key = { it.id }) { item ->
                 ItemRecorrenteCard(
+                    modifier = Modifier.animateItem(),
                     item = item,
                     formatoMoeda = formatoMoeda,
                     corTema = Coral,
@@ -200,9 +194,12 @@ fun ItemRecorrenteCard(
     corTema: Color,
     subtitulo: String,
     onCancelar: () -> Unit,
+    modifier: Modifier = Modifier,
     cartaoNome: String? = null
 ) {
-    var expandido by remember { mutableStateOf(false) }
+    var expandido by rememberSaveable { mutableStateOf(false) }
+    var confirmarExclusao by rememberSaveable { mutableStateOf(false) }
+    val corTexto = if (item.tipo == TipoTransacao.RECEITA) MaterialTheme.cores.textoGanho else MaterialTheme.cores.textoGasto
 
     val hoje = remember { LocalDate.now() }
 
@@ -229,12 +226,11 @@ fun ItemRecorrenteCard(
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 5.dp)
             .clip(RoundedCornerShape(20.dp))
-            .clickable { expandido = !expandido }
+            .clickable(role = Role.Button) { expandido = !expandido }
     ) {
         Column(
             modifier = Modifier
@@ -278,13 +274,13 @@ fun ItemRecorrenteCard(
                         formatoMoeda.format(item.valor),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = corTema,
+                        color = corTexto,
                         maxLines = 1
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Icon(
                         imageVector = if (expandido) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                        contentDescription = "Expandir detalhes",
+                        contentDescription = if (expandido) "Recolher detalhes" else "Expandir detalhes",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -321,7 +317,7 @@ fun ItemRecorrenteCard(
                         Column(horizontalAlignment = Alignment.End) {
                             Text("Status", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(tempoAtivoTexto, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = Verde)
+                            Text(tempoAtivoTexto, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.cores.textoGanho)
                         }
                     }
 
@@ -337,25 +333,29 @@ fun ItemRecorrenteCard(
                             text = formatoMoeda.format(totalJaPago),
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold,
-                            color = corTema
+                            color = corTexto
                         )
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    OutlinedButton(
-                        onClick = onCancelar,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = Coral
-                        ),
-                        border = BorderStroke(1.dp, Coral.copy(alpha = 0.5f)),
-                        modifier = Modifier.fillMaxWidth().height(42.dp)
-                    ) {
-                        Icon(Icons.Filled.DeleteOutline, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Cancelar Recorrência", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    if (confirmarExclusao) {
+                        ConfirmarAcaoSheet(
+                            titulo = "Cancelar recorrência?",
+                            texto = "\"${item.nome}\" deixará de ser lançado nos próximos meses.",
+                            textoConfirmar = "Cancelar recorrência",
+                            onConfirmar = onCancelar,
+                            onDismiss = { confirmarExclusao = false }
+                        )
                     }
+
+                    BotaoSecundario(
+                        texto = "Cancelar Recorrência",
+                        onClick = { confirmarExclusao = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        cor = MaterialTheme.cores.textoGasto,
+                        icone = Icons.Filled.DeleteOutline
+                    )
                 }
             }
         }

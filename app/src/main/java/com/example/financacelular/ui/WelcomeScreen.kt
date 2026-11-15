@@ -26,7 +26,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.financacelular.ui.theme.Verde
 
 @Composable
 fun WelcomeScreen(
@@ -114,21 +113,18 @@ fun WelcomeScreen(
             )
         }
 
-        Button(
+        BotaoPrincipal(
+            texto = "Entrar com Google e Sincronizar",
             onClick = {
                 if (nomeInput.isNotBlank()) {
                     viewModel.definirNomeUtilizador(nomeInput)
                 }
                 activity?.let { viewModel.sincronizarOuEntrarGoogle(it) }
             },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Verde)
-        ) {
-            Icon(Icons.Filled.CloudSync, contentDescription = null, modifier = Modifier.size(22.dp))
-            Spacer(modifier = Modifier.width(10.dp))
-            Text("Entrar com Google e Sincronizar", fontWeight = FontWeight.Bold)
-        }
+            modifier = Modifier.fillMaxWidth(),
+            cor = MaterialTheme.colorScheme.primary,
+            icone = Icons.Filled.CloudSync
+        )
         Spacer(modifier = Modifier.height(24.dp))
         TextButton(
             onClick = {

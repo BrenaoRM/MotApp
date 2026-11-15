@@ -151,7 +151,7 @@ private fun montarItensCalendario(
 class CalendarioViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: FinancaRepository = FinancaRepository.getInstance(AppDatabase.getInstance(application))
 
-    val transacoesCalendario: StateFlow<List<ItemCalendario>> = combine(
+    val transacoesCalendario: StateFlow<List<ItemCalendario>?> = combine(
         repository.listarTransacoes(),
         repository.listarTodosCartoes(),
         repository.listarCategorias()
@@ -159,13 +159,13 @@ class CalendarioViewModel(application: Application) : AndroidViewModel(applicati
         montarItensCalendario(transacoes, cartoes, categorias)
     }
         .flowOn(Dispatchers.Default)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null) // null = carregando
 
     val categorias = repository.listarCategorias()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val afazeres = repository.listarAfazeres()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val afazeres: StateFlow<List<AfazerEntity>?> = repository.listarAfazeres()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null) // null = carregando
 
     private val _eventosGoogle = MutableStateFlow<List<EventoGoogleAgenda>>(emptyList())
     val eventosGoogle: StateFlow<List<EventoGoogleAgenda>> = _eventosGoogle

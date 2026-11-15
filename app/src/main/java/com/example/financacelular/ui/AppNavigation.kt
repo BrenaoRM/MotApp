@@ -1,7 +1,7 @@
 package com.example.financacelular.ui
 
+import androidx.compose.runtime.DisposableEffect
 import android.content.Intent
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -60,8 +60,6 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -70,14 +68,20 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -109,17 +113,16 @@ import androidx.navigation.navArgument
 import com.example.financacelular.data.AtualizacaoDisponivel
 import com.example.financacelular.data.AtualizacaoService
 import com.example.financacelular.data.TipoTransacao
+import com.example.financacelular.ui.theme.AmareloInvestimento
+import com.example.financacelular.ui.theme.AuroraIndigo
+import com.example.financacelular.ui.theme.AzulAgenda
+import com.example.financacelular.ui.theme.AzulAgendaClaro
+import com.example.financacelular.ui.theme.AzulCartao
 import com.example.financacelular.ui.theme.Coral
+import com.example.financacelular.ui.theme.RoxoMeta
+import com.example.financacelular.ui.theme.RoxoMetaEscuro
 import com.example.financacelular.ui.theme.Verde
-
-private val AmareloInvestimento = Color(0xFFF2A93B)
-private val AzulAgenda = Color(0xFF3B82F6)
-private val AzulAgendaClaro = Color(0xFF7EA6F7)
-private val RoxoMeta = Color(0xFF8B5CF6)
-private val RoxoMetaEscuro = Color(0xFF6D3FD6)
-private val AuroraVioleta = Color(0xFF8B5CF6)
-private val AuroraIndigo = Color(0xFF6366F1)
-private val AuroraAzul = Color(0xFF3B82F6)
+import kotlinx.coroutines.launch
 
 private fun tomClaro(cor: Color, mistura: Float = 0.35f) = lerp(cor, Color.White, mistura)
 
@@ -160,29 +163,53 @@ private const val ROTA_CARTAO = "cartao"
 private const val ROTA_EXTRATO = "extrato"
 private const val ROTA_INVESTIMENTO = "investimento"
 private const val ROTA_CONFIGURACOES = "configuracoes"
+private const val ROTA_PARCELADOS = "parcelados"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     val navController = rememberNavController()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val mensagem: (String) -> Unit = remember(snackbarHostState, scope) {
+        { texto ->
+            scope.launch {
+                snackbarHostState.currentSnackbarData?.dismiss()
+                snackbarHostState.showSnackbar(texto)
+            }
+            Unit
+        }
+    }
 
     if (!configuracoesViewModel.completouBoasVindas) {
-        WelcomeScreen(
-            viewModel = configuracoesViewModel,
-            aoConcluir = {
-                configuracoesViewModel.marcarBoasVindasComoConcluida()
+        CompositionLocalProvider(LocalMensagem provides mensagem) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                WelcomeScreen(
+                    viewModel = configuracoesViewModel,
+                    aoConcluir = {
+                        configuracoesViewModel.marcarBoasVindasComoConcluida()
+                    }
+                )
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                )
             }
-        )
+        }
         return
     }
 
-    var isFabExpanded by remember { mutableStateOf(false) }
-    var acionarNovoInvestimento by remember { mutableStateOf(false) }
-    var acionarNovaAgenda by remember { mutableStateOf(false) }
-    var acionarNovaMeta by remember { mutableStateOf(false) }
-    var acionarGuardarValorMeta by remember { mutableStateOf(false) }
-    var acionarNovoLimiteOrcamento by remember { mutableStateOf(false) }
-    var textoPesquisaExtrato by remember { mutableStateOf("") }
+    var isFabExpanded by rememberSaveable { mutableStateOf(false) }
+    var acionarNovoInvestimento by rememberSaveable { mutableStateOf(false) }
+    var acionarNovaAgenda by rememberSaveable { mutableStateOf(false) }
+    var acionarNovaMeta by rememberSaveable { mutableStateOf(false) }
+    var acionarGuardarValorMeta by rememberSaveable { mutableStateOf(false) }
+    var acionarNovoLimiteOrcamento by rememberSaveable { mutableStateOf(false) }
+    var textoPesquisaExtrato by rememberSaveable { mutableStateOf("") }
+    // ViewModel do Cartão exposto à barra inferior (evita buscá-lo na entrada atual, que pode ser outra durante a transição)
+    var cartaoViewModelBarra by remember { mutableStateOf<CartaoViewModel?>(null) }
     var atualizacaoDisponivel by remember { mutableStateOf<AtualizacaoDisponivel?>(null) }
 
     val context = LocalContext.current
@@ -221,7 +248,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     val emTelaMetas = currentDestination?.route == ROTA_METAS
     val emTelaExtrato = currentDestination?.route == ROTA_EXTRATO
     val emTelaCartao = currentDestination?.route == ROTA_CARTAO
-    val emTelaParcelados = currentDestination?.route == "parcelados"
+    val emTelaParcelados = currentDestination?.route == ROTA_PARCELADOS
     val emTelaRecorrentes = currentDestination?.route == ROTA_RECORRENTES
     val emTelaOrcamento = currentDestination?.route == ROTA_ORCAMENTO
 
@@ -243,8 +270,10 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
         label = "corBaseDegrade"
     )
 
+    CompositionLocalProvider(LocalMensagem provides mensagem) {
     @Suppress("UnusedMaterial3ScaffoldPaddingParameter")
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             if (!emTelaDeFormulario) {
                 Box(
@@ -285,36 +314,14 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                         .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Button(
+                                    BotaoPrincipal(
+                                        texto = "Novo Aporte",
                                         onClick = { acionarNovoInvestimento = true },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
-                                            .height(52.dp),
-                                        shape = RoundedCornerShape(20.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = AmareloInvestimento,
-                                            contentColor = Color.White
-                                        ),
-                                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.Add,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(
-                                                text = "Novo Aporte",
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 16.sp
-                                            )
-                                        }
-                                    }
+                                        modifier = Modifier.fillMaxWidth(),
+                                        cor = AmareloInvestimento,
+                                        corConteudo = Color.White,
+                                        icone = Icons.Filled.Add
+                                    )
                                 }
                             }
                             ModoBarraInferior.EXTRATO -> {
@@ -365,94 +372,49 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                 }
                             }
                             ModoBarraInferior.CARTAO -> {
-                                val cartaoViewModel: CartaoViewModel = viewModel(
-                                    checkNotNull(navBackStackEntry)
-                                )
-                                val faturaPaga by cartaoViewModel.faturaPaga.collectAsState()
-                                val podePagar by cartaoViewModel.podePagarFatura.collectAsState()
-                                val naPaginaAdicionar by cartaoViewModel.naPaginaAdicionar.collectAsState()
+                                // Ver cartaoViewModelBarra: não usar a entrada atual aqui (pode não ser a do Cartão durante a transição)
+                                val cartaoViewModel = cartaoViewModelBarra
+                                if (cartaoViewModel != null) {
+                                    val faturaPaga by cartaoViewModel.faturaPaga.collectAsState()
+                                    val podePagar by cartaoViewModel.podePagarFatura.collectAsState()
+                                    val naPaginaAdicionar by cartaoViewModel.naPaginaAdicionar.collectAsState()
 
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .navigationBarsPadding()
-                                        .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (naPaginaAdicionar) {
-                                        Button(
-                                            onClick = { cartaoViewModel.solicitarAdicionarCartao() },
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
-                                                .height(52.dp),
-                                            shape = RoundedCornerShape(20.dp),
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = Color(0xFF5B8DEF),
-                                                contentColor = Color.White
-                                            ),
-                                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.Center
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Filled.Add,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(20.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text(
-                                                    text = "Adicionar Cartão",
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 16.sp
-                                                )
-                                            }
-                                        }
-                                    } else {
-                                        Button(
-                                            onClick = {
-                                                if (!faturaPaga) {
-                                                    cartaoViewModel.pagarFatura {
-                                                        Toast.makeText(context, "Fatura paga e descontada do saldo!", Toast.LENGTH_SHORT).show()
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .navigationBarsPadding()
+                                            .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (naPaginaAdicionar) {
+                                            BotaoPrincipal(
+                                                texto = "Adicionar Cartão",
+                                                onClick = { cartaoViewModel.solicitarAdicionarCartao() },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                cor = AzulCartao,
+                                                corConteudo = Color.White,
+                                                icone = Icons.Filled.Add
+                                            )
+                                        } else {
+                                            BotaoPrincipal(
+                                                texto = if (!faturaPaga) "Pagar Fatura" else "Cancelar Pagamento da Fatura",
+                                                onClick = {
+                                                    if (!faturaPaga) {
+                                                        cartaoViewModel.pagarFatura {
+                                                            mensagem("Fatura paga e descontada do saldo!")
+                                                        }
+                                                    } else {
+                                                        cartaoViewModel.cancelarPagamentoFatura {
+                                                            mensagem("Pagamento cancelado com sucesso.")
+                                                        }
                                                     }
-                                                } else {
-                                                    cartaoViewModel.cancelarPagamentoFatura {
-                                                        Toast.makeText(context, "Pagamento cancelado com sucesso.", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
-                                            },
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
-                                                .height(52.dp),
-                                            shape = RoundedCornerShape(20.dp),
-                                            enabled = podePagar,
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = if (!faturaPaga) Verde else Coral,
-                                                contentColor = Color.White,
-                                                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                            ),
-                                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.Center
-                                            ) {
-                                                Icon(
-                                                    imageVector = if (!faturaPaga) Icons.Filled.CheckCircle else Icons.AutoMirrored.Filled.Undo,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(20.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text(
-                                                    text = if (!faturaPaga) "Pagar Fatura" else "Cancelar Pagamento da Fatura",
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 16.sp
-                                                )
-                                            }
+                                                },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                cor = if (!faturaPaga) Verde else Coral,
+                                                corConteudo = Color.White,
+                                                icone = if (!faturaPaga) Icons.Filled.CheckCircle else Icons.AutoMirrored.Filled.Undo,
+                                                enabled = podePagar
+                                            )
                                         }
                                     }
                                 }
@@ -465,40 +427,16 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                         .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Button(
+                                    BotaoPrincipal(
+                                        texto = "Novo Parcelamento",
                                         onClick = {
                                             navController.navigate("nova_transacao?tipo=DESPESA&parcelado=true") {
                                                 launchSingleTop = true
                                             }
                                         },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
-                                            .height(52.dp),
-                                        shape = RoundedCornerShape(20.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.primary,
-                                            contentColor = Color.White
-                                        ),
-                                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.Add,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(
-                                                text = "Novo Parcelamento",
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 16.sp
-                                            )
-                                        }
-                                    }
+                                        modifier = Modifier.fillMaxWidth(),
+                                        icone = Icons.Filled.Add
+                                    )
                                 }
                             }
                             ModoBarraInferior.RECORRENTES -> {
@@ -509,40 +447,16 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                         .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Button(
+                                    BotaoPrincipal(
+                                        texto = "Nova Recorrência",
                                         onClick = {
                                             navController.navigate("nova_transacao?tipo=DESPESA&recorrente=true") {
                                                 launchSingleTop = true
                                             }
                                         },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
-                                            .height(52.dp),
-                                        shape = RoundedCornerShape(20.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.primary,
-                                            contentColor = Color.White
-                                        ),
-                                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.Add,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(
-                                                text = "Nova Recorrência",
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 16.sp
-                                            )
-                                        }
-                                    }
+                                        modifier = Modifier.fillMaxWidth(),
+                                        icone = Icons.Filled.Add
+                                    )
                                 }
                             }
                             ModoBarraInferior.META -> {
@@ -556,7 +470,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
                                             .clip(RoundedCornerShape(20.dp))
                                             .height(52.dp)
                                     ) {
@@ -609,36 +522,12 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                         .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Button(
+                                    BotaoPrincipal(
+                                        texto = "Definir Limite",
                                         onClick = { acionarNovoLimiteOrcamento = true },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .shadow(elevation = 16.dp, shape = RoundedCornerShape(20.dp))
-                                            .height(52.dp),
-                                        shape = RoundedCornerShape(20.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.primary,
-                                            contentColor = Color.White
-                                        ),
-                                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.PieChart,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(
-                                                text = "Definir Limite",
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 16.sp
-                                            )
-                                        }
-                                    }
+                                        modifier = Modifier.fillMaxWidth(),
+                                        icone = Icons.Filled.PieChart
+                                    )
                                 }
                             }
                             ModoBarraInferior.PADRAO -> {
@@ -676,12 +565,12 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                                 val selecionado = currentDestination?.hierarchy?.any { it.route == destino.rota } == true
                                                 val indicatorScaleX by animateFloatAsState(
                                                     targetValue = if (selecionado) 1.35f else 0f,
-                                                    animationSpec = spring(dampingRatio = 0.3f, stiffness = 500f),
+                                                    animationSpec = spring(dampingRatio = 0.7f, stiffness = 500f),
                                                     label = "indicatorScaleX"
                                                 )
                                                 val indicatorScaleY by animateFloatAsState(
                                                     targetValue = if (selecionado) 1.15f else 0f,
-                                                    animationSpec = spring(dampingRatio = 0.35f, stiffness = 450f),
+                                                    animationSpec = spring(dampingRatio = 0.7f, stiffness = 450f),
                                                     label = "indicatorScaleY"
                                                 )
                                                 val indicatorAlpha by animateFloatAsState(
@@ -692,18 +581,15 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
 
                                                 Box(
                                                     modifier = Modifier
-                                                        .size(44.dp)
+                                                        .size(48.dp)
                                                         .clip(CircleShape)
-                                                        .clickable(
-                                                            interactionSource = remember { MutableInteractionSource() },
-                                                            indication = null
-                                                        ) {
+                                                        .clickable {
                                                             isFabExpanded = false
                                                             if (!selecionado) {
                                                                 navController.navigate(destino.rota) {
-                                                                    popUpTo(navController.graph.startDestinationId) { saveState = false }
+                                                                    popUpTo(navController.graph.startDestinationId) { saveState = true }
                                                                     launchSingleTop = true
-                                                                    restoreState = false
+                                                                    restoreState = true
                                                                 }
                                                             }
                                                         },
@@ -721,7 +607,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                                                 .shadow(elevation = 3.dp, shape = CircleShape)
                                                                 .background(
                                                                     brush = Brush.linearGradient(
-                                                                        colors = listOf(AuroraVioleta, AuroraIndigo, AuroraAzul)
+                                                                        colors = listOf(RoxoMeta, AuroraIndigo, AzulAgenda)
                                                                     ),
                                                                     shape = CircleShape
                                                                 )
@@ -786,7 +672,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                             emTelaCalendario -> AzulAgenda
                                             else -> corPadrao
                                         },
-                                        animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing),
+                                        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
                                         label = "gradiente1"
                                     )
 
@@ -795,13 +681,13 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                             emTelaCalendario -> AzulAgendaClaro
                                             else -> corPadraoClara
                                         },
-                                        animationSpec = tween(durationMillis = 1100, easing = LinearOutSlowInEasing),
+                                        animationSpec = tween(durationMillis = 300, easing = LinearOutSlowInEasing),
                                         label = "gradiente2"
                                     )
 
                                     val rotacaoIcone by animateFloatAsState(
                                         targetValue = if (emTelaCalendario) 180f else 0f,
-                                        animationSpec = spring(dampingRatio = 0.6f, stiffness = 150f),
+                                        animationSpec = spring(dampingRatio = 0.7f, stiffness = 150f),
                                         label = "rotacaoIcone"
                                     )
 
@@ -948,7 +834,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         aoAbrirInvestimento = { navController.navigate(ROTA_INVESTIMENTO) },
                         aoAbrirCartao = { navController.navigate(ROTA_CARTAO) },
                         aoAbrirAssinaturas = { navController.navigate(ROTA_RECORRENTES) },
-                        aoAbrirParcelados = { navController.navigate("parcelados") },
+                        aoAbrirParcelados = { navController.navigate(ROTA_PARCELADOS) },
                         aoAbrirOrcamento = { navController.navigate(ROTA_ORCAMENTO) },
                         aoAbrirMetas = { navController.navigate(ROTA_METAS) }
                     )
@@ -1013,6 +899,10 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                 }
                 composable(ROTA_CARTAO) { backStackEntry ->
                     val cartaoViewModel: CartaoViewModel = viewModel(backStackEntry)
+                    SideEffect { cartaoViewModelBarra = cartaoViewModel }
+                    DisposableEffect(cartaoViewModel) {
+                        onDispose { if (cartaoViewModelBarra === cartaoViewModel) cartaoViewModelBarra = null }
+                    }
                     CartaoScreen(
                         viewModel = cartaoViewModel,
                         aoVoltar = { navController.popBackStack() }
@@ -1031,7 +921,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         aoVoltar = { navController.popBackStack() }
                     )
                 }
-                composable("parcelados") {
+                composable(ROTA_PARCELADOS) {
                     ParceladosScreen(aoVoltar = { navController.popBackStack() })
                 }
             }
@@ -1053,9 +943,10 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
             }
         }
     }
+    }
 
     atualizacaoDisponivel?.let { atualizacao ->
-        AtualizacaoDialog(
+        AtualizacaoSheet(
             atualizacao = atualizacao,
             aoAbrirNavegador = {
                 val urlParaAbrir = atualizacao.urlApk.ifBlank { atualizacao.urlPagina }
