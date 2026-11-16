@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Contrast
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
@@ -47,7 +48,8 @@ private data class OpcaoDeTema(
 private val OpcoesDeTema = listOf(
     OpcaoDeTema(TemaPreferencia.SISTEMA, "Sistema", Icons.Filled.SettingsBrightness),
     OpcaoDeTema(TemaPreferencia.CLARO, "Claro", Icons.Filled.LightMode),
-    OpcaoDeTema(TemaPreferencia.ESCURO, "Escuro", Icons.Filled.DarkMode)
+    OpcaoDeTema(TemaPreferencia.ESCURO, "Escuro", Icons.Filled.DarkMode),
+    OpcaoDeTema(TemaPreferencia.AMOLED, "AMOLED", Icons.Filled.Contrast)
 )
 
 private tailrec fun Context.encontrarActivity(): Activity = when (this) {

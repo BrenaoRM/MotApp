@@ -75,7 +75,7 @@ class MainActivity : ComponentActivity() {
             val temaEscuroSistema = isSystemInDarkTheme()
             val temaEscuro = when (configuracoesViewModel.temaAtual) {
                 TemaPreferencia.CLARO -> false
-                TemaPreferencia.ESCURO -> true
+                TemaPreferencia.ESCURO, TemaPreferencia.AMOLED -> true
                 TemaPreferencia.SISTEMA -> temaEscuroSistema
             }
 
@@ -96,7 +96,10 @@ class MainActivity : ComponentActivity() {
                 onDispose { }
             }
 
-            FinanceAPPTheme(darkTheme = temaEscuro) {
+            FinanceAPPTheme(
+                darkTheme = temaEscuro,
+                amoled = configuracoesViewModel.temaAtual == TemaPreferencia.AMOLED
+            ) {
                 ProvideResponsiveDensity {
                     AppNavigation(configuracoesViewModel = configuracoesViewModel)
                 }

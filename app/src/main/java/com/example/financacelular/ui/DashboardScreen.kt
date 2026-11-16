@@ -3,6 +3,17 @@ package com.example.financacelular.ui
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -93,6 +104,7 @@ fun DashboardScreen(
     val mesSelecionado by viewModel.mesSelecionado.collectAsState()
     val resumoDoMes by viewModel.resumoDoMes.collectAsState()
     val totalInvestido by viewModel.totalInvestidoDoMes.collectAsState()
+    val serieDoMes by viewModel.serieDoMes.collectAsState()
 
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
     val saldo = totalReceitas - totalDespesas
@@ -211,39 +223,56 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // ---------------- CARTÃO PRINCIPAL (PROJEÇÃO) ----------------
+                val amoled = MaterialTheme.cores.amoled
+                val formaHero = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius))
-                        .background(Brush.linearGradient(colors = listOf(corHero1, corHero2)))
+                        .clip(formaHero)
+                        .then(
+                            if (amoled) {
+                                // Cartão escuro com borda fina e brilho violeta vindo do canto inferior direito
+                                Modifier
+                                    .background(Color(0xFF0A0A0D))
+                                    .drawBehind {
+                                        drawRect(
+                                            Brush.radialGradient(
+                                                colors = listOf(
+                                                    corHero1.copy(alpha = 0.75f),
+                                                    corHero1.copy(alpha = 0.25f),
+                                                    Color.Transparent
+                                                ),
+                                                center = Offset(size.width * 0.92f, size.height * 1.05f),
+                                                radius = size.width * 0.95f
+                                            )
+                                        )
+                                    }
+                                    .border(1.dp, MaterialTheme.colorScheme.outline, formaHero)
+                            } else {
+                                Modifier.background(Brush.linearGradient(colors = listOf(corHero1, corHero2)))
+                            }
+                        )
                 ) {
-                    // Círculos decorativos
-                    Box(
-                        modifier = Modifier
-                            .size(200.dp)
-                            .align(Alignment.TopEnd)
-                            .offset(x = 70.dp, y = (-70).dp)
-                            .background(Color.White.copy(alpha = 0.08f), CircleShape)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(140.dp)
-                            .align(Alignment.BottomStart)
-                            .offset(x = (-50).dp, y = 60.dp)
-                            .background(Color.White.copy(alpha = 0.06f), CircleShape)
-                    )
+                    if (!amoled) {
+                        // Círculos decorativos
+                        Box(
+                            modifier = Modifier
+                                .size(200.dp)
+                                .align(Alignment.TopEnd)
+                                .offset(x = 70.dp, y = (-70).dp)
+                                .background(Color.White.copy(alpha = 0.08f), CircleShape)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(140.dp)
+                                .align(Alignment.BottomStart)
+                                .offset(x = (-50).dp, y = 60.dp)
+                                .background(Color.White.copy(alpha = 0.06f), CircleShape)
+                        )
+                    }
 
                     Column(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                "PROJEÇÃO DO MÊS",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White.copy(alpha = 0.8f)
-                            )
+                        val botaoOlho: @Composable () -> Unit = {
                             IconButton(
                                 onClick = { saldoVisivel = !saldoVisivel },
                                 modifier = Modifier.size(Tamanho.toque)
@@ -255,17 +284,81 @@ fun DashboardScreen(
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
-                            Spacer(modifier = Modifier.weight(1f))
-                            SeloSaude(saudavel = saldo >= 0)
                         }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            if (saldoVisivel) formatoMoeda.format(saldo) else "R$ ••••••",
-                            style = MaterialTheme.typography.displayMedium,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White,
-                            maxLines = 1
-                        )
+                        if (!amoled) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "PROJEÇÃO DO MÊS",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White.copy(alpha = 0.8f)
+                                )
+                                botaoOlho()
+                                Spacer(modifier = Modifier.weight(1f))
+                                SeloSaude(saudavel = saldo >= 0)
+                            }
+                        }
+                        if (!amoled) Spacer(modifier = Modifier.height(6.dp))
+                        val textoSaldo = if (saldoVisivel) formatoMoeda.format(saldo) else "R$ ••••••"
+                        val posVirgula = textoSaldo.lastIndexOf(',')
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                // No AMOLED os centavos ficam esmaecidos, como na referência
+                                if (amoled && posVirgula > 0) buildAnnotatedString {
+                                    append(textoSaldo.substring(0, posVirgula))
+                                    withStyle(SpanStyle(color = Color.White.copy(alpha = 0.55f))) {
+                                        append(textoSaldo.substring(posVirgula))
+                                    }
+                                } else AnnotatedString(textoSaldo),
+                                style = MaterialTheme.typography.displayMedium,
+                                fontSize = if (amoled) 28.sp else TextUnit.Unspecified,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White,
+                                maxLines = 1,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            if (amoled) {
+                                botaoOlho()
+                                Spacer(modifier = Modifier.weight(1f))
+                                BotaoExtratoHero(onClick = aoAbrirExtrato)
+                            }
+                        }
+                        if (amoled) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(IntrinsicSize.Min)
+                            ) {
+                                ColunaFluxo(
+                                    icone = Icons.Filled.ArrowUpward,
+                                    corMarca = Verde,
+                                    valorFormatado = formatoMoeda.format(totalReceitas),
+                                    pontos = serieDoMes.entradas,
+                                    visivel = saldoVisivel,
+                                    descricao = "Entradas em $nomeMes: ${formatoMoeda.format(totalReceitas)}",
+                                    modifier = Modifier.weight(1f).padding(end = 14.dp)
+                                )
+                                Box(
+                                    Modifier
+                                        .width(1.dp)
+                                        .fillMaxHeight()
+                                        .background(Color.White.copy(alpha = 0.08f))
+                                )
+                                ColunaFluxo(
+                                    icone = Icons.Filled.ArrowDownward,
+                                    corMarca = Coral,
+                                    valorFormatado = formatoMoeda.format(totalDespesas),
+                                    pontos = serieDoMes.saidas,
+                                    visivel = saldoVisivel,
+                                    descricao = "Saídas em $nomeMes: ${formatoMoeda.format(totalDespesas)}",
+                                    modifier = Modifier.weight(1f).padding(start = 14.dp)
+                                )
+                            }
+                        } else {
                         Spacer(modifier = Modifier.height(18.dp))
 
                         Row(
@@ -302,7 +395,17 @@ fun DashboardScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Ver Extrato Completo", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                         }
+                        }
                     }
+                }
+
+                if (amoled) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    LinhaInvestido(
+                        valorFormatado = formatoMoeda.format(totalInvestido),
+                        visivel = saldoVisivel,
+                        onClick = aoAbrirInvestimento
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))

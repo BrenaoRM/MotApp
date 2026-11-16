@@ -25,7 +25,8 @@ private val FinancaShapes = Shapes(
 data class CoresApp(
     val textoGanho: Color,
     val textoGasto: Color,
-    val alerta: Color
+    val alerta: Color,
+    val amoled: Boolean = false
 )
 
 val LocalCoresApp = staticCompositionLocalOf { CoresClaras }
@@ -38,11 +39,22 @@ val MaterialTheme.cores: CoresApp
 @Composable
 fun FinanceAPPTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    amoled: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) EsquemaEscuro else EsquemaClaro
+    val colorScheme = when {
+        darkTheme && amoled -> EsquemaAmoled
+        darkTheme -> EsquemaEscuro
+        else -> EsquemaClaro
+    }
 
-    CompositionLocalProvider(LocalCoresApp provides if (darkTheme) CoresEscuras else CoresClaras) {
+    val cores = when {
+        darkTheme && amoled -> CoresAmoled
+        darkTheme -> CoresEscuras
+        else -> CoresClaras
+    }
+
+    CompositionLocalProvider(LocalCoresApp provides cores) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = FinancaTypography,

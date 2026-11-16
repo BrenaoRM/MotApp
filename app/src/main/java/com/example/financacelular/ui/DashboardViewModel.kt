@@ -112,6 +112,36 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         .map { lista -> lista.filter { it.tipo == TipoTransacao.RECEITA }.sumOf { it.valor } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
+    /** Acumulado por dia (índice 0 = dia 1) até [ultimoDia]; o último valor é igual ao total exibido. */
+    data class SerieDoMes(
+        val entradas: List<Float> = emptyList(),
+        val saidas: List<Float> = emptyList()
+    )
+
+    val serieDoMes: StateFlow<SerieDoMes> = combine(_mesSelecionado, transacoesFiltradasDoMes) { mes, lista ->
+        val hoje = LocalDate.now()
+        val ultimoDia = if (mes == YearMonth.from(hoje)) hoje.dayOfMonth else mes.lengthOfMonth()
+
+        fun acumular(tipo: TipoTransacao): List<Float> {
+            val porDia = DoubleArray(ultimoDia)
+            lista.filter { it.tipo == tipo }.forEach { t ->
+                val ym = YearMonth.from(t.data)
+                // Compra no crédito pode ter data fora do mês da fatura: limita ao intervalo do mês
+                val dia = when {
+                    ym.isBefore(mes) -> 1
+                    ym.isAfter(mes) -> ultimoDia
+                    else -> t.data.dayOfMonth.coerceIn(1, ultimoDia)
+                }
+                porDia[dia - 1] += t.valor
+            }
+            var soma = 0.0
+            return porDia.map { soma += it; soma.toFloat() }
+        }
+
+        SerieDoMes(acumular(TipoTransacao.RECEITA), acumular(TipoTransacao.DESPESA))
+    }.flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SerieDoMes())
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val totalInvestidoDoMes: StateFlow<Double> = combine(
         anoMesTexto,
