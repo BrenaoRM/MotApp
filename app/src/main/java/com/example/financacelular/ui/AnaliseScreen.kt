@@ -186,7 +186,8 @@ fun AnaliseScreen(
                     "Análise",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 1
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 SeletorPeriodo(
@@ -194,7 +195,7 @@ fun AnaliseScreen(
                     aoAnterior = { viewModel.periodoAnterior() },
                     aoSeguinte = { viewModel.periodoSeguinte() },
                     aoAbrir = { folhaPeriodoAberta = true },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.width(IntrinsicSize.Max)
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -505,7 +506,7 @@ fun AnaliseScreen(
 /** Título de seção em texto simples, como na Home; [lateral] é um complemento discreto à direita. */
 /** Alternador preto e branco de cantos quase retos: a opção ativa vira a cor do texto (preto no claro, branco no escuro). */
 @Composable
-private fun SeletorQuadrado(
+internal fun SeletorQuadrado(
     opcoes: List<String>,
     indiceSelecionado: Int,
     aoSelecionar: (Int) -> Unit

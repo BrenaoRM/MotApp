@@ -107,7 +107,7 @@ fun SeletorPeriodo(
     periodo: Periodo,
     aoAnterior: () -> Unit,
     aoSeguinte: () -> Unit,
-    aoAbrir: () -> Unit,
+    aoAbrir: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -125,7 +125,10 @@ fun SeletorPeriodo(
                 .weight(1f)
                 .heightIn(min = 48.dp)
                 .clip(CircleShape)
-                .clickable(onClickLabel = "Escolher período", role = Role.Button, onClick = aoAbrir)
+                .then(
+                    if (aoAbrir != null) Modifier.clickable(onClickLabel = "Escolher período", role = Role.Button, onClick = aoAbrir)
+                    else Modifier
+                )
                 .padding(horizontal = 6.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
