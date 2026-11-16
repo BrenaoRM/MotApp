@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Versão monocromática (ícone temático do Android 13+): só a curva e o ponto final -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.78"
+        android:scaleY="0.78">
+
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M25,83C27,60 29,34 39,34C49,34 50,67 56,67C62,67 66,29 83,27"
+            android:strokeColor="#FFFFFF"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="6.5" />
+
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M76.5,27a6.5,6.5 0 1,0 13,0a6.5,6.5 0 1,0 -13,0Z" />
+    </group>
+</vector>

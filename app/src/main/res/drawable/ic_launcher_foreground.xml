@@ -1,16 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M como gráfico: curva ascendente com dois picos, área suave embaixo e ponto final com brilho.
+     O grupo reduz o desenho para caber na zona segura do ícone adaptativo (círculo central de 66dp). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Sombra suave para dar profundidade (Estilo Premium) -->
-    <path
-        android:fillColor="#33000000"
-        android:pathData="M 30 76 L 30 36 L 54 58 L 78 36 L 78 76 L 66 76 L 66 52 L 54 64 L 42 52 L 42 76 Z" />
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.78"
+        android:scaleY="0.78">
 
-    <!-- Letra 'M' estilizada (Gráfico de crescimento) -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M 28 74 L 28 34 L 54 56 L 80 34 L 80 74 L 68 74 L 68 50 L 54 62 L 40 50 L 40 74 Z" />
+        <!-- Área sob a curva, esmaecendo para baixo; a borda direita é inclinada para não ter corte seco -->
+        <path android:pathData="M25,83C27,60 29,34 39,34C49,34 50,67 56,67C62,67 66,29 83,27L72,92L25,92Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="0"
+                    android:startY="27"
+                    android:endX="0"
+                    android:endY="92">
+                    <item android:color="#999D86FF" android:offset="0" />
+                    <item android:color="#008B6CFF" android:offset="1" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- Curva: degradê do violeta ao branco, no sentido do crescimento -->
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M25,83C27,60 29,34 39,34C49,34 50,67 56,67C62,67 66,29 83,27"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="6.5">
+            <aapt:attr name="android:strokeColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="25"
+                    android:startY="0"
+                    android:endX="84"
+                    android:endY="0">
+                    <item android:color="#8F74FF" android:offset="0" />
+                    <item android:color="#CFC4FF" android:offset="0.55" />
+                    <item android:color="#FFFFFF" android:offset="1" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- Brilho em volta do ponto final -->
+        <path android:pathData="M69,27a14,14 0 1,0 28,0a14,14 0 1,0 -28,0Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="radial"
+                    android:centerX="83"
+                    android:centerY="27"
+                    android:gradientRadius="14">
+                    <item android:color="#8CFFFFFF" android:offset="0" />
+                    <item android:color="#00FFFFFF" android:offset="1" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- Ponto final -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M76.5,27a6.5,6.5 0 1,0 13,0a6.5,6.5 0 1,0 -13,0Z" />
+    </group>
 </vector>
