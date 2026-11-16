@@ -92,6 +92,7 @@ import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -132,37 +133,29 @@ fun ExtratoScreen(
     var filtroCategoriaId by rememberSaveable { mutableStateOf<Long?>(null) }
     val filtroCategoria = categorias.find { it.id == filtroCategoriaId }
     var menuCategoriaExpandido by remember { mutableStateOf(false) }
-    var apenasEsteMes by rememberSaveable { mutableStateOf(false) }
     var transacaoEmEdicaoId by rememberSaveable { mutableStateOf<Long?>(null) }
     val transacaoEmEdicao = transacaoEmEdicaoId?.let { id ->
         transacoes.find { it.id == id } ?: futuros.find { it.id == id }
     }
 
     val formato = remember { NumberFormat.getCurrencyInstance(localePtBr) }
-    val mesAtual = remember { LocalDate.now().let { "%04d-%02d".format(it.year, it.monthValue) } }
-    val formatoDataFiltro = remember { DateTimeFormatter.ofPattern("dd/MM/yyyy") }
-    val formatoDataCurta = remember { DateTimeFormatter.ofPattern("dd/MM/yy") }
-
     var mostrarFiltros by rememberSaveable { mutableStateOf(false) }
-    var dataInicioFiltro by rememberSaveable { mutableStateOf<LocalDate?>(null) }
-    var dataFimFiltro by rememberSaveable { mutableStateOf<LocalDate?>(null) }
-    var mostrarDatePickerInicio by rememberSaveable { mutableStateOf(false) }
-    var mostrarDatePickerFim by rememberSaveable { mutableStateOf(false) }
+    // Período do extrato: abre no mês atual
+    var periodoInicio by rememberSaveable { mutableStateOf(YearMonth.now().atDay(1)) }
+    var periodoFim by rememberSaveable { mutableStateOf(YearMonth.now().atEndOfMonth()) }
+    val periodo = Periodo(periodoInicio, periodoFim)
+    var mostrarFolhaPeriodo by rememberSaveable { mutableStateOf(false) }
 
-    val algumFiltroAtivo = filtroTipo != null || filtroCategoriaId != null || apenasEsteMes ||
-            dataInicioFiltro != null || dataFimFiltro != null
+    val algumFiltroAtivo = filtroTipo != null || filtroCategoriaId != null
 
     val quantidadeFiltros = listOf(
         filtroTipo != null,
-        filtroCategoriaId != null,
-        apenasEsteMes,
-        dataInicioFiltro != null || dataFimFiltro != null
+        filtroCategoriaId != null
     ).count { it }
 
     fun passaPeriodo(t: Transacao): Boolean {
-        val inicio = dataInicioFiltro
-        val fim = dataFimFiltro
-        if (inicio == null && fim == null) return true
+        val inicio = periodo.inicio
+        val fim = periodo.fim
 
         val dataReal = t.data
         val dataFatura = if (t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.anoMes != null) {
@@ -176,17 +169,10 @@ fun ExtratoScreen(
             dataReal
         }
 
-        val realNoPeriodo = (inicio == null || !dataReal.isBefore(inicio)) && (fim == null || !dataReal.isAfter(fim))
-        val faturaNoPeriodo = (inicio == null || !dataFatura.isBefore(inicio)) && (fim == null || !dataFatura.isAfter(fim))
+        val realNoPeriodo = !dataReal.isBefore(inicio) && !dataReal.isAfter(fim)
+        val faturaNoPeriodo = !dataFatura.isBefore(inicio) && !dataFatura.isAfter(fim)
 
         return realNoPeriodo || faturaNoPeriodo
-    }
-
-    fun passaFiltroMes(t: Transacao): Boolean {
-        if (!apenasEsteMes) return true
-        val mesDataReal = t.data.toString().take(7)
-        val mesFatura = t.anoMes ?: mesDataReal
-        return mesDataReal == mesAtual || mesFatura == mesAtual
     }
 
     val transacoesFiltradas = transacoes.filter { t ->
@@ -197,7 +183,7 @@ fun ExtratoScreen(
                 (t.descricao?.contains(textoPesquisa, ignoreCase = true) == true) ||
                 (categoria?.nome?.contains(textoPesquisa, ignoreCase = true) == true)
 
-        passaTipo && passaCategoria && passaBusca && passaFiltroMes(t) && passaPeriodo(t)
+        passaTipo && passaCategoria && passaBusca && passaPeriodo(t)
     }.sortedByDescending { it.data }
 
     val futurosFiltrados = futuros.filter { t ->
@@ -208,7 +194,7 @@ fun ExtratoScreen(
                 (t.descricao?.contains(textoPesquisa, ignoreCase = true) == true) ||
                 (categoria?.nome?.contains(textoPesquisa, ignoreCase = true) == true)
 
-        passaTipo && passaCategoria && passaBusca && passaFiltroMes(t) && passaPeriodo(t)
+        passaTipo && passaCategoria && passaBusca && passaPeriodo(t)
     }.sortedBy { it.data }
 
     val totalReceitas = transacoesFiltradas
@@ -246,6 +232,18 @@ fun ExtratoScreen(
             )
         }
 
+        // ---------- Período ----------
+        item(key = "periodo") {
+            Spacer(modifier = Modifier.height(16.dp))
+            SeletorPeriodo(
+                periodo = periodo,
+                aoAnterior = { periodo.deslocar(-1).let { periodoInicio = it.inicio; periodoFim = it.fim } },
+                aoSeguinte = { periodo.deslocar(1).let { periodoInicio = it.inicio; periodoFim = it.fim } },
+                aoAbrir = { mostrarFolhaPeriodo = true },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
         // ---------- Filtros ativos (chips removíveis) ----------
         if (algumFiltroAtivo) {
             item(key = "filtros-ativos") {
@@ -266,25 +264,6 @@ fun ExtratoScreen(
                         ChipFiltroAtivo(
                             texto = categoria.nome,
                             aoRemover = { filtroCategoriaId = null }
-                        )
-                    }
-                    if (apenasEsteMes) {
-                        ChipFiltroAtivo(texto = "Este mês", aoRemover = { apenasEsteMes = false })
-                    }
-                    if (dataInicioFiltro != null || dataFimFiltro != null) {
-                        val inicio = dataInicioFiltro?.format(formatoDataCurta)
-                        val fim = dataFimFiltro?.format(formatoDataCurta)
-                        val textoPeriodo = when {
-                            inicio != null && fim != null -> "$inicio – $fim"
-                            inicio != null -> "A partir de $inicio"
-                            else -> "Até $fim"
-                        }
-                        ChipFiltroAtivo(
-                            texto = textoPeriodo,
-                            aoRemover = {
-                                dataInicioFiltro = null
-                                dataFimFiltro = null
-                            }
                         )
                     }
                 }
@@ -401,16 +380,6 @@ fun ExtratoScreen(
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
-                RotuloFiltro("Período rápido")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ChipOpcao(
-                        texto = "Este mês",
-                        selecionado = apenasEsteMes,
-                        onClick = { apenasEsteMes = !apenasEsteMes }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
                 RotuloFiltro("Categoria")
                 ExposedDropdownMenuBox(
                     expanded = menuCategoriaExpandido,
@@ -443,30 +412,6 @@ fun ExtratoScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
-                RotuloFiltro("Período personalizado")
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    CampoData(
-                        valor = dataInicioFiltro?.format(formatoDataFiltro) ?: "",
-                        rotulo = "De",
-                        placeholder = "dd/mm/aaaa",
-                        descricao = "Selecionar data inicial",
-                        aoAbrir = { mostrarDatePickerInicio = true },
-                        modifier = Modifier.weight(1f)
-                    )
-                    CampoData(
-                        valor = dataFimFiltro?.format(formatoDataFiltro) ?: "",
-                        rotulo = "Até",
-                        placeholder = "dd/mm/aaaa",
-                        descricao = "Selecionar data final",
-                        aoAbrir = { mostrarDatePickerFim = true },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
                 Spacer(modifier = Modifier.height(32.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -477,9 +422,6 @@ fun ExtratoScreen(
                         onClick = {
                             filtroTipo = null
                             filtroCategoriaId = null
-                            apenasEsteMes = false
-                            dataInicioFiltro = null
-                            dataFimFiltro = null
                         },
                         modifier = Modifier.weight(1f)
                     )
@@ -493,19 +435,15 @@ fun ExtratoScreen(
         }
     }
 
-    if (mostrarDatePickerInicio) {
-        SeletorData(
-            inicial = dataInicioFiltro ?: LocalDate.now(),
-            aoConfirmar = { dataInicioFiltro = it },
-            aoFechar = { mostrarDatePickerInicio = false }
-        )
-    }
-
-    if (mostrarDatePickerFim) {
-        SeletorData(
-            inicial = dataFimFiltro ?: LocalDate.now(),
-            aoConfirmar = { dataFimFiltro = it },
-            aoFechar = { mostrarDatePickerFim = false }
+    if (mostrarFolhaPeriodo) {
+        FolhaPeriodo(
+            periodo = periodo,
+            aoEscolher = {
+                periodoInicio = it.inicio
+                periodoFim = it.fim
+                mostrarFolhaPeriodo = false
+            },
+            aoFechar = { mostrarFolhaPeriodo = false }
         )
     }
 }
@@ -895,29 +833,6 @@ private fun RotuloFiltro(texto: String) {
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
     Spacer(modifier = Modifier.height(10.dp))
-}
-
-@Composable
-private fun ChipOpcao(
-    texto: String,
-    selecionado: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    FilterChip(
-        selected = selecionado,
-        onClick = onClick,
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        label = {
-            Text(
-                texto,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center,
-                maxLines = 1
-            )
-        }
-    )
 }
 
 /** Campo somente leitura que abre um seletor de data ao toque. */
