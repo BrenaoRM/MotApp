@@ -13,7 +13,6 @@ import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.data.TotalMensal
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +24,7 @@ import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 data class ItemGastoCategoria(val nomeCategoria: String, val total: Double)
 data class TopDespesaItem(val descricao: String, val nomeCategoria: String, val valor: Double, val data: String)
@@ -33,27 +33,30 @@ data class TotalMensalInvestimento(val anoMes: String, val total: Double)
 class AnaliseViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: FinancaRepository = FinancaRepository.getInstance(AppDatabase.getInstance(application))
 
-    private val _mesSelecionado = MutableStateFlow(YearMonth.now())
-    val mesSelecionado: StateFlow<YearMonth> = _mesSelecionado
-
-    private val anoMesTexto: Flow<String> = _mesSelecionado.map {
-        it.format(DateTimeFormatter.ofPattern("yyyy-MM"))
-    }
+    private val _periodo = MutableStateFlow(Periodo.mes(YearMonth.now()))
+    val periodo: StateFlow<Periodo> = _periodo
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    private val transacoesValidasDoMes = combine(
-        anoMesTexto,
+    private val transacoesValidasDoPeriodo = combine(
+        _periodo,
         repository.listarTransacoes(),
         repository.listarCategorias()
-    ) { anoMes, todas, categorias ->
+    ) { periodo, todas, categorias ->
         val hoje = LocalDate.now()
+        val primeiroAnoMes = YearMonth.from(periodo.inicio).toString()
+        val ultimoAnoMes = YearMonth.from(periodo.fim).toString()
         val faturasPagas = conjuntoFaturasPagas(todas)
         val categoriaFaturaId = categorias.find { it.nome.equals("Fatura", ignoreCase = true) }?.id ?: 1L
 
         todas.filter { t ->
-            val anoMesTransacao = t.anoMes ?: t.data.toString().take(7)
-            val ehDoMes = anoMesTransacao == anoMes
-            if (!ehDoMes) return@filter false
+            // Meses fechados seguem o mês de competência (fatura do cartão); intervalo livre segue a data
+            val ehDoPeriodo = if (periodo.mesesFechados) {
+                val anoMesTransacao = t.anoMes ?: t.data.toString().take(7)
+                anoMesTransacao >= primeiroAnoMes && anoMesTransacao <= ultimoAnoMes
+            } else {
+                !t.data.isBefore(periodo.inicio) && !t.data.isAfter(periodo.fim)
+            }
+            if (!ehDoPeriodo) return@filter false
             if (t.ehPagamentoDeFatura()) return@filter false
             val ehFuturo = t.data.isAfter(hoje)
 
@@ -73,7 +76,7 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
         .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1)
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val despesasPorCategoria: StateFlow<List<ItemGastoCategoria>> = combine(transacoesValidasDoMes, repository.listarCategorias()) { transacoes, categorias ->
+    val despesasPorCategoria: StateFlow<List<ItemGastoCategoria>> = combine(transacoesValidasDoPeriodo, repository.listarCategorias()) { transacoes, categorias ->
         transacoes.filter { it.tipo == TipoTransacao.DESPESA }
             .groupBy { it.categoriaId }
             .map { (catId, lista) ->
@@ -84,7 +87,7 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val receitasPorCategoria: StateFlow<List<ItemGastoCategoria>> = combine(transacoesValidasDoMes, repository.listarCategorias()) { transacoes, categorias ->
+    val receitasPorCategoria: StateFlow<List<ItemGastoCategoria>> = combine(transacoesValidasDoPeriodo, repository.listarCategorias()) { transacoes, categorias ->
         transacoes.filter { it.tipo == TipoTransacao.RECEITA }
             .groupBy { it.categoriaId }
             .map { (catId, lista) ->
@@ -94,11 +97,11 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
     }.flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val totalDespesasMes: StateFlow<Double> = transacoesValidasDoMes.map { transacoes ->
+    val totalDespesasPeriodo: StateFlow<Double> = transacoesValidasDoPeriodo.map { transacoes ->
         transacoes.filter { it.tipo == TipoTransacao.DESPESA }.sumOf { it.valor }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
-    val totalReceitasMes: StateFlow<Double> = transacoesValidasDoMes.map { transacoes ->
+    val totalReceitasPeriodo: StateFlow<Double> = transacoesValidasDoPeriodo.map { transacoes ->
         transacoes.filter { it.tipo == TipoTransacao.RECEITA }.sumOf { it.valor }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
@@ -131,7 +134,7 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val topDespesas: StateFlow<List<TopDespesaItem>> = combine(transacoesValidasDoMes, repository.listarCategorias()) { transacoes, categorias ->
+    val topDespesas: StateFlow<List<TopDespesaItem>> = combine(transacoesValidasDoPeriodo, repository.listarCategorias()) { transacoes, categorias ->
         transacoes.filter { it.tipo == TipoTransacao.DESPESA }
             .sortedByDescending { it.valor }
             .take(5)
@@ -150,11 +153,41 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
                 .takeLast(6)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun mesAnterior() {
-        _mesSelecionado.value = _mesSelecionado.value.minusMonths(1)
+    /** Acumulado por dia, do início do período até hoje (ou o fim); o último valor é igual ao total exibido. */
+    data class SerieDoPeriodo(
+        val entradas: List<Float> = emptyList(),
+        val saidas: List<Float> = emptyList()
+    )
+
+    val serieDoPeriodo: StateFlow<SerieDoPeriodo> = combine(_periodo, transacoesValidasDoPeriodo) { periodo, lista ->
+        val ultimoDia = minOf(periodo.fim, LocalDate.now())
+        if (ultimoDia.isBefore(periodo.inicio)) return@combine SerieDoPeriodo()
+        val quantidade = (ChronoUnit.DAYS.between(periodo.inicio, ultimoDia) + 1).toInt()
+
+        fun acumular(tipo: TipoTransacao): List<Float> {
+            val porDia = DoubleArray(quantidade)
+            lista.filter { it.tipo == tipo }.forEach { t ->
+                // Compra no crédito pode ter data fora do período da fatura: limita ao intervalo
+                val indice = ChronoUnit.DAYS.between(periodo.inicio, t.data).toInt().coerceIn(0, quantidade - 1)
+                porDia[indice] += t.valor
+            }
+            var soma = 0.0
+            return porDia.map { soma += it; soma.toFloat() }
+        }
+
+        SerieDoPeriodo(acumular(TipoTransacao.RECEITA), acumular(TipoTransacao.DESPESA))
+    }.flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SerieDoPeriodo())
+
+    fun periodoAnterior() {
+        _periodo.value = _periodo.value.deslocar(-1)
     }
 
-    fun mesSeguinte() {
-        _mesSelecionado.value = _mesSelecionado.value.plusMonths(1)
+    fun periodoSeguinte() {
+        _periodo.value = _periodo.value.deslocar(1)
+    }
+
+    fun definirPeriodo(novo: Periodo) {
+        _periodo.value = novo
     }
 }
