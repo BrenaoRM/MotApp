@@ -98,7 +98,7 @@ import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -759,14 +759,14 @@ fun InvestimentoScreen(
 
         if (mostrarDatePicker) {
             val datePickerState = rememberDatePickerState(
-                initialSelectedDateMillis = dataSelecionada.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                initialSelectedDateMillis = dataSelecionada.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
             )
             DatePickerDialog(
                 onDismissRequest = { mostrarDatePicker = false },
                 confirmButton = {
                     TextButton(onClick = {
                         datePickerState.selectedDateMillis?.let { millis ->
-                            dataSelecionada = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
+                            dataSelecionada = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
                         }
                         mostrarDatePicker = false
                     }) { Text("Confirmar", fontWeight = FontWeight.Bold) }
