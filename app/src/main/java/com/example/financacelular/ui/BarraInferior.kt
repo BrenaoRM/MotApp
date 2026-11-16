@@ -33,6 +33,18 @@ import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -233,6 +245,132 @@ private fun BotaoCentral(expandido: Boolean, onClick: () -> Unit) {
                     .size(24.dp)
                     .graphicsLayer { rotationZ = giro }
             )
+        }
+    }
+}
+
+/**
+ * Barra de ação das telas internas: a mesma ilha da navegação (largura, 66dp, cantos 20dp, borda e sombra),
+ * com o botão da tela dentro. A região de baixo nunca muda de tamanho nem de posição entre as telas.
+ */
+@Composable
+internal fun IlhaDeAcao(conteudo: @Composable RowScope.() -> Unit) {
+    val forma = RoundedCornerShape(20.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(AlturaIlha)
+                .shadow(elevation = 12.dp, shape = forma)
+                .clip(forma)
+                .background(MaterialTheme.colorScheme.surface)
+                .border(1.dp, MaterialTheme.colorScheme.outline, forma)
+                .padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            content = conteudo
+        )
+    }
+}
+
+private val FormaBotaoIlha = RoundedCornerShape(14.dp)
+
+/** Botão cheio dentro da ilha de ação (46dp, cantos 14dp, como o botão + da navegação). */
+@Composable
+internal fun BotaoIlha(
+    texto: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    cor: Color = RoxoHero,
+    icone: ImageVector? = null,
+    enabled: Boolean = true
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.height(46.dp),
+        shape = FormaBotaoIlha,
+        colors = ButtonDefaults.buttonColors(containerColor = cor, contentColor = Color.White),
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp)
+    ) {
+        if (icone != null) {
+            Icon(icone, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+        Text(texto, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** Botão secundário dentro da ilha: contorno e fundo suaves na mesma cor. */
+@Composable
+internal fun BotaoIlhaSuave(
+    texto: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    cor: Color = RoxoHero,
+    icone: ImageVector? = null
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier.height(46.dp),
+        shape = FormaBotaoIlha,
+        colors = ButtonDefaults.buttonColors(containerColor = cor.copy(alpha = 0.16f), contentColor = cor),
+        border = androidx.compose.foundation.BorderStroke(1.dp, cor.copy(alpha = 0.4f)),
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp)
+    ) {
+        if (icone != null) {
+            Icon(icone, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+        Text(texto, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** Campo de busca para dentro da ilha de ação (sem sombra nem borda próprias). */
+@Composable
+internal fun CampoBuscaIlha(
+    valor: String,
+    aoMudar: (String) -> Unit,
+    placeholder: String,
+    aoBuscar: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .height(46.dp)
+            .clip(FormaBotaoIlha)
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+            .padding(start = 14.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Filled.Search, contentDescription = "Pesquisar", tint = RoxoHero, modifier = Modifier.size(20.dp))
+        Spacer(modifier = Modifier.width(10.dp))
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+            if (valor.isEmpty()) {
+                Text(placeholder, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            }
+            BasicTextField(
+                value = valor,
+                onValueChange = aoMudar,
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+                cursorBrush = SolidColor(RoxoHero),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { aoBuscar() }),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        if (valor.isNotEmpty()) {
+            IconButton(onClick = { aoMudar("") }) {
+                Icon(Icons.Filled.Clear, contentDescription = "Limpar", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+            }
         }
     }
 }

@@ -79,33 +79,26 @@ fun ParceladosScreen(
             CabecalhoDePagina("Parcelamentos", TealParcelados, aoVoltar)
             Spacer(modifier = Modifier.height(16.dp))
 
-            CartaoHeroDePagina(TealParcelados, gradienteDaCor(TealParcelados)) {
+            CartaoHeroDePagina(TealParcelados) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         "RESTANTE A PAGAR",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(alpha = 0.85f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f)
                     )
-                    PilulaGlass(if (comprasAgrupadas.size == 1) "1 compra" else "${comprasAgrupadas.size} compras")
+                    PilulaDePagina(if (comprasAgrupadas.size == 1) "1 compra" else "${comprasAgrupadas.size} compras")
                 }
                 Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    formatoMoedaResumo.format(totalRestante),
-                    style = MaterialTheme.typography.displayMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                ValorDoHero(formatoMoedaResumo.format(totalRestante))
                 Spacer(modifier = Modifier.height(14.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    IndicadorGlassDePagina("PARCELAS PAGAS", "$parcelasPagas de $parcelasTotais", Icons.Filled.CheckCircle, Modifier.weight(1f))
-                    IndicadorGlassDePagina("EM ANDAMENTO", "${comprasAgrupadas.count { it.parcelasRestantes > 0 }}", Icons.Filled.ShoppingCart, Modifier.weight(1f))
+                    IndicadorDePagina("PARCELAS PAGAS", "$parcelasPagas de $parcelasTotais", Icons.Filled.CheckCircle, Modifier.weight(1f))
+                    IndicadorDePagina("EM ANDAMENTO", "${comprasAgrupadas.count { it.parcelasRestantes > 0 }}", Icons.Filled.ShoppingCart, Modifier.weight(1f))
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))

@@ -96,33 +96,26 @@ fun RecorrenteScreen(
             CabecalhoDePagina("Recorrentes", LilasRecorrente, aoVoltar)
             Spacer(modifier = Modifier.height(16.dp))
 
-            CartaoHeroDePagina(LilasRecorrente, gradienteDaCor(LilasRecorrente)) {
+            CartaoHeroDePagina(LilasRecorrente) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         "COBRANÇAS POR MÊS",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(alpha = 0.85f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f)
                     )
-                    PilulaGlass(if (recorrentes.size == 1) "1 item" else "${recorrentes.size} itens")
+                    PilulaDePagina(if (recorrentes.size == 1) "1 item" else "${recorrentes.size} itens")
                 }
                 Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    formatoMoeda.format(totalCobrancas),
-                    style = MaterialTheme.typography.displayMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                ValorDoHero(formatoMoeda.format(totalCobrancas))
                 Spacer(modifier = Modifier.height(14.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    IndicadorGlassDePagina("GANHOS FIXOS", formatoMoeda.format(totalGanhosFixos), Icons.AutoMirrored.Filled.TrendingUp, Modifier.weight(1f))
-                    IndicadorGlassDePagina("ASSINATURAS", "${despesasRecorrentes.size}", Icons.Filled.Repeat, Modifier.weight(1f))
+                    IndicadorDePagina("GANHOS FIXOS", formatoMoeda.format(totalGanhosFixos), Icons.AutoMirrored.Filled.TrendingUp, Modifier.weight(1f))
+                    IndicadorDePagina("ASSINATURAS", "${despesasRecorrentes.size}", Icons.Filled.Repeat, Modifier.weight(1f))
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))

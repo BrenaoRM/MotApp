@@ -171,42 +171,34 @@ fun OrcamentoScreen(
 
             item {
                 CartaoHeroDePagina(
-                    corInicio = if (ultrapassouGeral) CorHeroAlerta else VerdeOrcamento,
-                    corFim = gradienteDaCor(if (ultrapassouGeral) CorHeroAlerta else VerdeOrcamento)
+                    cor = if (ultrapassouGeral) CorHeroAlerta else VerdeOrcamento
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             "TOTAL GASTO NO MÊS",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White.copy(alpha = 0.85f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f)
                         )
                         if (temAlgumLimite) {
-                            PilulaGlass(if (ultrapassouGeral) "Limite excedido" else "No limite")
+                            PilulaDePagina(if (ultrapassouGeral) "Limite excedido" else "No limite")
                         }
                     }
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        formatoMoeda.format(totalGasto),
-                        style = MaterialTheme.typography.displayMedium,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    ValorDoHero(formatoMoeda.format(totalGasto))
                     Spacer(modifier = Modifier.height(14.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        IndicadorGlassDePagina(
+                        IndicadorDePagina(
                             "LIMITE TOTAL",
                             if (temAlgumLimite) formatoMoeda.format(totalLimite) else "Não definido",
                             Icons.Filled.PieChart,
                             Modifier.weight(1f)
                         )
-                        IndicadorGlassDePagina(
+                        IndicadorDePagina(
                             if (ultrapassouGeral) "EXCEDIDO" else "DISPONÍVEL",
                             if (temAlgumLimite) formatoMoeda.format(kotlin.math.abs(totalLimite - totalGasto)) else "—",
                             Icons.Filled.AccountBalanceWallet,
@@ -237,8 +229,9 @@ fun OrcamentoScreen(
             if (itens.isEmpty()) {
                 item {
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 8.dp)

@@ -13,27 +13,15 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import com.example.financacelular.ui.theme.dimens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.AccountBalanceWallet
@@ -45,22 +33,15 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Savings
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -74,18 +55,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -98,35 +74,12 @@ import androidx.navigation.navArgument
 import com.example.financacelular.data.AtualizacaoDisponivel
 import com.example.financacelular.data.AtualizacaoService
 import com.example.financacelular.data.TipoTransacao
-import com.example.financacelular.ui.theme.AmareloInvestimento
-import com.example.financacelular.ui.theme.AzulCartao
 import com.example.financacelular.ui.theme.Coral
-import com.example.financacelular.ui.theme.RoxoMeta
-import com.example.financacelular.ui.theme.RoxoMetaEscuro
 import com.example.financacelular.ui.theme.Verde
 import kotlinx.coroutines.launch
 
-private fun tomClaro(cor: Color, mistura: Float = 0.35f) = lerp(cor, Color.White, mistura)
-
 private enum class ModoBarraInferior {
     PADRAO, EXTRATO, CARTAO, PARCELADOS, RECORRENTES, INVESTIMENTO, META, ORCAMENTO
-}
-
-@Composable
-private fun IconeCircular(icone: ImageVector) {
-    Box(
-        modifier = Modifier
-            .size(30.dp)
-            .background(Color.White.copy(alpha = 0.22f), CircleShape),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = icone,
-            contentDescription = null,
-            tint = Color.White,
-            modifier = Modifier.size(18.dp)
-        )
-    }
 }
 
 internal enum class DestinoPrincipal(
@@ -290,70 +243,22 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         label = "bottomBarTransform"
                     ) { modo ->
                         when (modo) {
-                            ModoBarraInferior.INVESTIMENTO -> {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .navigationBarsPadding()
-                                        .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    BotaoPrincipal(
-                                        texto = "Novo Aporte",
-                                        onClick = { acionarNovoInvestimento = true },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        cor = AmareloInvestimento,
-                                        corConteudo = Color.White,
-                                        icone = Icons.Filled.Add
-                                    )
-                                }
+                            ModoBarraInferior.INVESTIMENTO -> IlhaDeAcao {
+                                BotaoIlha(
+                                    texto = "Novo Aporte",
+                                    onClick = { acionarNovoInvestimento = true },
+                                    modifier = Modifier.weight(1f),
+                                    icone = Icons.Filled.Add
+                                )
                             }
-                            ModoBarraInferior.EXTRATO -> {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .navigationBarsPadding()
-                                        .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    OutlinedTextField(
-                                        value = textoPesquisaExtrato,
-                                        onValueChange = { textoPesquisaExtrato = it },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .shadow(elevation = 12.dp, shape = RoundedCornerShape(20.dp))
-                                            .heightIn(min = 52.dp),
-                                        placeholder = { Text("Pesquisar no extrato...") },
-                                        leadingIcon = {
-                                            Icon(
-                                                Icons.Filled.Search,
-                                                contentDescription = "Pesquisar",
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                        },
-                                        trailingIcon = {
-                                            if (textoPesquisaExtrato.isNotEmpty()) {
-                                                IconButton(onClick = { textoPesquisaExtrato = "" }) {
-                                                    Icon(
-                                                        Icons.Filled.Clear,
-                                                        contentDescription = "Limpar",
-                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
-                                                }
-                                            }
-                                        },
-                                        singleLine = true,
-                                        shape = RoundedCornerShape(20.dp),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
-                                        ),
-                                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                                        keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() })
-                                    )
-                                }
+                            ModoBarraInferior.EXTRATO -> IlhaDeAcao {
+                                CampoBuscaIlha(
+                                    valor = textoPesquisaExtrato,
+                                    aoMudar = { textoPesquisaExtrato = it },
+                                    placeholder = "Pesquisar no extrato...",
+                                    aoBuscar = { keyboardController?.hide() },
+                                    modifier = Modifier.weight(1f)
+                                )
                             }
                             ModoBarraInferior.CARTAO -> {
                                 // Ver cartaoViewModelBarra: não usar a entrada atual aqui (pode não ser a do Cartão durante a transição)
@@ -363,25 +268,17 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                     val podePagar by cartaoViewModel.podePagarFatura.collectAsState()
                                     val naPaginaAdicionar by cartaoViewModel.naPaginaAdicionar.collectAsState()
 
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .navigationBarsPadding()
-                                            .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
+                                    IlhaDeAcao {
                                         if (naPaginaAdicionar) {
-                                            BotaoPrincipal(
+                                            BotaoIlha(
                                                 texto = "Adicionar Cartão",
                                                 onClick = { cartaoViewModel.solicitarAdicionarCartao() },
-                                                modifier = Modifier.fillMaxWidth(),
-                                                cor = AzulCartao,
-                                                corConteudo = Color.White,
+                                                modifier = Modifier.weight(1f),
                                                 icone = Icons.Filled.Add
                                             )
                                         } else {
-                                            BotaoPrincipal(
-                                                texto = if (!faturaPaga) "Pagar Fatura" else "Cancelar Pagamento da Fatura",
+                                            BotaoIlha(
+                                                texto = if (!faturaPaga) "Pagar Fatura" else "Cancelar Pagamento",
                                                 onClick = {
                                                     if (!faturaPaga) {
                                                         cartaoViewModel.pagarFatura {
@@ -393,9 +290,8 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                                         }
                                                     }
                                                 },
-                                                modifier = Modifier.fillMaxWidth(),
+                                                modifier = Modifier.weight(1f),
                                                 cor = if (!faturaPaga) Verde else Coral,
-                                                corConteudo = Color.White,
                                                 icone = if (!faturaPaga) Icons.Filled.CheckCircle else Icons.AutoMirrored.Filled.Undo,
                                                 enabled = podePagar
                                             )
@@ -403,116 +299,51 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                     }
                                 }
                             }
-                            ModoBarraInferior.PARCELADOS -> {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .navigationBarsPadding()
-                                        .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    BotaoPrincipal(
-                                        texto = "Novo Parcelamento",
-                                        onClick = {
-                                            navController.navigate("nova_transacao?tipo=DESPESA&parcelado=true") {
-                                                launchSingleTop = true
-                                            }
-                                        },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        icone = Icons.Filled.Add
-                                    )
-                                }
-                            }
-                            ModoBarraInferior.RECORRENTES -> {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .navigationBarsPadding()
-                                        .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    BotaoPrincipal(
-                                        texto = "Nova Recorrência",
-                                        onClick = {
-                                            navController.navigate("nova_transacao?tipo=DESPESA&recorrente=true") {
-                                                launchSingleTop = true
-                                            }
-                                        },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        icone = Icons.Filled.Add
-                                    )
-                                }
-                            }
-                            ModoBarraInferior.META -> {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .navigationBarsPadding()
-                                        .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(20.dp))
-                                            .height(52.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .fillMaxHeight()
-                                                .background(
-                                                    Brush.linearGradient(colors = listOf(tomClaro(RoxoMeta), RoxoMeta))
-                                                )
-                                                .clickable { acionarNovaMeta = true },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                IconeCircular(Icons.Filled.Flag)
-                                                Spacer(modifier = Modifier.width(10.dp))
-                                                Text("Nova Meta", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                                            }
+                            ModoBarraInferior.PARCELADOS -> IlhaDeAcao {
+                                BotaoIlha(
+                                    texto = "Novo Parcelamento",
+                                    onClick = {
+                                        navController.navigate("nova_transacao?tipo=DESPESA&parcelado=true") {
+                                            launchSingleTop = true
                                         }
-                                        Spacer(
-                                            modifier = Modifier
-                                                .fillMaxHeight()
-                                                .width(1.dp)
-                                                .background(Color.White.copy(alpha = 0.25f))
-                                        )
-                                        Box(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .fillMaxHeight()
-                                                .background(
-                                                    Brush.linearGradient(colors = listOf(RoxoMeta, RoxoMetaEscuro))
-                                                )
-                                                .clickable { acionarGuardarValorMeta = true },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                IconeCircular(Icons.Filled.Savings)
-                                                Spacer(modifier = Modifier.width(10.dp))
-                                                Text("Guardar valor", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                                            }
-                                        }
-                                    }
-                                }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    icone = Icons.Filled.Add
+                                )
                             }
-                            ModoBarraInferior.ORCAMENTO -> {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .navigationBarsPadding()
-                                        .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    BotaoPrincipal(
-                                        texto = "Definir Limite",
-                                        onClick = { acionarNovoLimiteOrcamento = true },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        icone = Icons.Filled.PieChart
-                                    )
-                                }
+                            ModoBarraInferior.RECORRENTES -> IlhaDeAcao {
+                                BotaoIlha(
+                                    texto = "Nova Recorrência",
+                                    onClick = {
+                                        navController.navigate("nova_transacao?tipo=DESPESA&recorrente=true") {
+                                            launchSingleTop = true
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    icone = Icons.Filled.Add
+                                )
+                            }
+                            ModoBarraInferior.META -> IlhaDeAcao {
+                                BotaoIlha(
+                                    texto = "Nova Meta",
+                                    onClick = { acionarNovaMeta = true },
+                                    modifier = Modifier.weight(1f),
+                                    icone = Icons.Filled.Flag
+                                )
+                                BotaoIlhaSuave(
+                                    texto = "Guardar valor",
+                                    onClick = { acionarGuardarValorMeta = true },
+                                    modifier = Modifier.weight(1f),
+                                    icone = Icons.Filled.Savings
+                                )
+                            }
+                            ModoBarraInferior.ORCAMENTO -> IlhaDeAcao {
+                                BotaoIlha(
+                                    texto = "Definir Limite",
+                                    onClick = { acionarNovoLimiteOrcamento = true },
+                                    modifier = Modifier.weight(1f),
+                                    icone = Icons.Filled.PieChart
+                                )
                             }
                             ModoBarraInferior.PADRAO -> {
                                 BarraInferiorPrincipal(

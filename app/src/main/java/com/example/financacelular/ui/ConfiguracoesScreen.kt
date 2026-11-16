@@ -111,23 +111,23 @@ fun ConfiguracoesScreen(
             CabecalhoDePagina("Configurações", CorConfiguracoes, aoVoltar)
             Spacer(modifier = Modifier.height(16.dp))
 
-            CartaoHeroDePagina(CorConfiguracoes, gradienteDaCor(CorConfiguracoes)) {
+            CartaoHeroDePagina(CorConfiguracoes) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         "BACKUP NA NUVEM",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(alpha = 0.85f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f)
                     )
-                    PilulaGlass(if (logado) "CONECTADO" else "DESCONECTADO")
+                    PilulaDePagina(if (logado) "CONECTADO" else "DESCONECTADO")
                 }
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     "Google Drive",
                     style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -136,8 +136,8 @@ fun ConfiguracoesScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    IndicadorGlassDePagina("ÚLTIMO BACKUP", viewModel.ultimaDataBackup, Icons.Filled.History, Modifier.weight(1.5f))
-                    IndicadorGlassDePagina("TEMA", nomeDoTemaAtual, Icons.Filled.Palette, Modifier.weight(1f))
+                    IndicadorDePagina("ÚLTIMO BACKUP", viewModel.ultimaDataBackup, Icons.Filled.History, Modifier.weight(1.5f))
+                    IndicadorDePagina("TEMA", nomeDoTemaAtual, Icons.Filled.Palette, Modifier.weight(1f))
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))

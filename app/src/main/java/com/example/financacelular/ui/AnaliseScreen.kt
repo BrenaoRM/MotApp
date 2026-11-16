@@ -163,52 +163,44 @@ fun AnaliseScreen(
         // ---------------- CARTÃO PRINCIPAL ----------------
         item {
             CartaoHeroDePagina(
-                corInicio = if (saldoPositivo) RoxoHero else CorHeroAlerta,
-                corFim = if (saldoPositivo) AzulAgenda else gradienteDaCor(CorHeroAlerta)
+                cor = if (saldoPositivo) RoxoHero else CorHeroAlerta
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         "SALDO DO MÊS",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(alpha = 0.85f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f)
                     )
-                    PilulaGlass(if (saldoPositivo) "Positivo" else "Negativo")
+                    PilulaDePagina(if (saldoPositivo) "Positivo" else "Negativo")
                 }
                 Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    formato.format(saldoMes),
-                    style = MaterialTheme.typography.displayMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                ValorDoHero(formato.format(saldoMes))
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    IndicadorGlassDePagina("GANHOS", formato.format(totalReceitasMes), Icons.AutoMirrored.Filled.TrendingUp, Modifier.weight(1f))
-                    IndicadorGlassDePagina("GASTOS", formato.format(totalDespesasMes), Icons.AutoMirrored.Filled.TrendingDown, Modifier.weight(1f))
-                    IndicadorGlassDePagina("MÉDIA/DIA", formato.format(mediaDiaria), Icons.Filled.CalendarToday, Modifier.weight(1f))
+                    IndicadorDePagina("GANHOS", formato.format(totalReceitasMes), Icons.AutoMirrored.Filled.TrendingUp, Modifier.weight(1f))
+                    IndicadorDePagina("GASTOS", formato.format(totalDespesasMes), Icons.AutoMirrored.Filled.TrendingDown, Modifier.weight(1f))
+                    IndicadorDePagina("MÉDIA/DIA", formato.format(mediaDiaria), Icons.Filled.CalendarToday, Modifier.weight(1f))
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
-                        .background(Color.White.copy(alpha = 0.12f))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Filled.PieChart, contentDescription = null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(16.dp))
+                    Icon(Icons.Filled.PieChart, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         "Maior foco de despesa",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.8f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f),
                         maxLines = 1
                     )
@@ -217,7 +209,7 @@ fun AnaliseScreen(
                         maiorCategoriaDespesa?.nomeCategoria ?: "Nenhuma",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )

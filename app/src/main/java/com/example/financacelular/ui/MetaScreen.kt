@@ -154,33 +154,26 @@ fun MetaScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 val metasConcluidas = metas.count { it.valorAlvo > 0 && it.valorAtual >= it.valorAlvo }
-                CartaoHeroDePagina(RoxoMeta, gradienteDaCor(RoxoMeta)) {
+                CartaoHeroDePagina(RoxoMeta) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             "TOTAL ACUMULADO",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White.copy(alpha = 0.85f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f)
                         )
-                        PilulaGlass(if (metas.size == 1) "1 meta" else "${metas.size} metas")
+                        PilulaDePagina(if (metas.size == 1) "1 meta" else "${metas.size} metas")
                     }
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        formato.format(totalAcumulado),
-                        style = MaterialTheme.typography.displayMedium,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    ValorDoHero(formato.format(totalAcumulado))
                     Spacer(modifier = Modifier.height(14.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        IndicadorGlassDePagina("META TOTAL", formato.format(totalAlvo), Icons.Filled.Flag, Modifier.weight(1f))
-                        IndicadorGlassDePagina("CONCLUÍDAS", "$metasConcluidas de ${metas.size}", Icons.Filled.CheckCircle, Modifier.weight(1f))
+                        IndicadorDePagina("META TOTAL", formato.format(totalAlvo), Icons.Filled.Flag, Modifier.weight(1f))
+                        IndicadorDePagina("CONCLUÍDAS", "$metasConcluidas de ${metas.size}", Icons.Filled.CheckCircle, Modifier.weight(1f))
                     }
                 }
 

@@ -1,5 +1,10 @@
 package com.example.financacelular.ui
 
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -533,7 +538,7 @@ fun CabecalhoDePagina(
                     .size(Tamanho.toque)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surface)
-                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f), CircleShape)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
                     .clickable(role = Role.Button, onClick = aoVoltar),
                 contentAlignment = Alignment.Center
             ) {
@@ -548,7 +553,7 @@ fun CabecalhoDePagina(
         }
         Text(
             titulo,
-            style = MaterialTheme.typography.headlineLarge,
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -561,33 +566,38 @@ fun CabecalhoDePagina(
     }
 }
 
-/** Cartão principal com degradê na cor da página, no mesmo estilo da home. */
+/**
+ * Cartão principal das páginas, no mesmo estilo do cartão do saldo da home: fundo e borda do tema,
+ * com um brilho suave na [cor] da página vindo do canto inferior direito.
+ */
 @Composable
 fun CartaoHeroDePagina(
-    corInicio: Color,
-    corFim: Color,
+    cor: Color,
     modifier: Modifier = Modifier,
     conteudo: @Composable ColumnScope.() -> Unit
 ) {
+    val forma = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius)
+    val temaClaro = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    val intensidade = if (temaClaro) 0.45f else 0.75f
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius))
-            .background(Brush.linearGradient(colors = listOf(corInicio, corFim)))
-            // Círculos desenhados no fundo: não entram no layout, então o cartão
-            // tem só a altura do conteúdo (antes o círculo de 200dp definia a altura mínima).
+            .clip(forma)
+            .background(MaterialTheme.colorScheme.surface)
             .drawBehind {
-                drawCircle(
-                    color = Color.White.copy(alpha = 0.08f),
-                    radius = 100.dp.toPx(),
-                    center = Offset(size.width - 30.dp.toPx(), 30.dp.toPx())
-                )
-                drawCircle(
-                    color = Color.White.copy(alpha = 0.06f),
-                    radius = 70.dp.toPx(),
-                    center = Offset(20.dp.toPx(), size.height - 10.dp.toPx())
+                drawRect(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            cor.copy(alpha = intensidade),
+                            cor.copy(alpha = intensidade / 3),
+                            Color.Transparent
+                        ),
+                        center = Offset(size.width * 0.92f, size.height * 1.05f),
+                        radius = size.width * 0.95f
+                    )
                 )
             }
+            .border(1.dp, MaterialTheme.colorScheme.outline, forma)
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -644,6 +654,84 @@ fun IndicadorGlassDePagina(
             valor,
             style = MaterialTheme.typography.bodyMedium,
             color = Color.White,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+
+/** Selo discreto (ex.: "3 ativos", "No limite") para o cartão principal das páginas. */
+@Composable
+fun PilulaDePagina(texto: String, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+            .padding(horizontal = 10.dp, vertical = 5.dp)
+    ) {
+        Text(
+            texto,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1
+        )
+    }
+}
+
+/** Valor principal do cartão das páginas: centavos menores e esmaecidos, como na home. */
+@Composable
+fun ValorDoHero(texto: String, modifier: Modifier = Modifier) {
+    val cor = MaterialTheme.colorScheme.onSurface
+    val posVirgula = texto.lastIndexOf(',')
+    Text(
+        text = if (posVirgula > 0) buildAnnotatedString {
+            append(texto.substring(0, posVirgula))
+            withStyle(SpanStyle(color = cor.copy(alpha = 0.55f), fontSize = 20.sp)) {
+                append(texto.substring(posVirgula))
+            }
+        } else AnnotatedString(texto),
+        style = MaterialTheme.typography.displayMedium,
+        fontSize = 28.sp,
+        fontWeight = FontWeight.ExtraBold,
+        color = cor,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier
+    )
+}
+
+/** Indicador do cartão principal das páginas: rótulo pequeno e valor, num bloco discreto. */
+@Composable
+fun IndicadorDePagina(
+    titulo: String,
+    valor: String,
+    icone: ImageVector,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icone, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(13.dp))
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                titulo,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
+            )
+        }
+        Spacer(modifier = Modifier.height(3.dp))
+        Text(
+            valor,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis

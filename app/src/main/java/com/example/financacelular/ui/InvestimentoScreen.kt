@@ -188,7 +188,7 @@ fun InvestimentoScreen(
                 }
                 val maiorPosicao = distribuicao.firstOrNull()
 
-                CartaoHeroDePagina(AmareloInvestimento, gradienteDaCor(AmareloInvestimento)) {
+                CartaoHeroDePagina(AmareloInvestimento) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -197,23 +197,16 @@ fun InvestimentoScreen(
                             "PATRIMÔNIO TOTAL",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White.copy(alpha = 0.85f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             modifier = Modifier.weight(1f)
                         )
-                        PilulaGlass(if (listaAtivosAgrupados.size == 1) "1 ativo" else "${listaAtivosAgrupados.size} ativos")
+                        PilulaDePagina(if (listaAtivosAgrupados.size == 1) "1 ativo" else "${listaAtivosAgrupados.size} ativos")
                     }
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    Text(
-                        text = formatoMoeda.format(patrimonioTotal),
-                        style = MaterialTheme.typography.displayMedium,
-                        color = Color.White,
-                        fontWeight = FontWeight.ExtraBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    ValorDoHero(formatoMoeda.format(patrimonioTotal))
 
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -221,7 +214,7 @@ fun InvestimentoScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        IndicadorGlassDePagina(
+                        IndicadorDePagina(
                             "MAIOR POSIÇÃO",
                             if (maiorPosicao != null && patrimonioTotal > 0.0)
                                 "${maiorPosicao.first} ${((maiorPosicao.second / patrimonioTotal) * 100).toInt()}%"
@@ -229,7 +222,7 @@ fun InvestimentoScreen(
                             Icons.Filled.PieChart,
                             Modifier.weight(1f)
                         )
-                        IndicadorGlassDePagina(
+                        IndicadorDePagina(
                             "CATEGORIAS",
                             "${distribuicao.size}",
                             Icons.AutoMirrored.Filled.TrendingUp,
