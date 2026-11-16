@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
@@ -241,6 +242,7 @@ fun AnaliseScreen(
                 Card(
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 5.dp)
@@ -591,6 +593,7 @@ private fun CartaoAnalise(
     Card(
         shape = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(

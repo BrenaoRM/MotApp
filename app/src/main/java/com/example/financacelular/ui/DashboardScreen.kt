@@ -1,12 +1,13 @@
 package com.example.financacelular.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -22,20 +23,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.PieChart
+import androidx.compose.material.icons.outlined.Repeat
+import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -55,17 +54,16 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.ui.theme.AmareloInvestimento
-import com.example.financacelular.ui.theme.AzulAgenda
 import com.example.financacelular.ui.theme.AzulCartao
+import com.example.financacelular.ui.theme.LilasRecorrente
+import com.example.financacelular.ui.theme.RoxoMeta
+import com.example.financacelular.ui.theme.TealParcelados
+import com.example.financacelular.ui.theme.VerdeOrcamento
 import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.Espaco
-import com.example.financacelular.ui.theme.LilasRecorrente
 import com.example.financacelular.ui.theme.RoxoHero
-import com.example.financacelular.ui.theme.RoxoMeta
 import com.example.financacelular.ui.theme.Tamanho
-import com.example.financacelular.ui.theme.TealParcelados
 import com.example.financacelular.ui.theme.Verde
-import com.example.financacelular.ui.theme.VerdeOrcamento
 import com.example.financacelular.ui.theme.cores
 import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
@@ -150,11 +148,6 @@ fun DashboardScreen(
         animationSpec = tween(600),
         label = "corHero1"
     )
-    val corHero2 by animateColorAsState(
-        targetValue = if (saldo >= 0) AzulAgenda else CorHeroAlerta,
-        animationSpec = tween(600),
-        label = "corHero2"
-    )
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -181,23 +174,23 @@ fun DashboardScreen(
                         )
                         Text(
                             nomeUsuario,
-                            style = MaterialTheme.typography.headlineLarge,
+                            style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1
                         )
                     }
+                    // Engrenagem sem fundo, discreta
                     Box(
                         modifier = Modifier
                             .size(Tamanho.toque)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surface)
                             .clickable(role = Role.Button, onClick = aoAbrirConfiguracoes),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.Filled.Settings,
                             contentDescription = "Configurações",
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -223,190 +216,107 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // ---------------- CARTÃO PRINCIPAL (PROJEÇÃO) ----------------
-                val amoled = MaterialTheme.cores.amoled
+                // Mesmo layout em todos os temas; só as cores mudam.
                 val formaHero = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius)
+                val temaClaro = MaterialTheme.colorScheme.background.luminance() > 0.5f
+                val intensidadeBrilho = if (temaClaro) 0.45f else 0.75f
+                val corTexto = MaterialTheme.colorScheme.onSurface
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(formaHero)
-                        .then(
-                            if (amoled) {
-                                // Cartão escuro com borda fina e brilho violeta vindo do canto inferior direito
-                                Modifier
-                                    .background(Color(0xFF0A0A0D))
-                                    .drawBehind {
-                                        drawRect(
-                                            Brush.radialGradient(
-                                                colors = listOf(
-                                                    corHero1.copy(alpha = 0.75f),
-                                                    corHero1.copy(alpha = 0.25f),
-                                                    Color.Transparent
-                                                ),
-                                                center = Offset(size.width * 0.92f, size.height * 1.05f),
-                                                radius = size.width * 0.95f
-                                            )
-                                        )
-                                    }
-                                    .border(1.dp, MaterialTheme.colorScheme.outline, formaHero)
-                            } else {
-                                Modifier.background(Brush.linearGradient(colors = listOf(corHero1, corHero2)))
-                            }
-                        )
+                        .background(MaterialTheme.colorScheme.surface)
+                        .drawBehind {
+                            // Brilho violeta vindo do canto inferior direito
+                            drawRect(
+                                Brush.radialGradient(
+                                    colors = listOf(
+                                        corHero1.copy(alpha = intensidadeBrilho),
+                                        corHero1.copy(alpha = intensidadeBrilho / 3),
+                                        Color.Transparent
+                                    ),
+                                    center = Offset(size.width * 0.92f, size.height * 1.05f),
+                                    radius = size.width * 0.95f
+                                )
+                            )
+                        }
+                        .border(1.dp, MaterialTheme.colorScheme.outline, formaHero)
                 ) {
-                    if (!amoled) {
-                        // Círculos decorativos
-                        Box(
-                            modifier = Modifier
-                                .size(200.dp)
-                                .align(Alignment.TopEnd)
-                                .offset(x = 70.dp, y = (-70).dp)
-                                .background(Color.White.copy(alpha = 0.08f), CircleShape)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(140.dp)
-                                .align(Alignment.BottomStart)
-                                .offset(x = (-50).dp, y = 60.dp)
-                                .background(Color.White.copy(alpha = 0.06f), CircleShape)
-                        )
-                    }
-
                     Column(modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium)) {
-                        val botaoOlho: @Composable () -> Unit = {
-                            IconButton(
-                                onClick = { saldoVisivel = !saldoVisivel },
-                                modifier = Modifier.size(Tamanho.toque)
-                            ) {
-                                Icon(
-                                    if (saldoVisivel) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                                    contentDescription = if (saldoVisivel) "Ocultar valores" else "Mostrar valores",
-                                    tint = Color.White.copy(alpha = 0.9f),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                        if (!amoled) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    "PROJEÇÃO DO MÊS",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White.copy(alpha = 0.8f)
-                                )
-                                botaoOlho()
-                                Spacer(modifier = Modifier.weight(1f))
-                                SeloSaude(saudavel = saldo >= 0)
-                            }
-                        }
-                        if (!amoled) Spacer(modifier = Modifier.height(6.dp))
                         val textoSaldo = if (saldoVisivel) formatoMoeda.format(saldo) else "R$ ••••••"
                         val posVirgula = textoSaldo.lastIndexOf(',')
                         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                // No AMOLED os centavos ficam esmaecidos, como na referência
-                                if (amoled && posVirgula > 0) buildAnnotatedString {
-                                    append(textoSaldo.substring(0, posVirgula))
-                                    withStyle(SpanStyle(color = Color.White.copy(alpha = 0.55f))) {
-                                        append(textoSaldo.substring(posVirgula))
-                                    }
-                                } else AnnotatedString(textoSaldo),
-                                style = MaterialTheme.typography.displayMedium,
-                                fontSize = if (amoled) 28.sp else TextUnit.Unspecified,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color.White,
-                                maxLines = 1,
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
-                            if (amoled) {
-                                botaoOlho()
-                                Spacer(modifier = Modifier.weight(1f))
-                                BotaoExtratoHero(onClick = aoAbrirExtrato)
+                            // Valor + olho ocupam o espaço que sobra; o botão Extrato fica fixo à direita
+                            Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    // Os centavos ficam menores e esmaecidos
+                                    if (posVirgula > 0) buildAnnotatedString {
+                                        append(textoSaldo.substring(0, posVirgula))
+                                        withStyle(SpanStyle(color = corTexto.copy(alpha = 0.55f), fontSize = 20.sp)) {
+                                            append(textoSaldo.substring(posVirgula))
+                                        }
+                                    } else AnnotatedString(textoSaldo),
+                                    style = MaterialTheme.typography.displayMedium,
+                                    fontSize = 28.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = corTexto,
+                                    maxLines = 1,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                                IconButton(
+                                    onClick = { saldoVisivel = !saldoVisivel },
+                                    modifier = Modifier.size(Tamanho.toque)
+                                ) {
+                                    Icon(
+                                        if (saldoVisivel) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                        contentDescription = if (saldoVisivel) "Ocultar valores" else "Mostrar valores",
+                                        tint = corTexto.copy(alpha = 0.8f),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             }
+                            BotaoExtratoHero(onClick = aoAbrirExtrato)
                         }
-                        if (amoled) {
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(IntrinsicSize.Min)
-                            ) {
-                                ColunaFluxo(
-                                    icone = Icons.Filled.ArrowUpward,
-                                    corMarca = Verde,
-                                    valorFormatado = formatoMoeda.format(totalReceitas),
-                                    pontos = serieDoMes.entradas,
-                                    visivel = saldoVisivel,
-                                    descricao = "Entradas em $nomeMes: ${formatoMoeda.format(totalReceitas)}",
-                                    modifier = Modifier.weight(1f).padding(end = 14.dp)
-                                )
-                                Box(
-                                    Modifier
-                                        .width(1.dp)
-                                        .fillMaxHeight()
-                                        .background(Color.White.copy(alpha = 0.08f))
-                                )
-                                ColunaFluxo(
-                                    icone = Icons.Filled.ArrowDownward,
-                                    corMarca = Coral,
-                                    valorFormatado = formatoMoeda.format(totalDespesas),
-                                    pontos = serieDoMes.saidas,
-                                    visivel = saldoVisivel,
-                                    descricao = "Saídas em $nomeMes: ${formatoMoeda.format(totalDespesas)}",
-                                    modifier = Modifier.weight(1f).padding(start = 14.dp)
-                                )
-                            }
-                        } else {
-                        Spacer(modifier = Modifier.height(18.dp))
-
+                        Spacer(modifier = Modifier.height(10.dp))
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Min)
                         ) {
-                            IndicadorGlass(
-                                "ENTRADAS", if (saldoVisivel) formatoMoeda.format(totalReceitas) else "R$ ••••",
-                                Icons.AutoMirrored.Filled.TrendingUp, Modifier.weight(1f)
+                            ColunaFluxo(
+                                icone = Icons.Filled.ArrowUpward,
+                                corMarca = Verde,
+                                valorFormatado = formatoMoeda.format(totalReceitas),
+                                pontos = serieDoMes.entradas,
+                                visivel = saldoVisivel,
+                                descricao = "Entradas em $nomeMes: ${formatoMoeda.format(totalReceitas)}",
+                                modifier = Modifier.weight(1f).padding(end = 14.dp)
                             )
-                            IndicadorGlass(
-                                "SAÍDAS", if (saldoVisivel) formatoMoeda.format(totalDespesas) else "R$ ••••",
-                                Icons.AutoMirrored.Filled.TrendingDown, Modifier.weight(1f)
+                            Box(
+                                Modifier
+                                    .width(1.dp)
+                                    .fillMaxHeight()
+                                    .background(MaterialTheme.colorScheme.outline)
                             )
-                            IndicadorGlass(
-                                "INVESTIDO", if (saldoVisivel) formatoMoeda.format(totalInvestido) else "R$ ••••",
-                                Icons.Filled.Savings, Modifier.weight(1f)
+                            ColunaFluxo(
+                                icone = Icons.Filled.ArrowDownward,
+                                corMarca = Coral,
+                                valorFormatado = formatoMoeda.format(totalDespesas),
+                                pontos = serieDoMes.saidas,
+                                visivel = saldoVisivel,
+                                descricao = "Saídas em $nomeMes: ${formatoMoeda.format(totalDespesas)}",
+                                modifier = Modifier.weight(1f).padding(start = 14.dp)
                             )
-                        }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        Button(
-                            onClick = aoAbrirExtrato,
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.White.copy(alpha = 0.2f),
-                                contentColor = Color.White
-                            ),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp)
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.ReceiptLong, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Ver Extrato Completo", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                        }
                         }
                     }
                 }
 
-                if (amoled) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    LinhaInvestido(
-                        valorFormatado = formatoMoeda.format(totalInvestido),
-                        visivel = saldoVisivel,
-                        onClick = aoAbrirInvestimento
-                    )
-                }
+                Spacer(modifier = Modifier.height(12.dp))
+                LinhaInvestido(
+                    valorFormatado = formatoMoeda.format(totalInvestido),
+                    visivel = saldoVisivel,
+                    onClick = aoAbrirInvestimento
+                )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -419,12 +329,12 @@ fun DashboardScreen(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    AtalhoRapidoCard("Fatura", Icons.Filled.CreditCard, AzulCartao, aoAbrirCartao)
-                    AtalhoRapidoCard("Assinaturas", Icons.Filled.Repeat, LilasRecorrente, aoAbrirAssinaturas)
-                    AtalhoRapidoCard("Parcelados", Icons.AutoMirrored.Filled.ReceiptLong, TealParcelados, aoAbrirParcelados)
-                    AtalhoRapidoCard("Investir", Icons.Filled.Savings, AmareloInvestimento, aoAbrirInvestimento)
-                    AtalhoRapidoCard("Metas", Icons.Filled.Flag, RoxoMeta, aoAbrirMetas)
-                    AtalhoRapidoCard("Orçamento", Icons.Filled.PieChart, VerdeOrcamento, aoAbrirOrcamento)
+                    AtalhoRapidoCard("Fatura", Icons.Outlined.CreditCard, AzulCartao, aoAbrirCartao)
+                    AtalhoRapidoCard("Assinaturas", Icons.Outlined.Repeat, LilasRecorrente, aoAbrirAssinaturas)
+                    AtalhoRapidoCard("Parcelados", Icons.AutoMirrored.Outlined.ReceiptLong, TealParcelados, aoAbrirParcelados)
+                    AtalhoRapidoCard("Investir", Icons.Outlined.Savings, AmareloInvestimento, aoAbrirInvestimento)
+                    AtalhoRapidoCard("Metas", Icons.Outlined.Flag, RoxoMeta, aoAbrirMetas)
+                    AtalhoRapidoCard("Orçamento", Icons.Outlined.PieChart, VerdeOrcamento, aoAbrirOrcamento)
                 }
 
                 Spacer(modifier = Modifier.height(28.dp))
@@ -436,34 +346,18 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("Resumo por Categoria", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Box(
-                        modifier = Modifier
-                            .heightIn(min = Tamanho.toque)
-                            .clip(RoundedCornerShape(50))
-                            .background(
-                                if (filtrosAtivos) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                            )
-                            .clickable(role = Role.Button) { mostrarFiltros = true }
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        contentAlignment = Alignment.Center
+                    // Só um ícone discreto; fica na cor de destaque quando há filtro ativo
+                    IconButton(
+                        onClick = { mostrarFiltros = true },
+                        modifier = Modifier.size(Tamanho.toque)
                     ) {
-                        val corFiltro = if (filtrosAtivos) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Filled.FilterList,
-                                contentDescription = null,
-                                tint = corFiltro,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                if (filtrosAtivos) "Filtrado" else "Filtrar",
-                                color = corFiltro,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                        Icon(
+                            Icons.Filled.FilterList,
+                            contentDescription = if (filtrosAtivos) "Filtros ativos" else "Filtrar",
+                            tint = if (filtrosAtivos) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(Tamanho.icone)
+                        )
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
@@ -501,6 +395,7 @@ fun DashboardScreen(
                     onClick = { chaveCategoriaDetalhe = "${resumo.categoriaId}-${resumo.tipo}" },
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 5.dp)
@@ -712,7 +607,8 @@ private fun AtalhoRapidoCard(titulo: String, icone: ImageVector, cor: Color, onC
     Card(
         onClick = onClick,
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = cor.copy(alpha = 0.10f)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier
             .width(104.dp)
             .height(92.dp)
@@ -723,79 +619,21 @@ private fun AtalhoRapidoCard(titulo: String, icone: ImageVector, cor: Color, onC
                 .padding(12.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
+            // Ícone na cor do atalho sobre um fundo suave da própria cor
             Box(
                 modifier = Modifier
-                    .size(34.dp)
-                    .background(cor, RoundedCornerShape(11.dp)),
+                    .size(36.dp)
+                    .background(cor.copy(alpha = 0.16f), RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icone, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                Icon(icone, contentDescription = null, tint = cor, modifier = Modifier.size(20.dp))
             }
             Text(
                 titulo,
                 style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.SemiBold,
                 maxLines = 1
             )
         }
-    }
-}
-
-@Composable
-private fun SeloSaude(saudavel: Boolean) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(Color.White.copy(alpha = 0.2f))
-            .padding(horizontal = 10.dp, vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            if (saudavel) Icons.Filled.CheckCircle else Icons.Filled.ErrorOutline,
-            contentDescription = null,
-            tint = Color.White,
-            modifier = Modifier.size(14.dp)
-        )
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(
-            if (saudavel) "Saudável" else "Atenção",
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
-        )
-    }
-}
-
-@Composable
-private fun IndicadorGlass(
-    titulo: String,
-    valor: String,
-    icone: ImageVector,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(18.dp))
-            .background(Color.White.copy(alpha = 0.16f))
-            .padding(horizontal = 10.dp, vertical = 10.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icone, contentDescription = null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(13.dp))
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                titulo,
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.White.copy(alpha = 0.8f),
-                maxLines = 1
-            )
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            valor,
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1
-        )
     }
 }

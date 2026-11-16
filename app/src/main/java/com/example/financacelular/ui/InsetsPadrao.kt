@@ -9,10 +9,10 @@ import androidx.compose.ui.unit.dp
 
 /**
  * Altura "própria" da barra de navegação flutuante, sem contar a inset do
- * sistema: 10dp de respiro acima + 50dp da NavigationBar + 10dp de respiro
- * abaixo. Ver AppNavigation.kt -> Scaffold -> bottomBar.
+ * sistema: 10dp de respiro acima + 66dp da ilha (BarraInferior.kt) + 10dp de
+ * respiro abaixo. Ver AppNavigation.kt -> Scaffold -> bottomBar.
  */
-private val ALTURA_BARRA_FLUTUANTE = 70.dp
+private val ALTURA_BARRA_FLUTUANTE = 86.dp
 
 /** Respiro extra para o último item nunca ficar colado na barra. */
 private val RESPIRO_EXTRA = 0.5.dp

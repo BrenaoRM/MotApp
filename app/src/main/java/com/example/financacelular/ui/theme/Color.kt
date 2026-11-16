@@ -87,8 +87,6 @@ val FundoAmoled = Color(0xFF000000)
 val CartaoAmoled = Color(0xFF0D0D0F)
 val BordaAmoled = Color(0xFF1F1F23)
 
-val CoresAmoled = CoresEscuras.copy(amoled = true)
-
 // Acento violeta (como na referência); verde/coral ficam só para ganho/gasto.
 val EsquemaAmoled = darkColorScheme(
     primary = RoxoHero,

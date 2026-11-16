@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import androidx.compose.foundation.BorderStroke
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -154,6 +155,7 @@ fun ConfiguracoesScreen(
             Card(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
@@ -206,6 +208,7 @@ fun ConfiguracoesScreen(
             Card(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(

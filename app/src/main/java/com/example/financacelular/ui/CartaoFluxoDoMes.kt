@@ -133,6 +133,7 @@ fun ColunaFluxo(
 ) {
     val textoValor = if (visivel) valorFormatado.replace("R$", "").trim() else "••••"
     val posVirgula = textoValor.lastIndexOf(',')
+    val corTexto = MaterialTheme.colorScheme.onSurface
 
     Column(
         modifier = modifier.semantics(mergeDescendants = true) {
@@ -150,10 +151,10 @@ fun ColunaFluxo(
         Spacer(Modifier.height(8.dp))
         Text(
             buildAnnotatedString {
-                withStyle(SpanStyle(fontSize = 11.sp, color = Color.White.copy(alpha = 0.6f))) { append("R$ ") }
+                withStyle(SpanStyle(fontSize = 11.sp, color = corTexto.copy(alpha = 0.6f))) { append("R$ ") }
                 if (posVirgula > 0) {
                     append(textoValor.substring(0, posVirgula))
-                    withStyle(SpanStyle(color = Color.White.copy(alpha = 0.55f))) {
+                    withStyle(SpanStyle(color = corTexto.copy(alpha = 0.55f), fontSize = 12.sp)) {
                         append(textoValor.substring(posVirgula))
                     }
                 } else {
@@ -162,7 +163,7 @@ fun ColunaFluxo(
             },
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = Color.White,
+            color = corTexto,
             maxLines = 1,
             softWrap = false
         )
@@ -223,6 +224,7 @@ fun LinhaInvestido(
 /** Botão pequeno "Extrato ›" do hero (área de toque de 48dp, visual de 32dp). */
 @Composable
 fun BotaoExtratoHero(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val corTexto = MaterialTheme.colorScheme.onSurface
     Box(
         modifier = modifier
             .heightIn(min = Tamanho.toque)
@@ -233,14 +235,14 @@ fun BotaoExtratoHero(onClick: () -> Unit, modifier: Modifier = Modifier) {
             modifier = Modifier
                 .height(32.dp)
                 .clip(RoundedCornerShape(50))
-                .background(Color.White.copy(alpha = 0.12f))
-                .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(50))
+                .background(corTexto.copy(alpha = 0.08f))
+                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(50))
                 .padding(start = 12.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Extrato", color = Color.White, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+            Text("Extrato", color = corTexto, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.width(2.dp))
-            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = corTexto, modifier = Modifier.size(16.dp))
         }
     }
 }

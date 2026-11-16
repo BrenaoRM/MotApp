@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.animateFloatAsState
@@ -222,6 +223,7 @@ fun MetaScreen(
                     Card(
                         shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                         modifier = Modifier
                             .animateItem()
                             .fillMaxWidth()
