@@ -782,6 +782,7 @@ private fun CartaoAgenda(
     Card(
         shape = formaCartao,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
