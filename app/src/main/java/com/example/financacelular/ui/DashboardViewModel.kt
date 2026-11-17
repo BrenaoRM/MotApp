@@ -142,13 +142,17 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     }.flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SerieDoMes())
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val totalInvestidoDoMes: StateFlow<Double> = combine(
-        anoMesTexto,
+    /** Aportes dos 6 meses que terminam no mês selecionado (meses sem aporte valem 0); o último item é o mês exibido. */
+    val aportesDosUltimosMeses: StateFlow<List<TotalMensalInvestimento>> = combine(
+        _mesSelecionado,
         repository.listarInvestimentos()
-    ) { anoMes, investimentos ->
-        investimentos.filter { it.anoMes == anoMes }.sumOf { it.valorInvestido }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+    ) { mes, investimentos ->
+        val totaisPorMes = investimentos.groupBy { it.anoMes }.mapValues { (_, invs) -> invs.sumOf { it.valorInvestido } }
+        (5 downTo 0).map { atras ->
+            val anoMes = mes.minusMonths(atras.toLong()).format(DateTimeFormatter.ofPattern("yyyy-MM"))
+            TotalMensalInvestimento(anoMes, totaisPorMes[anoMes] ?: 0.0)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val categorias: StateFlow<List<com.example.financacelular.data.Categoria>> = repository.listarCategorias()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

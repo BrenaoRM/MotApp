@@ -92,7 +92,7 @@ fun DashboardScreen(
     val totalReceitas by viewModel.totalReceitas.collectAsState()
     val mesSelecionado by viewModel.mesSelecionado.collectAsState()
     val resumoDoMes by viewModel.resumoDoMes.collectAsState()
-    val totalInvestido by viewModel.totalInvestidoDoMes.collectAsState()
+    val aportesDosUltimosMeses by viewModel.aportesDosUltimosMeses.collectAsState()
     val serieDoMes by viewModel.serieDoMes.collectAsState()
 
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
@@ -260,8 +260,9 @@ fun DashboardScreen(
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
-                LinhaInvestido(
-                    valorFormatado = formatoMoeda.format(totalInvestido),
+                CartaoInvestido(
+                    aportes = aportesDosUltimosMeses,
+                    valorFormatado = formatoMoeda.format(aportesDosUltimosMeses.lastOrNull()?.total ?: 0.0),
                     visivel = saldoVisivel,
                     onClick = aoAbrirInvestimento
                 )

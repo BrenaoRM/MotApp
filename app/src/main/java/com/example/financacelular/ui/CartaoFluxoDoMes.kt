@@ -49,8 +49,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextAlign
 import com.example.financacelular.ui.theme.AmareloInvestimento
+import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.Tamanho
+import com.example.financacelular.ui.theme.Verde
+import com.example.financacelular.ui.theme.cores
+import java.time.YearMonth
+import java.time.format.TextStyle
+import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
  * Minigráfico de área para uma série acumulada (tema AMOLED).
@@ -179,45 +187,129 @@ fun ColunaFluxo(
     }
 }
 
-/** Linha "Investido": valor e seta; leva à tela de investimentos. */
+/**
+ * Card "Investido em <mês>": valor do mês, variação sobre o mês anterior e barras dos 6 meses que
+ * terminam no mês selecionado (último item de [aportes]). Leva à tela de investimentos.
+ */
 @Composable
-fun LinhaInvestido(
+fun CartaoInvestido(
+    aportes: List<TotalMensalInvestimento>,
     valorFormatado: String,
     visivel: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val forma = RoundedCornerShape(16.dp)
-    Row(
+    if (aportes.size < 2) return
+    val forma = RoundedCornerShape(20.dp)
+    val corTexto = MaterialTheme.colorScheme.onSurface
+    val corNeutra = corTexto.copy(alpha = 0.13f)
+    val ptBr = remember { Locale.Builder().setLanguage("pt").setRegion("BR").build() }
+
+    val meses = aportes.map { YearMonth.parse(it.anoMes) }
+    val rotulos = meses.map { it.month.getDisplayName(TextStyle.SHORT, ptBr).take(3).lowercase() }
+    val nomeMes = meses.last().month.getDisplayName(TextStyle.FULL, ptBr)
+    val atual = aportes.last().total
+    val anterior = aportes[aportes.size - 2].total
+    val variacao = if (anterior > 0.0) ((atual - anterior) / anterior * 100).roundToInt() else null
+    val maximo = aportes.maxOf { it.total }
+
+    val textoValor = if (visivel) valorFormatado.replace("R$", "").trim() else "••••"
+    val posVirgula = textoValor.lastIndexOf(',')
+    val descricao = if (!visivel) "Investido em $nomeMes, valor oculto" else buildString {
+        append("Investido em $nomeMes: $valorFormatado")
+        if (variacao != null) append(", ${if (variacao >= 0) "mais" else "menos"} ${kotlin.math.abs(variacao)}% que ${rotulos[rotulos.size - 2]}")
+    }
+
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = Tamanho.controle)
             .clip(forma)
             .background(MaterialTheme.colorScheme.surface)
             .border(1.dp, MaterialTheme.colorScheme.outline, forma)
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+            .semantics(mergeDescendants = true) { contentDescription = descricao }
+            .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp)
     ) {
-        Box(Modifier.size(8.dp).background(AmareloInvestimento, CircleShape))
-        Text(
-            "Investido",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            if (visivel) valorFormatado else "R$ ••••",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold
-        )
-        Icon(
-            Icons.Filled.ChevronRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp)
-        )
+        Row(verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "Investido em $nomeMes",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    buildAnnotatedString {
+                        withStyle(SpanStyle(fontSize = 12.sp, color = corTexto.copy(alpha = 0.6f))) { append("R$ ") }
+                        if (posVirgula > 0) {
+                            append(textoValor.substring(0, posVirgula))
+                            withStyle(SpanStyle(color = corTexto.copy(alpha = 0.55f), fontSize = 15.sp)) {
+                                append(textoValor.substring(posVirgula))
+                            }
+                        } else {
+                            append(textoValor)
+                        }
+                    },
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = corTexto,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
+            if (visivel && variacao != null) {
+                val cor = if (variacao >= 0) MaterialTheme.cores.textoGanho else MaterialTheme.cores.textoGasto
+                val corFundo = if (variacao >= 0) Verde else Coral
+                Text(
+                    "${if (variacao >= 0) "+" else ""}$variacao% vs. ${rotulos[rotulos.size - 2]}",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = cor,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .background(corFundo.copy(alpha = 0.14f), CircleShape)
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                )
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.Bottom
+        ) {
+            aportes.forEachIndexed { indice, aporte ->
+                // Valores ocultos: barras de altura igual, para não revelar a proporção
+                val altura = when {
+                    !visivel -> 16.dp
+                    maximo > 0.0 -> (48.dp * (aporte.total / maximo).toFloat()).coerceAtLeast(4.dp)
+                    else -> 4.dp
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(altura)
+                        .background(
+                            if (visivel && indice == aportes.lastIndex) AmareloInvestimento else corNeutra,
+                            RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp, bottomStart = 3.dp, bottomEnd = 3.dp)
+                        )
+                )
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            rotulos.forEachIndexed { indice, rotulo ->
+                val ehAtual = indice == rotulos.lastIndex
+                Text(
+                    rotulo,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = if (ehAtual) FontWeight.SemiBold else FontWeight.Normal,
+                    color = if (ehAtual) corTexto else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
