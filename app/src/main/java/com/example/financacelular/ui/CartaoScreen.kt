@@ -3,15 +3,12 @@ package com.example.financacelular.ui
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -27,11 +24,9 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Event
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -40,11 +35,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
@@ -55,9 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.CartaoEntity
 import com.example.financacelular.data.calcularVencimentoFatura
-import com.example.financacelular.ui.theme.AmareloAlerta
 import com.example.financacelular.ui.theme.AzulCartao
-import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.Espaco
 import com.example.financacelular.ui.theme.Tamanho
 import com.example.financacelular.ui.theme.Verde
@@ -69,7 +62,6 @@ import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
-import kotlin.math.absoluteValue
 
 private val LocalePtBr: Locale = Locale.forLanguageTag("pt-BR")
 
@@ -171,37 +163,30 @@ fun CartaoScreen(
             )
             Spacer(modifier = Modifier.height(20.dp))
 
-            // CARROSSEL DE CARTÕES
+            // CARROSSEL DE CARTÕES (o próximo cartão aparece na borda)
             if (listaCartoesCarregada != null) HorizontalPager(
                 state = pagerState,
-                contentPadding = PaddingValues(horizontal = 4.dp),
-                pageSpacing = 12.dp,
+                contentPadding = PaddingValues(end = 24.dp),
+                pageSpacing = 10.dp,
                 key = { page -> listaCartoes.getOrNull(page)?.id ?: -1L }
             ) { page ->
-                // Páginas vizinhas ficam menores e mais translúcidas.
-                // O offset do pager muda a cada frame do arrasto: lê dentro do graphicsLayer
-                // (fase de desenho) para não recompor a tela inteira a cada frame.
-                val pageModifier = Modifier.graphicsLayer {
-                    val distancia = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction)
-                        .absoluteValue.coerceIn(0f, 1f)
-                    val destaque = 1f - distancia
-                    val escala = 0.92f + 0.08f * destaque
-                    scaleX = escala
-                    scaleY = escala
-                    alpha = 0.6f + 0.4f * destaque
-                }
-
                 if (page < listaCartoes.size) {
                     val cartao = listaCartoes[page]
                     val isAtivo = cartao.id == cartaoSelecionadoId
+                    val vencimento = remember(mesSelecionado, cartao) {
+                        calcularVencimentoFatura(
+                            anoMes = mesSelecionado,
+                            diaVencimento = cartao.diaVencimento,
+                            diaFechamento = cartao.diaFechamento
+                        )
+                    }
 
-                    CartaoHeroIndividual(
+                    CartaoFatura(
                         cartao = cartao,
                         valorTotal = if (isAtivo) valorTotalFatura else 0.0,
                         faturaPaga = if (isAtivo) faturaPaga else false,
-                        quantidadeItens = if (isAtivo) transacoesFatura.size else 0,
+                        vencimento = vencimento,
                         formatoMoeda = formatoMoeda,
-                        modifier = pageModifier,
                         onAbrirConfig = {
                             cartaoParaEditarId = cartao.id
                             confirmandoExclusao = false
@@ -210,7 +195,6 @@ fun CartaoScreen(
                     )
                 } else {
                     CardAdicionarCartao(
-                        modifier = pageModifier,
                         onClick = {
                             cartaoParaEditarId = null
                             confirmandoExclusao = false
@@ -230,45 +214,25 @@ fun CartaoScreen(
                 }
             }
 
-            // STATUS / VENCIMENTO DA FATURA
-            if (!naPaginaAdicionar && cartaoDaPagina != null) {
-                Spacer(modifier = Modifier.height(16.dp))
-                val vencimento = remember(mesSelecionado, cartaoDaPagina) {
-                    calcularVencimentoFatura(
-                        anoMes = mesSelecionado,
-                        diaVencimento = cartaoDaPagina.diaVencimento,
-                        diaFechamento = cartaoDaPagina.diaFechamento
-                    )
-                }
-                BannerStatusFatura(faturaPaga = faturaPaga, vencimento = vencimento)
-            }
-
             if (!naPaginaAdicionar) {
                 Spacer(modifier = Modifier.height(24.dp))
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = Tamanho.toque),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         "Lançamentos",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
                     )
-                    Surface(
-                        shape = CircleShape,
-                        color = AzulCartao.copy(alpha = 0.12f)
-                    ) {
-                        Text(
-                            text = if (transacoesFatura.size == 1) "1 item" else "${transacoesFatura.size} itens",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = AzulCartao,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
-                        )
-                    }
+                    Text(
+                        text = if (transacoesFatura.size == 1) "1 item" else "${transacoesFatura.size} itens",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
 
@@ -283,23 +247,38 @@ fun CartaoScreen(
                 }
             }
 
-            lancamentosPorDia.forEach { (dia, lancamentos) ->
-                item(key = "dia-$dia") {
-                    Column(modifier = Modifier.animateItem()) {
-                        CabecalhoDoDia(
-                            titulo = formatarDiaAmigavel(dia),
-                            total = formatoMoeda.format(lancamentos.sumOf { it.valor })
-                        )
-                        GrupoDeLista(lancamentos) { transacao ->
-                            val categoria = categoriaPorId[transacao.categoriaId]
-                            LinhaDeLista(
-                                icone = iconeParaCategoria(categoria?.nome.orEmpty()),
-                                cor = AzulCartao,
-                                titulo = transacao.descricao ?: "Compra no cartão",
-                                subtitulo = categoria?.nome,
-                                valor = formatoMoeda.format(transacao.valor),
-                                corValor = MaterialTheme.cores.textoGasto
-                            )
+            if (transacoesFatura.isNotEmpty()) {
+                // Um único cartão com todos os lançamentos, agrupados por dia (como as Categorias da Início)
+                item(key = "lancamentos") {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column {
+                            lancamentosPorDia.entries.forEachIndexed { indiceDia, (dia, lancamentos) ->
+                                DiaDaFatura(
+                                    titulo = formatarDiaAmigavel(dia),
+                                    total = formatoMoeda.format(lancamentos.sumOf { it.valor }),
+                                    primeiro = indiceDia == 0
+                                )
+                                lancamentos.forEachIndexed { indice, transacao ->
+                                    if (indice > 0) {
+                                        HorizontalDivider(
+                                            modifier = Modifier.padding(start = 70.dp, end = 14.dp),
+                                            color = MaterialTheme.colorScheme.outline
+                                        )
+                                    }
+                                    val categoria = categoriaPorId[transacao.categoriaId]
+                                    LinhaLancamento(
+                                        icone = iconeParaCategoria(categoria?.nome.orEmpty()),
+                                        titulo = transacao.descricao ?: "Compra no cartão",
+                                        categoria = categoria?.nome,
+                                        valor = formatoMoeda.format(transacao.valor)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -453,193 +432,157 @@ fun CartaoScreen(
 
 // ───────────────────────────── CARTÃO ─────────────────────────────
 
+/** Altura mínima do cartão da fatura; o cartão "Adicionar" usa a mesma para o carrossel ficar alinhado. */
+private val AlturaCartaoFatura = 168.dp
+
+/**
+ * Cartão da fatura no estilo do app: superfície com borda fina e brilho na cor do cartão (azul, verde
+ * quando paga). A cor do banco aparece só na bolinha e no brilho; a engrenagem é um ícone solto.
+ */
 @Composable
-private fun CartaoHeroIndividual(
+private fun CartaoFatura(
     cartao: CartaoEntity,
     valorTotal: Double,
     faturaPaga: Boolean,
-    quantidadeItens: Int,
+    vencimento: LocalDate,
     formatoMoeda: NumberFormat,
     modifier: Modifier = Modifier,
     onAbrirConfig: () -> Unit
 ) {
-    val animProgress by animateFloatAsState(
-        targetValue = if (faturaPaga) 1f else 0f,
-        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
-        label = "transicaoFaturaColor"
+    val cor by animateColorAsState(
+        targetValue = if (faturaPaga) Verde else AzulCartao,
+        animationSpec = tween(300),
+        label = "corFatura"
     )
-    val corInicial = lerp(AzulCartao, Verde, animProgress)
-    val corFinal = lerp(gradienteDaCor(AzulCartao), gradienteDaCor(Verde), animProgress)
-    val forma = RoundedCornerShape(28.dp)
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(212.dp)
-            .clip(forma)
-            .background(Brush.linearGradient(listOf(corInicial, corFinal)))
-    ) {
-        // Círculos decorativos translúcidos
-        Canvas(modifier = Modifier.matchParentSize()) {
-            drawCircle(
-                color = Color.White.copy(alpha = 0.10f),
-                radius = size.width * 0.42f,
-                center = Offset(size.width * 0.98f, -size.height * 0.08f)
-            )
-            drawCircle(
-                color = Color.White.copy(alpha = 0.07f),
-                radius = size.width * 0.34f,
-                center = Offset(size.width * 0.02f, size.height * 1.12f)
-            )
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Filled.CreditCard,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = cartao.nome.uppercase(),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                PilulaGlass(if (faturaPaga) "PAGA" else "EM ABERTO")
-                Spacer(modifier = Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .size(Tamanho.toque)
-                        .clip(CircleShape)
-                        .clickable(role = Role.Button, onClick = onAbrirConfig),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Settings,
-                            contentDescription = "Configurar cartão",
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
-
+    CartaoHeroDePagina(cor = cor, modifier = modifier.heightIn(min = AlturaCartaoFatura)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(8.dp).background(cor, CircleShape))
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Total da fatura",
-                style = MaterialTheme.typography.labelMedium,
-                color = Color.White.copy(alpha = 0.75f)
-            )
-            Text(
-                text = formatoMoeda.format(valorTotal),
-                style = MaterialTheme.typography.displayMedium,
-                color = Color.White,
-                fontWeight = FontWeight.ExtraBold,
+                cartao.nome,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            // Toque de 48dp com efeito circular; o ícone fica solto, sem moldura
+            Box(
+                modifier = Modifier
+                    .size(Tamanho.toque)
+                    .clip(CircleShape)
+                    .clickable(role = Role.Button, onClick = onAbrirConfig),
+                contentAlignment = Alignment.Center
             ) {
-                IndicadorGlassDePagina(
-                    "VENCIMENTO",
-                    "Dia ${cartao.diaVencimento}",
-                    Icons.Filled.CalendarToday,
-                    Modifier.weight(1f)
-                )
-                IndicadorGlassDePagina(
-                    "LANÇAMENTOS",
-                    if (quantidadeItens == 1) "1 item" else "$quantidadeItens itens",
-                    Icons.AutoMirrored.Filled.ReceiptLong,
-                    Modifier.weight(1f)
+                Icon(
+                    imageVector = Icons.Filled.Settings,
+                    contentDescription = "Configurar cartão",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            "Total da fatura",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        ValorDoHero(formatoMoeda.format(valorTotal))
+        Spacer(modifier = Modifier.height(10.dp))
+        EstadoFatura(faturaPaga = faturaPaga, vencimento = vencimento)
+    }
+}
+
+/** Linha de estado da fatura: o vencimento é o estado (cinza, âmbar com 3 dias ou menos, coral se vencida, verde se paga). */
+@Composable
+private fun EstadoFatura(faturaPaga: Boolean, vencimento: LocalDate) {
+    val dias = ChronoUnit.DAYS.between(LocalDate.now(), vencimento).toInt()
+    val dia = vencimento.dayOfMonth
+    val cinza = MaterialTheme.colorScheme.onSurfaceVariant
+
+    val cor: Color
+    val icone: ImageVector
+    val texto: String
+    when {
+        faturaPaga -> {
+            cor = MaterialTheme.cores.textoGanho
+            icone = Icons.Filled.Check
+            texto = "Fatura paga"
+        }
+        dias < 0 -> {
+            cor = MaterialTheme.cores.textoGasto
+            icone = Icons.Filled.Warning
+            texto = if (dias == -1) "Venceu ontem, dia $dia" else "Venceu dia $dia, há ${-dias} dias"
+        }
+        dias == 0 -> {
+            cor = MaterialTheme.cores.textoGasto
+            icone = Icons.Filled.Warning
+            texto = "Vence hoje, dia $dia"
+        }
+        dias <= 3 -> {
+            cor = MaterialTheme.cores.alerta
+            icone = Icons.Filled.Warning
+            texto = if (dias == 1) "Vence amanhã, dia $dia" else "Vence dia $dia, em $dias dias"
+        }
+        else -> {
+            cor = cinza
+            icone = Icons.Filled.CalendarToday
+            texto = "Vence dia $dia, em $dias dias"
+        }
+    }
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(icone, contentDescription = null, tint = cor, modifier = Modifier.size(15.dp))
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            texto,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = cor
+        )
     }
 }
 
 @Composable
 private fun CardAdicionarCartao(modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val forma = RoundedCornerShape(28.dp)
-    Surface(
-        shape = forma,
-        color = Color.Transparent,
-        border = BorderStroke(1.5.dp, AzulCartao.copy(alpha = 0.35f)),
+    val forma = RoundedCornerShape(20.dp)
+    val corTraco = MaterialTheme.colorScheme.outline
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .height(212.dp)
+            .height(AlturaCartaoFatura)
             .clip(forma)
-            .clickable(role = Role.Button, onClick = onClick)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(60.dp)
-                    .background(AzulCartao.copy(alpha = 0.15f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Filled.Add,
-                    contentDescription = null,
-                    tint = AzulCartao,
-                    modifier = Modifier.size(30.dp)
+            .drawBehind {
+                drawRoundRect(
+                    color = corTraco,
+                    cornerRadius = CornerRadius(20.dp.toPx()),
+                    style = Stroke(width = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f)))
                 )
             }
-            Spacer(modifier = Modifier.height(14.dp))
-            Text(
-                "Adicionar novo cartão",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                "Nubank, Inter, Mercado Pago…",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+            .clickable(role = Role.Button, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            Icons.Filled.Add,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            "Adicionar cartão",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
+/** Pontos do carrossel: o ponto da página atual se alarga (movimento curto, sem mola). */
 @Composable
 private fun IndicadorDePaginas(pagerState: PagerState, modifier: Modifier = Modifier) {
     Row(
@@ -649,14 +592,15 @@ private fun IndicadorDePaginas(pagerState: PagerState, modifier: Modifier = Modi
     ) {
         repeat(pagerState.pageCount) { index ->
             val selecionado = pagerState.currentPage == index
-            val largura by animateDpAsState(if (selecionado) 24.dp else 8.dp, label = "larguraDot")
+            val largura by animateDpAsState(if (selecionado) 16.dp else 6.dp, tween(200), label = "larguraDot")
             val cor by animateColorAsState(
-                if (selecionado) AzulCartao else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f),
+                if (selecionado) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f),
+                tween(200),
                 label = "corDot"
             )
             Box(
                 modifier = Modifier
-                    .height(8.dp)
+                    .height(6.dp)
                     .width(largura)
                     .clip(CircleShape)
                     .background(cor)
@@ -667,79 +611,13 @@ private fun IndicadorDePaginas(pagerState: PagerState, modifier: Modifier = Modi
 
 // ───────────────────────────── FATURA ─────────────────────────────
 
+/** Cabeçalho de um dia dentro do cartão de lançamentos: o dia à esquerda e o total do dia à direita. */
 @Composable
-private fun BannerStatusFatura(faturaPaga: Boolean, vencimento: LocalDate) {
-    val dias = ChronoUnit.DAYS.between(LocalDate.now(), vencimento).toInt()
-    val dataTexto = vencimento.format(DateTimeFormatter.ofPattern("dd/MM"))
-
-    val cor: Color
-    val icone: ImageVector
-    val titulo: String
-    val detalhe: String
-
-    when {
-        faturaPaga -> {
-            cor = Verde
-            icone = Icons.Filled.CheckCircle
-            titulo = "Fatura paga"
-            detalhe = "Tudo certo por aqui"
-        }
-        dias < 0 -> {
-            cor = Coral
-            icone = Icons.Filled.Warning
-            titulo = if (dias == -1) "Venceu ontem" else "Venceu há ${-dias} dias"
-            detalhe = "Vencimento em $dataTexto"
-        }
-        dias == 0 -> {
-            cor = Coral
-            icone = Icons.Filled.Warning
-            titulo = "Vence hoje"
-            detalhe = "Vencimento em $dataTexto"
-        }
-        else -> {
-            cor = if (dias <= 3) AmareloAlerta else AzulCartao
-            icone = Icons.Filled.Schedule
-            titulo = if (dias == 1) "Vence amanhã" else "Vence em $dias dias"
-            detalhe = "Vencimento em $dataTexto"
-        }
-    }
-
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = cor.copy(alpha = 0.10f),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(cor.copy(alpha = 0.18f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icone, contentDescription = null, tint = cor, modifier = Modifier.size(22.dp))
-            }
-            Spacer(modifier = Modifier.width(14.dp))
-            Column {
-                Text(titulo, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Text(
-                    detalhe,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun CabecalhoDoDia(titulo: String, total: String) {
+private fun DiaDaFatura(titulo: String, total: String, primeiro: Boolean) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 18.dp, bottom = 8.dp, start = 4.dp, end = 4.dp),
+            .padding(start = 14.dp, end = 14.dp, top = if (primeiro) 12.dp else 16.dp, bottom = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -752,7 +630,48 @@ private fun CabecalhoDoDia(titulo: String, total: String) {
         Text(
             total,
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/** Linha de lançamento: ícone solto e cinza (sem quadrado), nome, categoria e valor em cor neutra. */
+@Composable
+private fun LinhaLancamento(icone: ImageVector, titulo: String, categoria: String?, valor: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(modifier = Modifier.width(44.dp), contentAlignment = Alignment.Center) {
+            Icon(icone, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                titulo,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (categoria != null) {
+                Text(
+                    categoria,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            valor,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1
         )
     }
 }

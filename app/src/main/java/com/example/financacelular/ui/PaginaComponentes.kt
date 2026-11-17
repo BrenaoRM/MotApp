@@ -9,6 +9,17 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.unit.Dp
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -579,8 +590,6 @@ fun EtiquetaCartao(nome: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** Segunda cor do degradê do cartão principal: a cor da página, um pouco mais escura. */
-fun gradienteDaCor(cor: Color): Color = lerp(cor, Color.Black, 0.28f)
 
 /** Cor usada no cartão principal quando algo está estourado/negativo (igual à home). */
 val CorHeroAlerta = Color(0xFFA85560)
@@ -779,61 +788,6 @@ fun CartaoHeroDePagina(
     }
 }
 
-/** Selo translúcido (ex.: "3 ativos", "No limite") para usar dentro do cartão principal. */
-@Composable
-fun PilulaGlass(texto: String, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(50))
-            .background(Color.White.copy(alpha = 0.2f))
-            .padding(horizontal = 10.dp, vertical = 5.dp)
-    ) {
-        Text(
-            texto,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
-            maxLines = 1
-        )
-    }
-}
-
-/** Mini indicador translúcido para o cartão principal (mesmo visual da home). */
-@Composable
-fun IndicadorGlassDePagina(
-    titulo: String,
-    valor: String,
-    icone: ImageVector,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(18.dp))
-            .background(Color.White.copy(alpha = 0.16f))
-            .padding(horizontal = 10.dp, vertical = 6.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icone, contentDescription = null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(13.dp))
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                titulo,
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.White.copy(alpha = 0.8f),
-                maxLines = 1
-            )
-        }
-        Spacer(modifier = Modifier.height(3.dp))
-        Text(
-            valor,
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
 
 /** Selo discreto (ex.: "3 ativos", "No limite") para o cartão principal das páginas. */
 @Composable
@@ -909,5 +863,169 @@ fun IndicadorDePagina(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+
+// ── Páginas internas no padrão da Início (Metas, Parcelados, Recorrentes, Orçamento) ──
+
+/**
+ * Anel de progresso: trilho cinza e arco na [cor] (de 0 a 1), com o [conteudo] (texto ou ícone) no centro.
+ * O arco preenche em 300ms quando aparece e quando o valor muda.
+ */
+@Composable
+fun AnelDeProgresso(
+    progresso: Float,
+    cor: Color,
+    modifier: Modifier = Modifier,
+    tamanho: Dp = 44.dp,
+    conteudo: @Composable BoxScope.() -> Unit = {}
+) {
+    var alvo by remember { mutableStateOf(0f) }
+    LaunchedEffect(progresso) { alvo = progresso.coerceIn(0f, 1f) }
+    val animado by animateFloatAsState(alvo, tween(300), label = "anelProgresso")
+    val corTrilho = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+
+    Box(modifier = modifier.size(tamanho), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.matchParentSize()) {
+            val traco = 3.5.dp.toPx()
+            val lado = size.minDimension - traco
+            val canto = Offset(traco / 2, traco / 2)
+            drawArc(corTrilho, 0f, 360f, false, canto, Size(lado, lado), style = Stroke(traco))
+            if (animado > 0f) {
+                drawArc(cor, -90f, 360f * animado, false, canto, Size(lado, lado), style = Stroke(traco, cap = StrokeCap.Round))
+            }
+        }
+        conteudo()
+    }
+}
+
+/** Barra de 8dp do cartão do topo (progresso geral da página); preenche em 300ms. */
+@Composable
+fun BarraDoHero(progresso: Float, cor: Color, modifier: Modifier = Modifier) {
+    var alvo by remember { mutableStateOf(0f) }
+    LaunchedEffect(progresso) { alvo = progresso.coerceIn(0f, 1f) }
+    val animado by animateFloatAsState(alvo, tween(300), label = "barraHero")
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(8.dp)
+            .clip(RoundedCornerShape(4.dp))
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(animado)
+                .fillMaxHeight()
+                .background(cor, RoundedCornerShape(4.dp))
+        )
+    }
+}
+
+/** Um único cartão (borda 1dp, raio 20) para as linhas da página, como as Categorias da Início. */
+@Composable
+fun CartaoUnicoDeLinhas(modifier: Modifier = Modifier, conteudo: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(content = conteudo)
+    }
+}
+
+/** Divisória entre linhas do [CartaoUnicoDeLinhas], recuada para alinhar com o texto. */
+@Composable
+fun DivisorDeLinha() {
+    HorizontalDivider(
+        modifier = Modifier.padding(start = 70.dp, end = 14.dp),
+        color = MaterialTheme.colorScheme.outline
+    )
+}
+
+/**
+ * Linha do [CartaoUnicoDeLinhas]: [inicio] de 44dp (anel ou ícone solto), [titulo] e [valor] na primeira
+ * linha, [subtitulo] embaixo. [valorSecundario] aparece esmaecido depois do valor ("/ R$ 1.000").
+ */
+@Composable
+fun LinhaDePagina(
+    inicio: @Composable () -> Unit,
+    titulo: String,
+    valor: String,
+    modifier: Modifier = Modifier,
+    valorSecundario: String? = null,
+    subtitulo: String? = null,
+    corSubtitulo: Color = Color.Unspecified,
+    corValor: Color = Color.Unspecified,
+    onClick: (() -> Unit)? = null
+) {
+    val corNeutra = MaterialTheme.colorScheme.onSurface
+    val muda = MaterialTheme.colorScheme.onSurfaceVariant
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(modifier = Modifier.size(44.dp), contentAlignment = Alignment.Center) { inicio() }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    titulo,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    buildAnnotatedString {
+                        append(valor)
+                        if (valorSecundario != null) {
+                            withStyle(SpanStyle(color = muda, fontWeight = FontWeight.Medium, fontSize = 12.sp)) {
+                                append(" / $valorSecundario")
+                            }
+                        }
+                    },
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (corValor != Color.Unspecified) corValor else corNeutra,
+                    maxLines = 1
+                )
+            }
+            if (subtitulo != null) {
+                Text(
+                    subtitulo,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (corSubtitulo != Color.Unspecified) corSubtitulo else muda,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+/** Linha "rótulo ... valor" dos detalhes em sheet, com divisória embaixo. */
+@Composable
+fun LinhaDeDetalhe(rotulo: String, valor: String, modifier: Modifier = Modifier, corValor: Color = Color.Unspecified) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(rotulo, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                valor,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = if (corValor != Color.Unspecified) corValor else MaterialTheme.colorScheme.onSurface
+            )
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline)
     }
 }
