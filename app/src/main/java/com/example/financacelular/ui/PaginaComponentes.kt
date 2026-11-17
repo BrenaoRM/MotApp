@@ -708,18 +708,18 @@ private fun IconeDeCabecalho(
 /** Logo do app sem moldura, com uma engrenagem pequena no canto; abre as Configurações. Toque de 48dp. */
 @Composable
 private fun BotaoLogoConfiguracoes(onClick: () -> Unit) {
-    // O efeito de toque cobre só a logo (36x34dp); o toque continua com 48dp.
+    // O efeito de toque cobre só a logo (42x40dp); o toque continua com 48dp.
     Box(
         modifier = Modifier
-            .offset(x = -(Tamanho.toque - 36.dp) / 2)
+            .offset(x = -(Tamanho.toque - 42.dp) / 2)
             .minimumInteractiveComponentSize()
-            .size(width = 36.dp, height = 34.dp)
+            .size(width = 42.dp, height = 40.dp)
             .clip(RoundedCornerShape(10.dp))
             .clickable(role = Role.Button, onClick = onClick)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             // Ícone adaptativo: o desenho ocupa só a zona central, por isso o primeiro plano é ampliado
-            Box(modifier = Modifier.size(30.dp).clip(RoundedCornerShape(10.dp))) {
+            Box(modifier = Modifier.size(36.dp).clip(RoundedCornerShape(12.dp))) {
                 Image(
                     painterResource(R.drawable.ic_launcher_background),
                     contentDescription = null,

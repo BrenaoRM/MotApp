@@ -14,8 +14,8 @@
         android:scaleX="0.78"
         android:scaleY="0.78">
 
-        <!-- Área sob a curva, esmaecendo para baixo; a borda direita é inclinada para não ter corte seco -->
-        <path android:pathData="M25,83C27,60 29,34 39,34C49,34 50,67 56,67C62,67 66,29 83,27L72,92L25,92Z">
+        <!-- Área sob a curva, esmaecendo para baixo; a borda direita desce reta a partir do ponto final -->
+        <path android:pathData="M25,83C27,60 29,34 39,34C49,34 50,67 56,67C62,67 66,29 83,27L83,92L25,92Z">
             <aapt:attr name="android:fillColor">
                 <gradient
                     android:type="linear"
