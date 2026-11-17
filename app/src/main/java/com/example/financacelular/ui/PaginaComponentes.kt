@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -756,6 +757,7 @@ private fun BotaoLogoConfiguracoes(onClick: () -> Unit) {
 fun CartaoHeroDePagina(
     cor: Color,
     modifier: Modifier = Modifier,
+    padding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
     conteudo: @Composable ColumnScope.() -> Unit
 ) {
     val forma = RoundedCornerShape(MaterialTheme.dimens.cardCornerRadius)
@@ -782,7 +784,7 @@ fun CartaoHeroDePagina(
             .border(1.dp, MaterialTheme.colorScheme.outline, forma)
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier = Modifier.padding(padding),
             content = conteudo
         )
     }

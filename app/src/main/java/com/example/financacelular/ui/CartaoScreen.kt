@@ -162,10 +162,9 @@ fun CartaoScreen(
             )
             Spacer(modifier = Modifier.height(20.dp))
 
-            // CARROSSEL DE CARTÕES (o próximo cartão aparece na borda)
+            // CARROSSEL DE CARTÕES (cartão centralizado, na largura das demais seções)
             if (listaCartoesCarregada != null) HorizontalPager(
                 state = pagerState,
-                contentPadding = PaddingValues(end = 24.dp),
                 pageSpacing = 10.dp,
                 key = { page -> listaCartoes.getOrNull(page)?.id ?: -1L }
             ) { page ->
@@ -452,7 +451,12 @@ private fun CartaoFatura(
         label = "corFatura"
     )
 
-    CartaoHeroDePagina(cor = cor, modifier = modifier.heightIn(min = AlturaCartaoFatura)) {
+    // Margem interna menor que a padrão: nome, valor e vencimento ficam perto dos cantos
+    CartaoHeroDePagina(
+        cor = cor,
+        modifier = modifier.heightIn(min = AlturaCartaoFatura),
+        padding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 14.dp)
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(8.dp).background(cor, CircleShape))
             Spacer(modifier = Modifier.width(8.dp))
@@ -464,9 +468,11 @@ private fun CartaoFatura(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            // Toque de 48dp com efeito circular; o ícone fica solto, sem moldura
+            // Toque de 48dp com efeito circular; o ícone fica solto, sem moldura. O deslocamento
+            // leva o ícone (não o toque) à mesma distância da borda que a bolinha à esquerda.
             Box(
                 modifier = Modifier
+                    .offset(x = 12.dp)
                     .size(Tamanho.toque)
                     .clip(CircleShape)
                     .clickable(role = Role.Button, onClick = onAbrirConfig),
