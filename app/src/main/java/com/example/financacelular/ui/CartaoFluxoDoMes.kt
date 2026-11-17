@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -51,9 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextAlign
 import com.example.financacelular.ui.theme.AmareloInvestimento
-import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.Tamanho
-import com.example.financacelular.ui.theme.Verde
 import com.example.financacelular.ui.theme.cores
 import java.time.YearMonth
 import java.time.format.TextStyle
@@ -188,8 +188,9 @@ fun ColunaFluxo(
 }
 
 /**
- * Card "Investido em <mês>": valor do mês, variação sobre o mês anterior e barras dos 6 meses que
- * terminam no mês selecionado (último item de [aportes]). Leva à tela de investimentos.
+ * Card Investido: valor do mês com o botão "Investimentos ›", variação sobre o mês anterior sob o valor
+ * e barras dos 6 meses que terminam no mês selecionado (último item de [aportes]). O card inteiro leva
+ * à tela de investimentos.
  */
 @Composable
 fun CartaoInvestido(
@@ -228,47 +229,46 @@ fun CartaoInvestido(
             .border(1.dp, MaterialTheme.colorScheme.outline, forma)
             .clickable(role = Role.Button, onClick = onClick)
             .semantics(mergeDescendants = true) { contentDescription = descricao }
-            .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp)
+            .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp)
     ) {
-        Row(verticalAlignment = Alignment.Top) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    "Investido em $nomeMes",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    buildAnnotatedString {
-                        withStyle(SpanStyle(fontSize = 12.sp, color = corTexto.copy(alpha = 0.6f))) { append("R$ ") }
-                        if (posVirgula > 0) {
-                            append(textoValor.substring(0, posVirgula))
-                            withStyle(SpanStyle(color = corTexto.copy(alpha = 0.55f), fontSize = 15.sp)) {
-                                append(textoValor.substring(posVirgula))
-                            }
-                        } else {
-                            append(textoValor)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                buildAnnotatedString {
+                    withStyle(SpanStyle(fontSize = 12.sp, color = corTexto.copy(alpha = 0.6f))) { append("R$ ") }
+                    if (posVirgula > 0) {
+                        append(textoValor.substring(0, posVirgula))
+                        withStyle(SpanStyle(color = corTexto.copy(alpha = 0.55f), fontSize = 15.sp)) {
+                            append(textoValor.substring(posVirgula))
                         }
-                    },
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = corTexto,
-                    maxLines = 1,
-                    softWrap = false
+                    } else {
+                        append(textoValor)
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = corTexto,
+                maxLines = 1,
+                softWrap = false
+            )
+            BotaoExtratoHero(onClick = onClick, texto = "Investimentos")
+        }
+        if (visivel && variacao != null) {
+            val cor = if (variacao >= 0) MaterialTheme.cores.textoGanho else MaterialTheme.cores.textoGasto
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    if (variacao >= 0) Icons.Filled.ArrowUpward else Icons.Filled.ArrowDownward,
+                    contentDescription = null,
+                    tint = cor,
+                    modifier = Modifier.size(13.dp)
                 )
-            }
-            if (visivel && variacao != null) {
-                val cor = if (variacao >= 0) MaterialTheme.cores.textoGanho else MaterialTheme.cores.textoGasto
-                val corFundo = if (variacao >= 0) Verde else Coral
+                Spacer(Modifier.width(3.dp))
                 Text(
-                    "${if (variacao >= 0) "+" else ""}$variacao% vs. ${rotulos[rotulos.size - 2]}",
-                    style = MaterialTheme.typography.labelSmall,
+                    "${kotlin.math.abs(variacao)}% vs. ${rotulos[rotulos.size - 2]}",
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = cor,
-                    maxLines = 1,
-                    modifier = Modifier
-                        .background(corFundo.copy(alpha = 0.14f), CircleShape)
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                    maxLines = 1
                 )
             }
         }
@@ -313,9 +313,9 @@ fun CartaoInvestido(
     }
 }
 
-/** Botão pequeno "Extrato ›" do hero (área de toque de 48dp, visual de 32dp). */
+/** Botão pequeno "Extrato ›" do hero (área de toque de 48dp, visual de 32dp); [texto] troca o rótulo. */
 @Composable
-fun BotaoExtratoHero(onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun BotaoExtratoHero(onClick: () -> Unit, modifier: Modifier = Modifier, texto: String = "Extrato") {
     val corTexto = MaterialTheme.colorScheme.onSurface
     Box(
         modifier = modifier
@@ -332,7 +332,7 @@ fun BotaoExtratoHero(onClick: () -> Unit, modifier: Modifier = Modifier) {
                 .padding(start = 12.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Extrato", color = corTexto, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+            Text(texto, color = corTexto, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.width(2.dp))
             Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = corTexto, modifier = Modifier.size(16.dp))
         }

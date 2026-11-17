@@ -27,7 +27,6 @@ import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material.icons.outlined.Repeat
-import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
@@ -51,7 +50,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.TipoTransacao
-import com.example.financacelular.ui.theme.AmareloInvestimento
 import com.example.financacelular.ui.theme.AzulCartao
 import com.example.financacelular.ui.theme.LilasRecorrente
 import com.example.financacelular.ui.theme.RoxoMeta
@@ -279,7 +277,6 @@ fun DashboardScreen(
                     AtalhoRapidoCard("Fatura", Icons.Outlined.CreditCard, AzulCartao, aoAbrirCartao)
                     AtalhoRapidoCard("Assinaturas", Icons.Outlined.Repeat, LilasRecorrente, aoAbrirAssinaturas)
                     AtalhoRapidoCard("Parcelados", Icons.AutoMirrored.Outlined.ReceiptLong, TealParcelados, aoAbrirParcelados)
-                    AtalhoRapidoCard("Investir", Icons.Outlined.Savings, AmareloInvestimento, aoAbrirInvestimento)
                     AtalhoRapidoCard("Metas", Icons.Outlined.Flag, RoxoMeta, aoAbrirMetas)
                     AtalhoRapidoCard("Orçamento", Icons.Outlined.PieChart, VerdeOrcamento, aoAbrirOrcamento)
                 }
@@ -447,37 +444,34 @@ private fun FaixaFaturaVencendo(aoVerFatura: () -> Unit, aoDispensar: () -> Unit
 
 @Composable
 private fun AtalhoRapidoCard(titulo: String, icone: ImageVector, cor: Color, onClick: () -> Unit) {
-    Card(
-        onClick = onClick,
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+    val forma = RoundedCornerShape(16.dp)
+    // Atalho compacto: ícone e nome na mesma linha
+    Row(
         modifier = Modifier
-            .width(104.dp)
-            .height(92.dp)
+            .height(Tamanho.controle)
+            .clip(forma)
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outline, forma)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(start = 10.dp, end = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(
+        // Ícone na cor do atalho sobre um fundo suave da própria cor
+        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .size(36.dp)
+                .background(cor.copy(alpha = 0.16f), RoundedCornerShape(11.dp)),
+            contentAlignment = Alignment.Center
         ) {
-            // Ícone na cor do atalho sobre um fundo suave da própria cor
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(cor.copy(alpha = 0.16f), RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icone, contentDescription = null, tint = cor, modifier = Modifier.size(20.dp))
-            }
-            Text(
-                titulo,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1
-            )
+            Icon(icone, contentDescription = null, tint = cor, modifier = Modifier.size(18.dp))
         }
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            titulo,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1
+        )
     }
 }
 
