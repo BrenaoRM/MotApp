@@ -5,10 +5,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -20,18 +23,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material3.DatePickerDefaults
-import androidx.compose.material3.DateRangePicker
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,13 +42,12 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.financacelular.ui.theme.RoxoHero
-import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.time.temporal.ChronoUnit
@@ -98,9 +98,6 @@ fun Periodo.rotulo(): String {
     return inicio.format(DateTimeFormatter.ofPattern("dd/MM")) + " – " + fim.format(DateTimeFormatter.ofPattern("dd/MM/yy"))
 }
 
-private fun LocalDate.paraMillis(): Long = atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
-private fun Long.paraData(): LocalDate = Instant.ofEpochMilli(this).atZone(ZoneOffset.UTC).toLocalDate()
-
 /** Linha única: período anterior, o nome do período (abre a folha de escolha) e próximo. */
 @Composable
 fun SeletorPeriodo(
@@ -150,8 +147,8 @@ fun SeletorPeriodo(
     }
 }
 
-/** Folha de baixo: atalhos e calendário de intervalo. Escolher um atalho, ou o segundo dia, aplica e fecha. */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+/** Folha de baixo: atalhos e calendário de intervalo. Escolher um atalho, ou confirmar o intervalo, aplica e fecha. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FolhaPeriodo(
     periodo: Periodo,
@@ -159,14 +156,6 @@ fun FolhaPeriodo(
     aoFechar: () -> Unit
 ) {
     val atalhos = remember { atalhosDePeriodo() }
-    val estado = rememberDateRangePickerState(initialDisplayedMonthMillis = periodo.inicio.paraMillis())
-
-    LaunchedEffect(estado.selectedStartDateMillis, estado.selectedEndDateMillis) {
-        val inicio = estado.selectedStartDateMillis
-        val fim = estado.selectedEndDateMillis
-        if (inicio != null && fim != null) aoEscolher(Periodo(inicio.paraData(), fim.paraData()))
-    }
-
     FolhaApp(onDismiss = aoFechar) {
         CabecalhoDeFolha(titulo = "Período", aoFechar = aoFechar)
         Spacer(Modifier.height(12.dp))
@@ -185,21 +174,9 @@ fun FolhaPeriodo(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.height(6.dp))
-        DateRangePicker(
-            state = estado,
-            modifier = Modifier.height(460.dp),
-            title = null,
-            headline = null,
-            showModeToggle = false,
-            colors = DatePickerDefaults.colors(
-                containerColor = Color.Transparent,
-                selectedDayContainerColor = RoxoHero,
-                selectedDayContentColor = Color.White,
-                dayInSelectionRangeContainerColor = RoxoHero.copy(alpha = 0.16f),
-                dayInSelectionRangeContentColor = MaterialTheme.colorScheme.onSurface,
-                todayDateBorderColor = RoxoHero,
-                todayContentColor = MaterialTheme.colorScheme.onSurface
-            )
+        CalendarioDeIntervalo(
+            mesInicial = YearMonth.from(periodo.inicio),
+            aoEscolher = aoEscolher
         )
     }
 }
@@ -223,4 +200,104 @@ private fun AtalhoDePeriodo(texto: String, selecionado: Boolean, onClick: () -> 
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
         )
     }
+}
+
+/** Calendário de intervalo com ‹ mês ›. Primeiro toque = início, segundo = fim; um toque antes do início recomeça. Confirmar aplica (só o início = um único dia). */
+@Composable
+private fun CalendarioDeIntervalo(mesInicial: YearMonth, aoEscolher: (Periodo) -> Unit) {
+    var mes by remember { mutableStateOf(mesInicial) }
+    var inicio by remember { mutableStateOf<LocalDate?>(null) }
+    var fim by remember { mutableStateOf<LocalDate?>(null) }
+    val hoje = remember { LocalDate.now() }
+
+    fun tocar(dia: LocalDate) {
+        val i = inicio
+        if (i == null || fim != null || dia.isBefore(i)) {
+            inicio = dia
+            fim = null
+        } else {
+            fim = dia
+        }
+    }
+
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = { mes = mes.minusMonths(1) }, modifier = Modifier.size(48.dp)) {
+            Icon(Icons.Filled.ChevronLeft, contentDescription = "Mês anterior", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Text(
+            Periodo.mes(mes).rotulo(),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.weight(1f)
+        )
+        IconButton(onClick = { mes = mes.plusMonths(1) }, modifier = Modifier.size(48.dp)) {
+            Icon(Icons.Filled.ChevronRight, contentDescription = "Próximo mês", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+    Row(Modifier.fillMaxWidth()) {
+        listOf("D", "S", "T", "Q", "Q", "S", "S").forEach {
+            Text(
+                it,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f).padding(vertical = 6.dp)
+            )
+        }
+    }
+    val vazios = mes.atDay(1).dayOfWeek.value % 7 // domingo = 0
+    val celulas: List<LocalDate?> = List(vazios) { null } + (1..mes.lengthOfMonth()).map { mes.atDay(it) }
+    celulas.chunked(7).forEach { semana ->
+        Row(Modifier.fillMaxWidth()) {
+            for (c in 0 until 7) {
+                val dia = semana.getOrNull(c)
+                val ultimo = fim ?: inicio
+                val noIntervalo = dia != null && inicio != null && ultimo != null && !dia.isBefore(inicio) && !dia.isAfter(ultimo)
+                val extremo = noIntervalo && (dia == inicio || dia == ultimo)
+                // Faixa contínua: cantos arredondados nas pontas do intervalo e na quebra de semana/mês
+                val raioEsq = if (!noIntervalo || dia == inicio || c == 0 || dia?.dayOfMonth == 1) 12.dp else 0.dp
+                val raioDir = if (!noIntervalo || dia == ultimo || c == 6 || dia == mes.atEndOfMonth()) 12.dp else 0.dp
+                val forma = RoundedCornerShape(topStart = raioEsq, bottomStart = raioEsq, topEnd = raioDir, bottomEnd = raioDir)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
+                        .padding(horizontal = if (noIntervalo) 0.dp else 2.dp, vertical = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (dia != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(forma)
+                                .background(
+                                    when {
+                                        extremo -> RoxoHero
+                                        noIntervalo -> RoxoHero.copy(alpha = 0.16f)
+                                        else -> Color.Transparent
+                                    }
+                                )
+                                .then(if (dia == hoje && !noIntervalo) Modifier.border(1.dp, RoxoHero, forma) else Modifier)
+                                .clickable(role = Role.Button) { tocar(dia) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                dia.dayOfMonth.toString(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (extremo) Color.White else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Spacer(Modifier.height(12.dp))
+    BotaoPrincipal(
+        texto = "Confirmar",
+        onClick = { inicio?.let { aoEscolher(Periodo(it, fim ?: it)) } },
+        enabled = inicio != null,
+        modifier = Modifier.fillMaxWidth()
+    )
 }
