@@ -21,6 +21,23 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      # A versão do release vem do rótulo do commit mais recente do push ("1.1 - descrição" -> 1.1).
+      # Antes usava o run_number, que conta execuções do workflow e não batia com o rótulo do commit.
+      - name: Definir versão a partir do commit
+        id: versao
+        run: |
+          TITULO=$(git log -1 --pretty=%s)
+          VERSAO=$(echo "$TITULO" | grep -oE '^[0-9]+(\.[0-9]+)+' || true)
+          if [ -z "$VERSAO" ]; then
+            echo "::error::O commit precisa começar com a versão (ex.: '1.1 - descrição'). Recebido: $TITULO"
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSAO" > /dev/null 2>&1; then
+            echo "::error::A tag v$VERSAO já existe. Use outro número no commit."
+            exit 1
+          fi
+          echo "versao=$VERSAO" >> "$GITHUB_OUTPUT"
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
@@ -37,10 +54,10 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          # NOVO: mesmo número usado na tag/nome da release logo abaixo (v1.0.<run_number>).
+          # Mesmo número usado na tag/nome da release logo abaixo.
           # Sem isso, o build.gradle.kts caía no fallback local e o versionName embutido
           # no APK nunca acompanhava a versão que estava sendo de fato publicada.
-          APP_VERSION_NAME: 1.0.${{ github.run_number }}
+          APP_VERSION_NAME: ${{ steps.versao.outputs.versao }}
 
       # --- ALTERADO: O CAMINHO AGORA APONTA PARA A PASTA RELEASE ---
       - name: Renomear APK para MotApp
@@ -49,8 +66,8 @@ jobs:
       - name: MotApp Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: MotApp Versão v1.0.${{ github.run_number }}
+          tag_name: v${{ steps.versao.outputs.versao }}
+          name: MotApp Versão v${{ steps.versao.outputs.versao }}
           body: "Nova atualização automática do MotApp assinada com chave oficial e correções recentes."
           files: app/build/outputs/apk/release/MotApp.apk
         env:
