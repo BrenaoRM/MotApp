@@ -186,6 +186,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     val emTelaRecorrentes = currentDestination?.route == ROTA_RECORRENTES
     val emTelaOrcamento = currentDestination?.route == ROTA_ORCAMENTO
     val emTelaCategorias = currentDestination?.route == ROTA_CATEGORIAS
+    val emTelaConfiguracoes = currentDestination?.route == ROTA_CONFIGURACOES
 
     val modoBarraInferior = when {
         emTelaExtrato -> ModoBarraInferior.EXTRATO
@@ -211,7 +212,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            if (!emTelaDeFormulario) {
+            if (!emTelaDeFormulario && !emTelaConfiguracoes) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
