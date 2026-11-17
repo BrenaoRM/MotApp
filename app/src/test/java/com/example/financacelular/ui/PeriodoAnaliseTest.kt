@@ -43,4 +43,27 @@ class PeriodoAnaliseTest {
         assertTrue(Periodo.mes(YearMonth.of(2026, 2)).ehMesUnico)
         assertEquals(28, Periodo.mes(YearMonth.of(2026, 2)).dias)
     }
+
+    @Test
+    fun rotulosCurtosDoCabecalho() {
+        val novembro = Periodo.mes(YearMonth.of(2026, 11))
+        assertEquals("Novembro", novembro.tituloCurto())
+        assertEquals("2026", novembro.subtituloCurto())
+
+        val trimestre = Periodo(LocalDate.of(2026, 9, 1), LocalDate.of(2026, 11, 30))
+        assertEquals("3 meses", trimestre.tituloCurto())
+        assertEquals("set–nov 2026", trimestre.subtituloCurto())
+
+        val dozeMeses = Periodo(LocalDate.of(2025, 12, 1), LocalDate.of(2026, 11, 30))
+        assertEquals("12 meses", dozeMeses.tituloCurto())
+        assertEquals("dez 2025 – nov 2026", dozeMeses.subtituloCurto())
+
+        val livre = Periodo(LocalDate.of(2026, 11, 5), LocalDate.of(2026, 11, 15))
+        assertEquals("05–15 nov", livre.tituloCurto())
+        assertEquals("2026", livre.subtituloCurto())
+
+        val entreMeses = Periodo(LocalDate.of(2026, 11, 5), LocalDate.of(2026, 12, 3))
+        assertEquals("05/11 – 03/12", entreMeses.tituloCurto())
+        assertEquals("15 nov", Periodo(LocalDate.of(2026, 11, 15), LocalDate.of(2026, 11, 15)).tituloCurto())
+    }
 }

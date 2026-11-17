@@ -33,6 +33,7 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PieChart
@@ -149,6 +150,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     var acionarGuardarValorMeta by rememberSaveable { mutableStateOf(false) }
     var acionarNovoLimiteOrcamento by rememberSaveable { mutableStateOf(false) }
     var textoPesquisaExtrato by rememberSaveable { mutableStateOf("") }
+    var acionarFiltrosExtrato by rememberSaveable { mutableStateOf(false) }
     // ViewModel do Cartão exposto à barra inferior (evita buscá-lo na entrada atual, que pode ser outra durante a transição)
     var cartaoViewModelBarra by remember { mutableStateOf<CartaoViewModel?>(null) }
     var atualizacaoDisponivel by remember { mutableStateOf<AtualizacaoDisponivel?>(null) }
@@ -258,6 +260,11 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                     placeholder = "Pesquisar no extrato...",
                                     aoBuscar = { keyboardController?.hide() },
                                     modifier = Modifier.weight(1f)
+                                )
+                                BotaoIlhaSuave(
+                                    texto = "Filtros",
+                                    onClick = { acionarFiltrosExtrato = true },
+                                    icone = Icons.Filled.FilterList
                                 )
                             }
                             ModoBarraInferior.CARTAO -> {
@@ -409,17 +416,20 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                     )
                 }
                 composable(DestinoPrincipal.ANALISE.rota) {
-                    AnaliseScreen()
+                    AnaliseScreen(
+                        aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) }
+                    )
                 }
                 composable(DestinoPrincipal.CALENDARIO.rota) {
                     CalendarioScreen(
                         acionarNovaAgendaExterno = acionarNovaAgenda,
-                        aoNovaAgendaAcionada = { acionarNovaAgenda = false }
+                        aoNovaAgendaAcionada = { acionarNovaAgenda = false },
+                        aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) }
                     )
                 }
                 composable(DestinoPrincipal.CONTAS.rota) {
                     ContasScreen(
-                        aoVoltar = { navController.popBackStack() }
+                        aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) }
                     )
                 }
                 composable(ROTA_CONFIGURACOES) {
@@ -480,6 +490,8 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                 composable(ROTA_EXTRATO) {
                     ExtratoScreen(
                         textoPesquisa = textoPesquisaExtrato,
+                        acionarFiltrosExterno = acionarFiltrosExtrato,
+                        aoFiltrosAcionado = { acionarFiltrosExtrato = false },
                         aoVoltar = { navController.popBackStack() }
                     )
                 }

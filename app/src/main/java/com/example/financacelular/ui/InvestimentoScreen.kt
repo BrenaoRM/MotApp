@@ -174,7 +174,7 @@ fun InvestimentoScreen(
             contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
         ) {
             item {
-                CabecalhoDePagina("Investimentos", AmareloInvestimento, aoVoltar)
+                CabecalhoPadrao("Investimentos", aoVoltar = aoVoltar)
                 Spacer(modifier = Modifier.height(16.dp))
             }
 

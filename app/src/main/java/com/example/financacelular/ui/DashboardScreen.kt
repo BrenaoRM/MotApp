@@ -19,7 +19,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,8 +33,6 @@ import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -50,6 +47,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.TipoTransacao
@@ -60,6 +58,8 @@ import com.example.financacelular.ui.theme.RoxoMeta
 import com.example.financacelular.ui.theme.TealParcelados
 import com.example.financacelular.ui.theme.VerdeOrcamento
 import com.example.financacelular.ui.theme.Coral
+import com.example.financacelular.ui.theme.CoresCategoria
+import com.example.financacelular.ui.theme.CoresCategoriaGanhos
 import com.example.financacelular.ui.theme.Espaco
 import com.example.financacelular.ui.theme.RoxoHero
 import com.example.financacelular.ui.theme.Tamanho
@@ -69,15 +69,6 @@ import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.format.TextStyle
 import java.util.Locale
-
-private fun saudacaoPorHorario(): String {
-    val hora = java.time.LocalTime.now().hour
-    return when {
-        hora < 12 -> "Bom dia"
-        hora < 18 -> "Boa tarde"
-        else -> "Boa noite"
-    }
-}
 
 private fun formatarDataIso(texto: String): String {
     val partes = texto.take(10).split("-")
@@ -108,10 +99,8 @@ fun DashboardScreen(
     val saldo = totalReceitas - totalDespesas
     var saldoVisivel by rememberSaveable { mutableStateOf(true) }
 
-    var mostrarFiltros by rememberSaveable { mutableStateOf(false) }
-    var filtroTipo by rememberSaveable { mutableStateOf<TipoTransacao?>(null) }
-    var ordemFiltro by rememberSaveable { mutableStateOf("VALOR") }
-    val filtrosAtivos = filtroTipo != null || ordemFiltro != "VALOR"
+    // Categorias mostram um tipo por vez; o padrão é Gastos
+    var tipoCategorias by rememberSaveable { mutableStateOf(TipoTransacao.DESPESA) }
 
     // Guarda só a chave (categoriaId-tipo); o resumo é buscado no resumo do mês atual
     var chaveCategoriaDetalhe by rememberSaveable { mutableStateOf<String?>(null) }
@@ -120,27 +109,19 @@ fun DashboardScreen(
     }
 
     val alertaFaturaPendente by viewModel.alertaFaturaPendente.collectAsState()
-    val nomeUsuario = viewModel.nomeUtilizador
-    val saudacao = remember { saudacaoPorHorario() }
 
-    val nomeMes = remember(mesSelecionado) {
+    // Mês por extenso em minúsculas ("novembro"), como o pt-BR devolve
+    val mesPorExtenso = remember(mesSelecionado) {
         mesSelecionado.month.getDisplayName(TextStyle.FULL, Locale.Builder().setLanguage("pt").setRegion("BR").build())
-            .replaceFirstChar { it.uppercase() } + " " + mesSelecionado.year
     }
+    val mesCapitalizado = mesPorExtenso.replaceFirstChar { it.uppercase() }
+    val nomeMes = "$mesCapitalizado ${mesSelecionado.year}"
 
-    val resumosFiltrados = remember(resumoDoMes, filtroTipo, ordemFiltro) {
-        resumoDoMes.filter {
-            filtroTipo == null || it.tipo == filtroTipo
-        }.sortedWith(
-            if (ordemFiltro == "VALOR") compareByDescending { it.total }
-            else compareBy { it.titulo }
-        )
+    // Categorias do tipo escolhido, sempre da maior para a menor
+    val resumosDoTipo = remember(resumoDoMes, tipoCategorias) {
+        resumoDoMes.filter { it.tipo == tipoCategorias }.sortedByDescending { it.total }
     }
-
-    // Total por tipo (entradas / saídas) para mostrar a participação de cada categoria
-    val totaisPorTipo = remember(resumoDoMes) {
-        resumoDoMes.groupBy { it.tipo }.mapValues { (_, lista) -> lista.sumOf { it.total } }
-    }
+    val totalDoTipo = resumosDoTipo.sumOf { it.total }
 
     // O cartão principal muda de cor quando o saldo fica negativo
     val corHero1 by animateColorAsState(
@@ -162,39 +143,13 @@ fun DashboardScreen(
         ) {
             item {
                 // ---------------- CABEÇALHO ----------------
-                Row(
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            saudacao,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            nomeUsuario,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
-                    }
-                    // Engrenagem sem fundo, discreta
-                    Box(
-                        modifier = Modifier
-                            .size(Tamanho.toque)
-                            .clip(CircleShape)
-                            .clickable(role = Role.Button, onClick = aoAbrirConfiguracoes),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Filled.Settings,
-                            contentDescription = "Configurações",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
+                CabecalhoPadrao(
+                    titulo = mesCapitalizado,
+                    subtitulo = mesSelecionado.year.toString(),
+                    aoAbrirConfiguracoes = aoAbrirConfiguracoes,
+                    aoAnterior = { viewModel.mesAnterior() },
+                    aoSeguinte = { viewModel.mesSeguinte() }
+                )
                 Spacer(modifier = Modifier.height(16.dp))
 
                 if (alertaFaturaPendente) {
@@ -207,13 +162,6 @@ fun DashboardScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                 }
-
-                MesSelectorCard(
-                    nomeMes = nomeMes,
-                    onMesAnterior = { viewModel.mesAnterior() },
-                    onMesSeguinte = { viewModel.mesSeguinte() }
-                )
-                Spacer(modifier = Modifier.height(16.dp))
 
                 // ---------------- CARTÃO PRINCIPAL (PROJEÇÃO) ----------------
                 // Mesmo layout em todos os temas; só as cores mudam.
@@ -321,8 +269,6 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // ---------------- ACESSO RÁPIDO ----------------
-                Text("Acesso rápido", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -339,119 +285,69 @@ fun DashboardScreen(
 
                 Spacer(modifier = Modifier.height(28.dp))
 
-                // ---------------- RESUMO POR CATEGORIA ----------------
+                // ---------------- CATEGORIAS ----------------
+                val mesVazio = resumoDoMes.isEmpty()
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = Tamanho.toque),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Resumo por Categoria", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    // Só um ícone discreto; fica na cor de destaque quando há filtro ativo
-                    IconButton(
-                        onClick = { mostrarFiltros = true },
-                        modifier = Modifier.size(Tamanho.toque)
-                    ) {
-                        Icon(
-                            Icons.Filled.FilterList,
-                            contentDescription = if (filtrosAtivos) "Filtros ativos" else "Filtrar",
-                            tint = if (filtrosAtivos) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(Tamanho.icone)
+                    Text(
+                        "Categorias",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (!mesVazio) {
+                        SeletorQuadradoIcones(
+                            opcoes = listOf(
+                                OpcaoDeIcone(Icons.Filled.ArrowDownward, "Gastos", MaterialTheme.cores.textoGasto),
+                                OpcaoDeIcone(Icons.Filled.ArrowUpward, "Ganhos", MaterialTheme.cores.textoGanho)
+                            ),
+                            indiceSelecionado = if (tipoCategorias == TipoTransacao.DESPESA) 0 else 1,
+                            aoSelecionar = { tipoCategorias = if (it == 0) TipoTransacao.DESPESA else TipoTransacao.RECEITA }
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                if (resumosFiltrados.isEmpty()) {
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                // Um único cartão com todas as categorias do tipo escolhido
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (resumosDoTipo.isEmpty()) {
                         Text(
-                            "Nenhuma movimentação encontrada com esses filtros.",
+                            when {
+                                mesVazio -> "Nada lançado em $mesPorExtenso"
+                                tipoCategorias == TipoTransacao.DESPESA -> "Sem gastos em $mesPorExtenso"
+                                else -> "Sem ganhos em $mesPorExtenso"
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(24.dp)
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 22.dp)
                         )
-                    }
-                }
-            }
-
-            // A chave usa o id da categoria: o título não é único (várias categorias podem aparecer como
-            // "Sem categoria" enquanto as categorias ainda carregam, ou ter o mesmo nome) e chave repetida derruba o app
-            items(resumosFiltrados, key = { "${it.categoriaId}-${it.tipo}" }) { resumo ->
-                val nomeCategoria = resumo.titulo
-                val cor = if (resumo.tipo == TipoTransacao.DESPESA) Coral else Verde
-                val corTexto = if (resumo.tipo == TipoTransacao.DESPESA) MaterialTheme.cores.textoGasto else MaterialTheme.cores.textoGanho
-                val sinal = if (resumo.tipo == TipoTransacao.DESPESA) "- " else "+ "
-                val totalDoTipo = totaisPorTipo[resumo.tipo] ?: 0.0
-                val fracao = if (totalDoTipo > 0.0) (resumo.total / totalDoTipo).toFloat().coerceIn(0f, 1f) else 0f
-                val percentual = (fracao * 100).toInt()
-                val rotuloTipo = if (resumo.tipo == TipoTransacao.DESPESA) "das saídas" else "das entradas"
-
-                Card(
-                    onClick = { chaveCategoriaDetalhe = "${resumo.categoriaId}-${resumo.tipo}" },
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 5.dp)
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .background(cor.copy(alpha = 0.14f), RoundedCornerShape(14.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    iconeParaCategoria(nomeCategoria),
-                                    contentDescription = null,
-                                    tint = cor,
-                                    modifier = Modifier.size(22.dp)
+                    } else {
+                        val paleta = if (tipoCategorias == TipoTransacao.DESPESA) CoresCategoria else CoresCategoriaGanhos
+                        Column {
+                            resumosDoTipo.forEachIndexed { indice, resumo ->
+                                if (indice > 0) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(start = 70.dp, end = 14.dp),
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                }
+                                LinhaCategoriaInicio(
+                                    nome = resumo.titulo,
+                                    valor = formatoMoeda.format(resumo.total),
+                                    fracao = if (totalDoTipo > 0.0) (resumo.total / totalDoTipo).toFloat() else 0f,
+                                    cor = paleta[indice % paleta.size],
+                                    onClick = { chaveCategoriaDetalhe = "${resumo.categoriaId}-${resumo.tipo}" }
                                 )
                             }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    nomeCategoria,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1
-                                )
-                                Text(
-                                    "$percentual% $rotuloTipo",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "$sinal${formatoMoeda.format(resumo.total)}",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = corTexto,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1
-                            )
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        LinearProgressIndicator(
-                            progress = { fracao },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(5.dp)
-                                .clip(RoundedCornerShape(3.dp)),
-                            color = cor,
-                            trackColor = cor.copy(alpha = 0.12f)
-                        )
                     }
                 }
             }
@@ -489,61 +385,6 @@ fun DashboardScreen(
                             corValor = if (ehGasto) MaterialTheme.cores.textoGasto else MaterialTheme.cores.textoGanho
                         )
                     }
-                }
-                Spacer(modifier = Modifier.height(Espaco.lg))
-            }
-        }
-
-        // ---------------- SHEET: FILTROS ----------------
-        if (mostrarFiltros) {
-            FolhaApp(onDismiss = { mostrarFiltros = false }) {
-                CabecalhoDeFolha(titulo = "Opções de visualização", aoFechar = { mostrarFiltros = false })
-                Spacer(modifier = Modifier.height(24.dp))
-                Text("EXIBIR TIPO DE MOVIMENTAÇÃO", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(modifier = Modifier.height(10.dp))
-                SeletorSegmentado(
-                    opcoes = listOf("Tudo", "Ganhos", "Gastos"),
-                    indiceSelecionado = when (filtroTipo) {
-                        null -> 0
-                        TipoTransacao.RECEITA -> 1
-                        TipoTransacao.DESPESA -> 2
-                    },
-                    aoSelecionar = { indice ->
-                        filtroTipo = when (indice) {
-                            1 -> TipoTransacao.RECEITA
-                            2 -> TipoTransacao.DESPESA
-                            else -> null
-                        }
-                    },
-                    cor = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                Text("ORDENAR CATEGORIAS POR", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(modifier = Modifier.height(10.dp))
-                SeletorSegmentado(
-                    opcoes = listOf("Maior valor", "A-Z"),
-                    indiceSelecionado = if (ordemFiltro == "VALOR") 0 else 1,
-                    aoSelecionar = { indice -> ordemFiltro = if (indice == 0) "VALOR" else "NOME" },
-                    cor = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(32.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Espaco.md)
-                ) {
-                    BotaoSecundario(
-                        texto = "Limpar filtros",
-                        onClick = {
-                            filtroTipo = null
-                            ordemFiltro = "VALOR"
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                    BotaoPrincipal(
-                        texto = "Concluir",
-                        onClick = { mostrarFiltros = false },
-                        modifier = Modifier.weight(1f)
-                    )
                 }
                 Spacer(modifier = Modifier.height(Espaco.lg))
             }
@@ -635,6 +476,77 @@ private fun AtalhoRapidoCard(titulo: String, icone: ImageVector, cor: Color, onC
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1
             )
+        }
+    }
+}
+
+/** Linha do cartão de categorias: ícone, nome, valor, percentual e barra fina (como na Análise). */
+@Composable
+private fun LinhaCategoriaInicio(
+    nome: String,
+    valor: String,
+    fracao: Float,
+    cor: Color,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .background(cor.copy(alpha = 0.14f), RoundedCornerShape(14.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(iconeParaCategoria(nome), contentDescription = null, tint = cor, modifier = Modifier.size(22.dp))
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    nome,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    valor,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1
+                )
+                Text(
+                    "${(fracao * 100).toInt()}%",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.End,
+                    maxLines = 1,
+                    modifier = Modifier.widthIn(min = 38.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(7.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(fracao.coerceIn(0f, 1f))
+                        .fillMaxHeight()
+                        .background(cor)
+                )
+            }
         }
     }
 }

@@ -8,6 +8,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,8 +38,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
@@ -60,6 +65,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -76,9 +83,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.financacelular.ui.theme.AzulCartao
 import com.example.financacelular.ui.theme.Coral
+import com.example.financacelular.R
 import com.example.financacelular.ui.theme.Espaco
+import com.example.financacelular.ui.theme.RoxoHero
 import com.example.financacelular.ui.theme.Tamanho
 import com.example.financacelular.ui.theme.dimens
+import java.time.YearMonth
+import java.time.format.TextStyle
+import java.util.Locale
 
 /** Mostra uma mensagem curta ao usuário (Snackbar); provido pelo AppNavigation. */
 val LocalMensagem = staticCompositionLocalOf<(String) -> Unit> { {} }
@@ -354,6 +366,61 @@ fun SeletorSegmentado(
     }
 }
 
+/** Opção de [SeletorQuadradoIcones]: ícone, descrição para leitor de tela e cor quando ativa. */
+data class OpcaoDeIcone(val icone: ImageVector, val descricao: String, val cor: Color)
+
+/**
+ * Versão compacta do `SeletorQuadrado` (Análise) só com ícones: mesma trilha cinza de cantos 12dp e
+ * bloco ativo com borda fina. A trilha tem 40dp de altura, mas o toque ocupa os 48dp.
+ */
+@Composable
+fun SeletorQuadradoIcones(
+    opcoes: List<OpcaoDeIcone>,
+    indiceSelecionado: Int,
+    aoSelecionar: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val formaAtiva = RoundedCornerShape(10.dp)
+    Box(modifier = modifier.height(Tamanho.toque)) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .padding(vertical = 4.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+        )
+        Row(modifier = Modifier.fillMaxHeight().padding(horizontal = 4.dp).selectableGroup()) {
+            opcoes.forEachIndexed { indice, opcao ->
+                val ativo = indice == indiceSelecionado
+                Box(
+                    modifier = Modifier
+                        .width(40.dp)
+                        .fillMaxHeight()
+                        .selectable(selected = ativo, role = Role.Tab, onClick = { aoSelecionar(indice) }),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(32.dp)
+                            .clip(formaAtiva)
+                            .background(if (ativo) MaterialTheme.colorScheme.background else Color.Transparent)
+                            .then(if (ativo) Modifier.border(1.dp, MaterialTheme.colorScheme.outline, formaAtiva) else Modifier),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            opcao.icone,
+                            contentDescription = opcao.descricao,
+                            tint = if (ativo) opcao.cor else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 /** Bloco único de linhas (cartão sem borda) com divisórias finas entre elas. */
 @Composable
 fun <T> GrupoDeLista(
@@ -514,54 +581,145 @@ fun gradienteDaCor(cor: Color): Color = lerp(cor, Color.Black, 0.28f)
 /** Cor usada no cartão principal quando algo está estourado/negativo (igual à home). */
 val CorHeroAlerta = Color(0xFFA85560)
 
+/** "Novembro": o mês por extenso, com a inicial maiúscula. */
+fun YearMonth.nomeDoMes(): String =
+    month.getDisplayName(TextStyle.FULL, Locale.Builder().setLanguage("pt").setRegion("BR").build())
+        .replaceFirstChar { it.uppercase() }
+
 /**
- * Cabeçalho padrão das páginas, igual ao da home: botão de voltar redondo + título.
- * [corIcone] é a cor da página (a mesma do atalho na home).
+ * Cabeçalho padrão de TODAS as telas: uma linha, sem molduras, com três posições fixas.
+ * Esquerda: a logo ([aoAbrirConfiguracoes], nas abas) ou a seta de voltar ([aoVoltar], nas telas internas).
+ * Centro: [titulo] grande (o mês quando a tela tem mês; senão o nome da tela) e [subtitulo] pequeno em violeta
+ * (o ano; nas telas internas com mês, "Nome da tela · ano"). [aoTocarTitulo] torna o título clicável e mostra um ▾.
+ * Direita: as setas de mês, só quando [aoAnterior] e [aoSeguinte] existem. Ações extras vão para a ilha de baixo.
  */
 @Composable
-fun CabecalhoDePagina(
+fun CabecalhoPadrao(
     titulo: String,
-    corIcone: Color,
-    aoVoltar: (() -> Unit)?,
     modifier: Modifier = Modifier,
-    acao: (@Composable () -> Unit)? = null
+    subtitulo: String? = null,
+    aoVoltar: (() -> Unit)? = null,
+    aoAbrirConfiguracoes: (() -> Unit)? = null,
+    aoAnterior: (() -> Unit)? = null,
+    aoSeguinte: (() -> Unit)? = null,
+    aoTocarTitulo: (() -> Unit)? = null
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 48.dp),
+            .heightIn(min = Tamanho.toque),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (aoVoltar != null) {
+        if (aoAbrirConfiguracoes != null) {
+            BotaoLogoConfiguracoes(onClick = aoAbrirConfiguracoes)
+        } else if (aoVoltar != null) {
+            IconeDeCabecalho(Icons.AutoMirrored.Filled.ArrowBack, "Voltar", Alignment.CenterStart, MaterialTheme.colorScheme.onSurface, aoVoltar)
+        }
+        Box(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = if (aoTocarTitulo != null) {
+                    Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(onClickLabel = "Escolher período", role = Role.Button, onClick = aoTocarTitulo)
+                } else Modifier
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        titulo,
+                        fontSize = 22.sp,
+                        lineHeight = 26.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (aoTocarTitulo != null) {
+                        Icon(
+                            Icons.Filled.ExpandMore,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                if (subtitulo != null) {
+                    Text(
+                        subtitulo,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = RoxoHero,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+        if (aoAnterior != null && aoSeguinte != null) {
+            val corSeta = MaterialTheme.colorScheme.onSurfaceVariant
+            IconeDeCabecalho(Icons.Filled.ChevronLeft, "Mês anterior", Alignment.CenterEnd, corSeta, aoAnterior)
+            IconeDeCabecalho(Icons.Filled.ChevronRight, "Próximo mês", Alignment.CenterEnd, corSeta, aoSeguinte)
+        }
+    }
+}
+
+/** Ícone solto do cabeçalho (voltar, setas de mês): sem círculo nem borda, com toque de 48dp. */
+@Composable
+private fun IconeDeCabecalho(
+    icone: ImageVector,
+    descricao: String,
+    alinhamento: Alignment,
+    cor: Color,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(Tamanho.toque)
+            .clip(CircleShape)
+            .clickable(role = Role.Button, onClick = onClick),
+        contentAlignment = alinhamento
+    ) {
+        Icon(icone, contentDescription = descricao, tint = cor, modifier = Modifier.size(Tamanho.iconeGrande))
+    }
+}
+
+/** Logo do app sem moldura, com uma engrenagem pequena no canto; abre as Configurações. Toque de 48dp. */
+@Composable
+private fun BotaoLogoConfiguracoes(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(Tamanho.toque)
+            .clip(CircleShape)
+            .clickable(role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Box(modifier = Modifier.size(width = 36.dp, height = 34.dp)) {
+            // Ícone adaptativo: o desenho ocupa só a zona central, por isso o primeiro plano é ampliado
+            Box(modifier = Modifier.size(30.dp).clip(RoundedCornerShape(10.dp))) {
+                Image(
+                    painterResource(R.drawable.ic_launcher_background),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize()
+                )
+                Image(
+                    painterResource(R.drawable.ic_launcher_foreground),
+                    contentDescription = "Configurações",
+                    modifier = Modifier.fillMaxSize().scale(1.3f)
+                )
+            }
             Box(
                 modifier = Modifier
-                    .size(Tamanho.toque)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface)
-                    .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                    .clickable(role = Role.Button, onClick = aoVoltar),
+                    .align(Alignment.BottomEnd)
+                    .size(16.dp)
+                    .background(MaterialTheme.colorScheme.background, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Voltar",
-                    tint = corIcone,
-                    modifier = Modifier.size(22.dp)
+                    Icons.Filled.Settings,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(12.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(12.dp))
-        }
-        Text(
-            titulo,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
-        if (acao != null) {
-            Spacer(modifier = Modifier.width(Espaco.sm))
-            acao()
         }
     }
 }

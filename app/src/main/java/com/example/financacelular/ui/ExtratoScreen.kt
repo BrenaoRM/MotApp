@@ -36,7 +36,6 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material3.DatePicker
@@ -51,7 +50,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -121,6 +119,8 @@ private fun rotuloDia(data: LocalDate): String {
 fun ExtratoScreen(
     viewModel: ExtratoViewModel = viewModel(),
     textoPesquisa: String = "",
+    acionarFiltrosExterno: Boolean = false,
+    aoFiltrosAcionado: () -> Unit = {},
     aoVoltar: (() -> Unit)? = null
 ) {
     val transacoesOuNull by viewModel.todasTransacoes.collectAsState()
@@ -148,10 +148,13 @@ fun ExtratoScreen(
 
     val algumFiltroAtivo = filtroTipo != null || filtroCategoriaId != null
 
-    val quantidadeFiltros = listOf(
-        filtroTipo != null,
-        filtroCategoriaId != null
-    ).count { it }
+    // O botão "Filtros" fica na ilha de ação (AppNavigation)
+    LaunchedEffect(acionarFiltrosExterno) {
+        if (acionarFiltrosExterno) {
+            mostrarFiltros = true
+            aoFiltrosAcionado()
+        }
+    }
 
     fun passaPeriodo(t: Transacao): Boolean {
         val inicio = periodo.inicio
@@ -219,28 +222,14 @@ fun ExtratoScreen(
     ) {
         // ---------- Cabeçalho ----------
         item(key = "cabecalho") {
-            CabecalhoDePagina(
-                titulo = "Extrato",
-                corIcone = MaterialTheme.colorScheme.primary,
+            // O período fica no próprio cabeçalho; tocar nele abre a folha de escolha
+            CabecalhoPadrao(
+                titulo = periodo.tituloCurto(),
+                subtitulo = "Extrato · " + periodo.subtituloCurto(),
                 aoVoltar = aoVoltar,
-                acao = {
-                    BotaoFiltros(
-                        quantidade = quantidadeFiltros,
-                        onClick = { mostrarFiltros = true }
-                    )
-                }
-            )
-        }
-
-        // ---------- Período ----------
-        item(key = "periodo") {
-            Spacer(modifier = Modifier.height(16.dp))
-            SeletorPeriodo(
-                periodo = periodo,
                 aoAnterior = { periodo.deslocar(-1).let { periodoInicio = it.inicio; periodoFim = it.fim } },
                 aoSeguinte = { periodo.deslocar(1).let { periodoInicio = it.inicio; periodoFim = it.fim } },
-                aoAbrir = { mostrarFolhaPeriodo = true },
-                modifier = Modifier.fillMaxWidth()
+                aoTocarTitulo = { mostrarFolhaPeriodo = true }
             )
         }
 
@@ -451,55 +440,6 @@ fun ExtratoScreen(
 // =====================================================================
 // Componentes da lista
 // =====================================================================
-
-@Composable
-private fun BotaoFiltros(quantidade: Int, onClick: () -> Unit) {
-    val ativo = quantidade > 0
-    val cores = MaterialTheme.colorScheme
-    val corFundo = if (ativo) cores.primary else cores.primary.copy(alpha = 0.10f)
-    val corConteudo = if (ativo) cores.onPrimary else cores.primary
-
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
-        color = corFundo
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Filled.FilterList,
-                contentDescription = null,
-                tint = corConteudo,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                "Filtros",
-                color = corConteudo,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold
-            )
-            if (ativo) {
-                Spacer(modifier = Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .size(20.dp)
-                        .background(cores.onPrimary, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = quantidade.toString(),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = cores.primary
-                    )
-                }
-            }
-        }
-    }
-}
 
 @Composable
 private fun ChipFiltroAtivo(texto: String, aoRemover: () -> Unit) {

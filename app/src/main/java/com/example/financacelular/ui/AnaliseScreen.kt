@@ -7,7 +7,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -126,7 +125,8 @@ private fun moedaCompacta(texto: String): AnnotatedString {
 
 @Composable
 fun AnaliseScreen(
-    viewModel: AnaliseViewModel = viewModel()
+    viewModel: AnaliseViewModel = viewModel(),
+    aoAbrirConfiguracoes: () -> Unit = {}
 ) {
     val despesasPorCategoria by viewModel.despesasPorCategoria.collectAsState()
     val receitasPorCategoria by viewModel.receitasPorCategoria.collectAsState()
@@ -177,27 +177,15 @@ fun AnaliseScreen(
     ) {
         // ---------------- CABEÇALHO + PERÍODO ----------------
         item {
-            // tela principal: sem seta de voltar; o seletor fica logo ao lado do título
-            Row(
-                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "Análise",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                SeletorPeriodo(
-                    periodo = periodo,
-                    aoAnterior = { viewModel.periodoAnterior() },
-                    aoSeguinte = { viewModel.periodoSeguinte() },
-                    aoAbrir = { folhaPeriodoAberta = true },
-                    modifier = Modifier.width(IntrinsicSize.Max)
-                )
-            }
+            // tocar no período abre a folha de escolha
+            CabecalhoPadrao(
+                titulo = periodo.tituloCurto(),
+                subtitulo = periodo.subtituloCurto(),
+                aoAbrirConfiguracoes = aoAbrirConfiguracoes,
+                aoAnterior = { viewModel.periodoAnterior() },
+                aoSeguinte = { viewModel.periodoSeguinte() },
+                aoTocarTitulo = { folhaPeriodoAberta = true }
+            )
             Spacer(modifier = Modifier.height(16.dp))
         }
 

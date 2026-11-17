@@ -7,12 +7,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.financacelular.ui.theme.AzulCartao
 import com.example.financacelular.ui.theme.dimens
 
 @Composable
 fun ContasScreen(
-    aoVoltar: (() -> Unit)? = null
+    aoAbrirConfiguracoes: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -21,7 +20,7 @@ fun ContasScreen(
             .padding(horizontal = MaterialTheme.dimens.paddingScreen)
             .padding(top = 16.dp, bottom = espacoParaBarraFlutuante())
     ) {
-        CabecalhoDePagina("Contas", AzulCartao, aoVoltar)
+        CabecalhoPadrao("Contas", aoAbrirConfiguracoes = aoAbrirConfiguracoes)
         Spacer(modifier = Modifier.height(32.dp))
         EstadoVazio(
             icone = Icons.Filled.AccountBalanceWallet,

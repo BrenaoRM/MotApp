@@ -150,7 +150,7 @@ fun MetaScreen(
             )
         ) {
             item {
-                CabecalhoDePagina("Metas", RoxoMeta, aoVoltar)
+                CabecalhoPadrao("Metas", aoVoltar = aoVoltar)
                 Spacer(modifier = Modifier.height(16.dp))
 
                 val metasConcluidas = metas.count { it.valorAlvo > 0 && it.valorAtual >= it.valorAlvo }

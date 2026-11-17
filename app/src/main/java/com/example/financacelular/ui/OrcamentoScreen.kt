@@ -159,12 +159,12 @@ fun OrcamentoScreen(
             contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
         ) {
             item {
-                CabecalhoDePagina("Orçamento Mensal", VerdeOrcamento, aoVoltar)
-                Spacer(modifier = Modifier.height(16.dp))
-                MesSelectorCard(
-                    nomeMes = nomeMes,
-                    onMesAnterior = { viewModel.mesAnterior() },
-                    onMesSeguinte = { viewModel.mesSeguinte() }
+                CabecalhoPadrao(
+                    titulo = mesSelecionado.nomeDoMes(),
+                    subtitulo = "Orçamento · ${mesSelecionado.year}",
+                    aoVoltar = aoVoltar,
+                    aoAnterior = { viewModel.mesAnterior() },
+                    aoSeguinte = { viewModel.mesSeguinte() }
                 )
                 Spacer(modifier = Modifier.height(16.dp))
             }

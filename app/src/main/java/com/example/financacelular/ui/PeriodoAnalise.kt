@@ -13,14 +13,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Icon
@@ -43,7 +39,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.financacelular.ui.theme.RoxoHero
 import java.time.LocalDate
@@ -98,52 +93,24 @@ fun Periodo.rotulo(): String {
     return inicio.format(DateTimeFormatter.ofPattern("dd/MM")) + " – " + fim.format(DateTimeFormatter.ofPattern("dd/MM/yy"))
 }
 
-/** Linha única: período anterior, o nome do período (abre a folha de escolha) e próximo. */
-@Composable
-fun SeletorPeriodo(
-    periodo: Periodo,
-    aoAnterior: () -> Unit,
-    aoSeguinte: () -> Unit,
-    aoAbrir: (() -> Unit)?,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconButton(onClick = aoAnterior, modifier = Modifier.size(48.dp)) {
-            Icon(Icons.Filled.ChevronLeft, contentDescription = "Período anterior", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Row(
-            modifier = Modifier
-                .weight(1f)
-                .heightIn(min = 48.dp)
-                .clip(CircleShape)
-                .then(
-                    if (aoAbrir != null) Modifier.clickable(onClickLabel = "Escolher período", role = Role.Button, onClick = aoAbrir)
-                    else Modifier
-                )
-                .padding(horizontal = 6.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = RoxoHero, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.size(8.dp))
-            Text(
-                periodo.rotulo(),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = 170.dp)
-            )
-        }
-        IconButton(onClick = aoSeguinte, modifier = Modifier.size(48.dp)) {
-            Icon(Icons.Filled.ChevronRight, contentDescription = "Próximo período", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+private fun LocalDate.mesCurto(): String = month.getDisplayName(TextStyle.SHORT, LocaleBr).removeSuffix(".")
+
+/** Linha grande do cabeçalho: "Novembro" para um mês; "3 meses" para meses fechados; senão "05–15 nov" ou "05/11 – 03/12". */
+fun Periodo.tituloCurto(): String = when {
+    ehMesUnico -> inicio.month.getDisplayName(TextStyle.FULL, LocaleBr).replaceFirstChar { it.uppercase() }
+    mesesFechados -> "$quantidadeDeMeses meses"
+    inicio == fim -> "%02d %s".format(inicio.dayOfMonth, inicio.mesCurto())
+    YearMonth.from(inicio) == YearMonth.from(fim) -> "%02d–%02d %s".format(inicio.dayOfMonth, fim.dayOfMonth, inicio.mesCurto())
+    else -> inicio.format(DateTimeFormatter.ofPattern("dd/MM")) + " – " + fim.format(DateTimeFormatter.ofPattern("dd/MM"))
+}
+
+/** Linha pequena do cabeçalho: o ano ("2026", ou "2025–2026"); para vários meses fechados, "set–nov 2026". */
+fun Periodo.subtituloCurto(): String {
+    val anos = if (inicio.year == fim.year) inicio.year.toString() else "${inicio.year}–${fim.year}"
+    return when {
+        !mesesFechados || ehMesUnico -> anos
+        inicio.year == fim.year -> "${inicio.mesCurto()}–${fim.mesCurto()} ${inicio.year}"
+        else -> "${inicio.mesCurto()} ${inicio.year} – ${fim.mesCurto()} ${fim.year}"
     }
 }
 

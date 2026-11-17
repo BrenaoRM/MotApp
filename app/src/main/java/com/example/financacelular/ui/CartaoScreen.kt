@@ -67,7 +67,6 @@ import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 import kotlin.math.absoluteValue
@@ -115,10 +114,6 @@ fun CartaoScreen(
         }
     }
 
-    val nomeMesAno = remember(mesSelecionado) {
-        mesSelecionado.month.getDisplayName(TextStyle.FULL, LocalePtBr)
-            .replaceFirstChar { it.uppercase() } + " / " + mesSelecionado.year
-    }
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(LocalePtBr) }
 
     var mostrarConfig by rememberSaveable { mutableStateOf(false) }
@@ -167,17 +162,12 @@ fun CartaoScreen(
         contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
     ) {
         item {
-            CabecalhoDePagina(
-                titulo = "Cartões",
-                corIcone = AzulCartao,
-                aoVoltar = aoVoltar
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            MesSelectorCard(
-                nomeMes = nomeMesAno,
-                onMesAnterior = { viewModel.mesAnterior() },
-                onMesSeguinte = { viewModel.mesSeguinte() }
+            CabecalhoPadrao(
+                titulo = mesSelecionado.nomeDoMes(),
+                subtitulo = "Cartões · ${mesSelecionado.year}",
+                aoVoltar = aoVoltar,
+                aoAnterior = { viewModel.mesAnterior() },
+                aoSeguinte = { viewModel.mesSeguinte() }
             )
             Spacer(modifier = Modifier.height(20.dp))
 

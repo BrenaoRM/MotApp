@@ -76,7 +76,7 @@ fun ParceladosScreen(
         contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
     ) {
         item {
-            CabecalhoDePagina("Parcelamentos", TealParcelados, aoVoltar)
+            CabecalhoPadrao("Parcelamentos", aoVoltar = aoVoltar)
             Spacer(modifier = Modifier.height(16.dp))
 
             CartaoHeroDePagina(TealParcelados) {

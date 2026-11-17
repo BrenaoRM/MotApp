@@ -93,7 +93,7 @@ fun RecorrenteScreen(
         contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
     ) {
         item {
-            CabecalhoDePagina("Recorrentes", LilasRecorrente, aoVoltar)
+            CabecalhoPadrao("Recorrentes", aoVoltar = aoVoltar)
             Spacer(modifier = Modifier.height(16.dp))
 
             CartaoHeroDePagina(LilasRecorrente) {

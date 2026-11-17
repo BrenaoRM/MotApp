@@ -194,7 +194,8 @@ private fun ValorDoDia(
 fun CalendarioScreen(
     viewModel: CalendarioViewModel = viewModel(),
     acionarNovaAgendaExterno: Boolean = false,
-    aoNovaAgendaAcionada: () -> Unit = {}
+    aoNovaAgendaAcionada: () -> Unit = {},
+    aoAbrirConfiguracoes: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val mensagem = LocalMensagem.current
@@ -323,15 +324,13 @@ fun CalendarioScreen(
             )
         ) {
             item {
-                CabecalhoDePagina("Calendário", RoxoHero, null) {
-                    SeletorPeriodo(
-                        periodo = Periodo.mes(mesAnoSelecionado),
-                        aoAnterior = { mesAnoSelecionado = mesAnoSelecionado.minusMonths(1) },
-                        aoSeguinte = { mesAnoSelecionado = mesAnoSelecionado.plusMonths(1) },
-                        aoAbrir = null,
-                        modifier = Modifier.width(IntrinsicSize.Max)
-                    )
-                }
+                CabecalhoPadrao(
+                    titulo = mesAnoSelecionado.nomeDoMes(),
+                    subtitulo = mesAnoSelecionado.year.toString(),
+                    aoAbrirConfiguracoes = aoAbrirConfiguracoes,
+                    aoAnterior = { mesAnoSelecionado = mesAnoSelecionado.minusMonths(1) },
+                    aoSeguinte = { mesAnoSelecionado = mesAnoSelecionado.plusMonths(1) }
+                )
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // ---------------- RESUMO DO DIA SELECIONADO (compacto) ----------------
