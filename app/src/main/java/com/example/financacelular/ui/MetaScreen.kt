@@ -1,6 +1,5 @@
 package com.example.financacelular.ui
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.animateFloatAsState
@@ -35,13 +34,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import com.example.financacelular.ui.theme.Verde
+import com.example.financacelular.ui.theme.cores
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -154,43 +156,36 @@ fun MetaScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 val metasConcluidas = metas.count { it.valorAlvo > 0 && it.valorAtual >= it.valorAlvo }
+                val progressoGeral = if (totalAlvo > 0) (totalAcumulado / totalAlvo).toFloat() else 0f
                 CartaoHeroDePagina(RoxoMeta) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "TOTAL ACUMULADO",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.weight(1f)
-                        )
-                        PilulaDePagina(if (metas.size == 1) "1 meta" else "${metas.size} metas")
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        "Total acumulado",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
                     ValorDoHero(formato.format(totalAcumulado))
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        IndicadorDePagina("META TOTAL", formato.format(totalAlvo), Icons.Filled.Flag, Modifier.weight(1f))
-                        IndicadorDePagina("CONCLUÍDAS", "$metasConcluidas de ${metas.size}", Icons.Filled.CheckCircle, Modifier.weight(1f))
+                    if (totalAlvo > 0) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        BarraDoHero(progressoGeral, RoxoMeta)
+                        Spacer(modifier = Modifier.height(10.dp))
+                        val destaque = SpanStyle(fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            buildAnnotatedString {
+                                withStyle(destaque) { append("${(progressoGeral.coerceIn(0f, 1f) * 100).toInt()}%") }
+                                append(" de ${formato.format(totalAlvo)} · ")
+                                withStyle(destaque) { append("$metasConcluidas de ${metas.size}") }
+                                append(if (metasConcluidas == 1) " concluída" else " concluídas")
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Seus Objetivos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text(
-                        text = if (metas.size == 1) "1 meta" else "${metas.size} metas",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
+                Text("Seus objetivos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
             }
 
             if (metasCarregadas != null && metas.isEmpty()) {
@@ -207,71 +202,41 @@ fun MetaScreen(
                         }
                     )
                 }
-            } else {
-                items(metas, key = { it.id }) { meta ->
-                    val progresso = if (meta.valorAlvo > 0)
-                        (meta.valorAtual / meta.valorAlvo).toFloat().coerceIn(0f, 1f) else 0f
-                    val percentual = (progresso * 100).toInt()
-
-                    Card(
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                        modifier = Modifier
-                            .animateItem()
-                            .fillMaxWidth()
-                            .padding(vertical = 5.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .clickable(role = Role.Button) {
-                                metaParaEditarId = meta.id
-                                novoNome = meta.nome
-                                novoValorAlvo = meta.valorAlvo.toString()
-                                mostrarSheetNovaMeta = true
-                            }
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(44.dp)
-                                        .background(RoxoMeta.copy(alpha = 0.15f), RoundedCornerShape(14.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(Icons.Filled.Flag, contentDescription = null, tint = RoxoMeta, modifier = Modifier.size(22.dp))
+            } else if (metas.isNotEmpty()) {
+                item {
+                    CartaoUnicoDeLinhas {
+                        metas.forEachIndexed { indice, meta ->
+                            if (indice > 0) DivisorDeLinha()
+                            val progresso = if (meta.valorAlvo > 0)
+                                (meta.valorAtual / meta.valorAlvo).toFloat().coerceIn(0f, 1f) else 0f
+                            val concluida = meta.valorAlvo > 0 && meta.valorAtual >= meta.valorAlvo
+                            val cor = if (concluida) Verde else RoxoMeta
+                            LinhaDePagina(
+                                inicio = {
+                                    AnelDeProgresso(progresso, cor) {
+                                        if (concluida) {
+                                            Icon(Icons.Filled.Check, contentDescription = "Concluída", tint = cor, modifier = Modifier.size(18.dp))
+                                        } else {
+                                            Text(
+                                                "${(progresso * 100).toInt()}%",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                maxLines = 1
+                                            )
+                                        }
+                                    }
+                                },
+                                titulo = meta.nome,
+                                valor = formato.format(meta.valorAtual),
+                                subtitulo = if (concluida) "Concluída" else "de ${formato.format(meta.valorAlvo)}",
+                                corSubtitulo = if (concluida) MaterialTheme.cores.textoGanho else Color.Unspecified,
+                                onClick = {
+                                    metaParaEditarId = meta.id
+                                    novoNome = meta.nome
+                                    novoValorAlvo = meta.valorAlvo.toString()
+                                    mostrarSheetNovaMeta = true
                                 }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        meta.nome,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        "${formato.format(meta.valorAtual)} / ${formato.format(meta.valorAlvo)}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("$percentual%", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = RoxoMeta, maxLines = 1)
-                            }
-
-                            Spacer(modifier = Modifier.height(14.dp))
-
-                            LinearProgressIndicator(
-                                progress = { progresso },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(8.dp)
-                                    .clip(RoundedCornerShape(4.dp)),
-                                color = RoxoMeta,
-                                trackColor = RoxoMeta.copy(alpha = 0.12f),
                             )
-
                         }
                     }
                 }

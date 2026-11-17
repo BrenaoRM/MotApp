@@ -28,17 +28,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -57,7 +52,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import com.example.financacelular.ui.theme.cores
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -120,6 +118,16 @@ fun OrcamentoScreen(
     val mesSelecionado by viewModel.mesSelecionado.collectAsState()
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
 
+    // Limite sem centavos quando é inteiro ("R$ 1.000"), para a linha da categoria não ficar longa
+    val formatoLimiteInteiro = remember {
+        NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()).apply {
+            minimumFractionDigits = 0
+            maximumFractionDigits = 0
+        }
+    }
+    fun formatoLimite(limite: Double): String =
+        if (limite % 1.0 == 0.0) formatoLimiteInteiro.format(limite) else formatoMoeda.format(limite)
+
     val nomeMes = remember(mesSelecionado) {
         mesSelecionado.month.getDisplayName(JavaTextStyle.FULL, Locale.Builder().setLanguage("pt").setRegion("BR").build())
             .replaceFirstChar { it.uppercase() } + " " + mesSelecionado.year
@@ -170,60 +178,48 @@ fun OrcamentoScreen(
             }
 
             item {
+                val progressoGeral = if (totalLimite > 0.0) (totalGasto / totalLimite).toFloat() else 0f
                 CartaoHeroDePagina(
                     cor = if (ultrapassouGeral) CorHeroAlerta else VerdeOrcamento
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "TOTAL GASTO NO MÊS",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.weight(1f)
-                        )
-                        if (temAlgumLimite) {
-                            PilulaDePagina(if (ultrapassouGeral) "Limite excedido" else "No limite")
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        "Gasto no mês",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
                     ValorDoHero(formatoMoeda.format(totalGasto))
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        IndicadorDePagina(
-                            "LIMITE TOTAL",
-                            if (temAlgumLimite) formatoMoeda.format(totalLimite) else "Não definido",
-                            Icons.Filled.PieChart,
-                            Modifier.weight(1f)
+                    Spacer(modifier = Modifier.height(if (temAlgumLimite) 14.dp else 10.dp))
+                    if (temAlgumLimite) {
+                        BarraDoHero(progressoGeral, if (ultrapassouGeral) Coral else VerdeOrcamento)
+                        Spacer(modifier = Modifier.height(10.dp))
+                        val destaque = SpanStyle(fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            buildAnnotatedString {
+                                if (ultrapassouGeral) {
+                                    append("Excedido em ")
+                                    withStyle(destaque) { append(formatoMoeda.format(totalGasto - totalLimite)) }
+                                    append(" do limite de ${formatoMoeda.format(totalLimite)}")
+                                } else {
+                                    append("Disponível ")
+                                    withStyle(destaque) { append(formatoMoeda.format(totalLimite - totalGasto)) }
+                                    append(" de ${formatoMoeda.format(totalLimite)}")
+                                }
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        IndicadorDePagina(
-                            if (ultrapassouGeral) "EXCEDIDO" else "DISPONÍVEL",
-                            if (temAlgumLimite) formatoMoeda.format(kotlin.math.abs(totalLimite - totalGasto)) else "—",
-                            Icons.Filled.AccountBalanceWallet,
-                            Modifier.weight(1f)
+                    } else {
+                        Text(
+                            "Nenhum limite definido",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
                 Spacer(modifier = Modifier.height(24.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "Categorias de Despesa",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = if (itens.size == 1) "1 categoria" else "${itens.size} categorias",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
+                Text("Categorias", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
             }
 
             if (itens.isEmpty()) {
@@ -232,9 +228,7 @@ fun OrcamentoScreen(
                         shape = RoundedCornerShape(20.dp),
                         color = MaterialTheme.colorScheme.surface,
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Box(
                             modifier = Modifier.padding(24.dp),
@@ -248,115 +242,47 @@ fun OrcamentoScreen(
                         }
                     }
                 }
-            }
-
-            items(itens) { item ->
-                val temOrcamento = (item.limite ?: 0.0) > 0.0
-                val limiteVal = item.limite ?: 0.0
-                val progresso = if (temOrcamento) (item.gasto / limiteVal).toFloat().coerceIn(0f, 1f) else 0f
-                val ultrapassou = temOrcamento && item.gasto > limiteVal
-                val corBarra = if (ultrapassou) Coral else VerdeOrcamento
-                val percentualInt = if (temOrcamento) ((item.gasto / limiteVal) * 100).toInt() else 0
-                Card(
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 5.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .clickable {
-                            modoNovoLimite = false
-                            categoriaEmEdicao = item
-                            valorInput = item.limite?.let { lim ->
-                                if (lim % 1.0 == 0.0) lim.toLong().toString() else lim.toString().replace(".", ",")
-                            } ?: ""
-                            mostrarSheet = true
-                        }
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .background(
-                                        color = if (ultrapassou) Coral.copy(alpha = 0.15f) else VerdeOrcamento.copy(alpha = 0.12f),
-                                        shape = RoundedCornerShape(14.dp)
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = iconeParaCategoria(item.categoria.nome),
-                                    contentDescription = null,
-                                    tint = if (ultrapassou) Coral else VerdeOrcamento,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = item.categoria.nome,
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = when {
-                                        !temOrcamento -> "Toque para definir um limite"
-                                        ultrapassou -> "Excedido em ${formatoMoeda.format(item.gasto - limiteVal)}"
-                                        else -> "Disponível: ${formatoMoeda.format(limiteVal - item.gasto)}"
-                                    },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = if (ultrapassou) Coral else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontWeight = if (ultrapassou) FontWeight.SemiBold else FontWeight.Normal,
-                                    maxLines = 1
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text(
-                                    text = if (temOrcamento) {
-                                        "${formatoMoeda.format(item.gasto)} / ${formatoMoeda.format(limiteVal)}"
-                                    } else {
-                                        formatoMoeda.format(item.gasto)
-                                    },
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = if (ultrapassou) Coral else MaterialTheme.colorScheme.onSurface,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1
-                                )
-                                if (temOrcamento && item.limiteHerdado) {
-                                    Text(
-                                        text = "padrão do mês anterior",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontStyle = FontStyle.Italic,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1
-                                    )
-                                } else if (temOrcamento) {
-                                    Text(
-                                        text = "$percentualInt%",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (ultrapassou) Coral else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontWeight = FontWeight.Bold
-                                    )
+            } else {
+                item {
+                    CartaoUnicoDeLinhas {
+                        itens.forEachIndexed { indice, item ->
+                            if (indice > 0) DivisorDeLinha()
+                            val limiteVal = item.limite ?: 0.0
+                            val temOrcamento = limiteVal > 0.0
+                            val progresso = if (temOrcamento) (item.gasto / limiteVal).toFloat().coerceIn(0f, 1f) else 0f
+                            val ultrapassou = temOrcamento && item.gasto > limiteVal
+                            val corAnel = if (ultrapassou) Coral else VerdeOrcamento
+                            val percentualInt = if (temOrcamento) ((item.gasto / limiteVal) * 100).toInt() else 0
+                            LinhaDePagina(
+                                inicio = {
+                                    // O anel em volta do ícone mostra quanto do limite já foi usado
+                                    AnelDeProgresso(if (ultrapassou) 1f else progresso, corAnel) {
+                                        Icon(
+                                            imageVector = iconeParaCategoria(item.categoria.nome),
+                                            contentDescription = null,
+                                            tint = if (temOrcamento) corAnel else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                },
+                                titulo = item.categoria.nome,
+                                valor = formatoMoeda.format(item.gasto),
+                                valorSecundario = if (temOrcamento) formatoLimite(limiteVal) else null,
+                                subtitulo = when {
+                                    !temOrcamento -> "Sem limite · toque para definir"
+                                    ultrapassou -> "Excedido em ${formatoMoeda.format(item.gasto - limiteVal)}"
+                                    item.limiteHerdado -> "Disponível ${formatoMoeda.format(limiteVal - item.gasto)} · padrão do mês anterior"
+                                    else -> "$percentualInt% · disponível ${formatoMoeda.format(limiteVal - item.gasto)}"
+                                },
+                                corSubtitulo = if (ultrapassou) MaterialTheme.cores.textoGasto else Color.Unspecified,
+                                onClick = {
+                                    modoNovoLimite = false
+                                    categoriaEmEdicao = item
+                                    valorInput = limiteParaTexto(item.limite)
+                                    mostrarSheet = true
                                 }
-                            }
+                            )
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        LinearProgressIndicator(
-                            progress = { progresso },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(6.dp)
-                                .clip(RoundedCornerShape(3.dp)),
-                            color = corBarra,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        )
                     }
                 }
             }

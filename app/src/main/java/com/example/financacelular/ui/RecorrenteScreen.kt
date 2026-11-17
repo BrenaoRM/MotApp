@@ -1,13 +1,11 @@
 package com.example.financacelular.ui
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -15,24 +13,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingDown
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -45,18 +36,18 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.DespesaRecorrente
 import com.example.financacelular.data.TipoTransacao
-import com.example.financacelular.ui.theme.Coral
+import com.example.financacelular.ui.theme.Espaco
 import com.example.financacelular.ui.theme.LilasRecorrente
-import com.example.financacelular.ui.theme.Verde
+import com.example.financacelular.ui.theme.Tamanho
 import com.example.financacelular.ui.theme.cores
 import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
@@ -79,6 +70,15 @@ fun RecorrenteScreen(
     val totalCobrancas = despesasRecorrentes.sumOf { it.valor }
     val totalGanhosFixos = receitasRecorrentes.sumOf { it.valor }
 
+    // A lista mostra um tipo por vez, como as Categorias da Início; o padrão é Cobranças
+    var tipoLista by rememberSaveable { mutableStateOf(TipoTransacao.DESPESA) }
+    val itensDoTipo = if (tipoLista == TipoTransacao.DESPESA) despesasRecorrentes else receitasRecorrentes
+
+    // Detalhe em sheet; guarda só o id e busca na lista atual
+    var detalheId by remember { mutableStateOf<Long?>(null) }
+    var confirmandoCancelamento by remember { mutableStateOf(false) }
+    val itemDetalhe = detalheId?.let { id -> recorrentes.find { it.id == id } }
+
     // Assinaturas antigas sem cartão gravado são cobradas no primeiro cartão (mesma regra do app)
     fun nomeDoCartao(item: DespesaRecorrente): String? {
         if (item.tipo == TipoTransacao.RECEITA) return null
@@ -97,28 +97,60 @@ fun RecorrenteScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             CartaoHeroDePagina(LilasRecorrente) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "COBRANÇAS POR MÊS",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f)
-                    )
-                    PilulaDePagina(if (recorrentes.size == 1) "1 item" else "${recorrentes.size} itens")
-                }
-                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    "Cobranças por mês",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
                 ValorDoHero(formatoMoeda.format(totalCobrancas))
-                Spacer(modifier = Modifier.height(14.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    IndicadorDePagina("GANHOS FIXOS", formatoMoeda.format(totalGanhosFixos), Icons.AutoMirrored.Filled.TrendingUp, Modifier.weight(1f))
-                    IndicadorDePagina("ASSINATURAS", "${despesasRecorrentes.size}", Icons.Filled.Repeat, Modifier.weight(1f))
+                if (totalGanhosFixos > 0) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Filled.ArrowUpward,
+                            contentDescription = null,
+                            tint = MaterialTheme.cores.textoGanho,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            buildAnnotatedString {
+                                withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)) {
+                                    append(formatoMoeda.format(totalGanhosFixos))
+                                }
+                                append(" de ganhos fixos")
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth().heightIn(min = Tamanho.toque),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Recorrências",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                if (recorrentes.isNotEmpty()) {
+                    SeletorQuadradoIcones(
+                        opcoes = listOf(
+                            OpcaoDeIcone(Icons.Filled.ArrowDownward, "Cobranças", MaterialTheme.cores.textoGasto),
+                            OpcaoDeIcone(Icons.Filled.ArrowUpward, "Ganhos", MaterialTheme.cores.textoGanho)
+                        ),
+                        indiceSelecionado = if (tipoLista == TipoTransacao.DESPESA) 0 else 1,
+                        aoSelecionar = { tipoLista = if (it == 0) TipoTransacao.DESPESA else TipoTransacao.RECEITA }
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
         if (recorrentesCarregados?.isEmpty() == true) {
@@ -129,230 +161,135 @@ fun RecorrenteScreen(
                     modifier = Modifier.animateItem()
                 )
             }
+        } else if (recorrentes.isNotEmpty()) {
+            item(key = "recorrencias") {
+                CartaoUnicoDeLinhas {
+                    if (itensDoTipo.isEmpty()) {
+                        Text(
+                            if (tipoLista == TipoTransacao.DESPESA) "Nenhuma cobrança recorrente" else "Nenhum ganho recorrente",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 22.dp)
+                        )
+                    }
+                    itensDoTipo.forEachIndexed { indice, item ->
+                        if (indice > 0) DivisorDeLinha()
+                        val cartao = nomeDoCartao(item)
+                        LinhaDePagina(
+                            inicio = {
+                                Icon(
+                                    Icons.Filled.Repeat,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            },
+                            titulo = item.nome,
+                            valor = formatoMoeda.format(item.valor),
+                            subtitulo = "Todo dia ${item.diaDoMes}" + (cartao?.let { " · $it" } ?: ""),
+                            onClick = {
+                                confirmandoCancelamento = false
+                                detalheId = item.id
+                            }
+                        )
+                    }
+                }
+            }
         }
+    }
 
-        if (receitasRecorrentes.isNotEmpty()) {
-            item {
-                Text(
-                    "Ganhos Recorrentes",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.cores.textoGanho
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            items(receitasRecorrentes, key = { it.id }) { item ->
-                ItemRecorrenteCard(
-                    modifier = Modifier.animateItem(),
-                    item = item,
-                    formatoMoeda = formatoMoeda,
-                    corTema = Verde,
-                    subtitulo = "Receita fixa mensal",
-                    onCancelar = { viewModel.excluir(item) }
-                )
-            }
-            item { Spacer(modifier = Modifier.height(16.dp)) }
-        }
-
-        if (despesasRecorrentes.isNotEmpty()) {
-            item {
-                Text(
-                    "Cobranças e Assinaturas",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.cores.textoGasto
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            items(despesasRecorrentes, key = { it.id }) { item ->
-                ItemRecorrenteCard(
-                    modifier = Modifier.animateItem(),
-                    item = item,
-                    formatoMoeda = formatoMoeda,
-                    corTema = Coral,
-                    subtitulo = "Cobrança fixa recorrente",
-                    cartaoNome = nomeDoCartao(item),
-                    onCancelar = { viewModel.excluir(item) }
-                )
+    // ---------------- SHEET: DETALHE DA RECORRÊNCIA (a confirmação troca o conteúdo do mesmo sheet) ----------------
+    itemDetalhe?.let { item ->
+        val fechar = { detalheId = null; confirmandoCancelamento = false }
+        FolhaApp(onDismiss = fechar) {
+            AnimatedContent(
+                targetState = confirmandoCancelamento,
+                transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) using SizeTransform() },
+                label = "confirmarCancelamentoRecorrencia"
+            ) { confirmando ->
+                if (confirmando) {
+                    ConfirmarAcaoConteudo(
+                        titulo = "Cancelar recorrência?",
+                        texto = "\"${item.nome}\" deixará de ser lançado nos próximos meses.",
+                        textoConfirmar = "Cancelar recorrência",
+                        onConfirmar = {
+                            viewModel.excluir(item)
+                            fechar()
+                        },
+                        onCancelar = { confirmandoCancelamento = false }
+                    )
+                } else {
+                    DetalheDaRecorrencia(
+                        item = item,
+                        cartaoNome = nomeDoCartao(item),
+                        formatoMoeda = formatoMoeda,
+                        aoFechar = fechar,
+                        aoCancelar = { confirmandoCancelamento = true }
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun ItemRecorrenteCard(
+private fun DetalheDaRecorrencia(
     item: DespesaRecorrente,
+    cartaoNome: String?,
     formatoMoeda: NumberFormat,
-    corTema: Color,
-    subtitulo: String,
-    onCancelar: () -> Unit,
-    modifier: Modifier = Modifier,
-    cartaoNome: String? = null
+    aoFechar: () -> Unit,
+    aoCancelar: () -> Unit
 ) {
-    var expandido by rememberSaveable { mutableStateOf(false) }
-    var confirmarExclusao by rememberSaveable { mutableStateOf(false) }
-    val corTexto = if (item.tipo == TipoTransacao.RECEITA) MaterialTheme.cores.textoGanho else MaterialTheme.cores.textoGasto
-
+    val ehReceita = item.tipo == TipoTransacao.RECEITA
     val hoje = remember { LocalDate.now() }
 
-    val tempoAtivoTexto = remember(item.dataCriacao) {
+    val tempoAtivo = remember(item.dataCriacao) {
         val dias = ChronoUnit.DAYS.between(item.dataCriacao, hoje)
         val meses = ChronoUnit.MONTHS.between(item.dataCriacao, hoje)
         val anos = ChronoUnit.YEARS.between(item.dataCriacao, hoje)
-
         when {
-            anos > 0 -> if (anos == 1L) "Ativo há 1 ano" else "Ativo há $anos anos"
-            meses > 0 -> if (meses == 1L) "Ativo há 1 mês" else "Ativo há $meses meses"
-            dias > 0 -> if (dias == 1L) "Ativo há 1 dia" else "Ativo há $dias dias"
-            else -> "Ativo hoje"
+            anos > 0 -> if (anos == 1L) "1 ano" else "$anos anos"
+            meses > 0 -> if (meses == 1L) "1 mês" else "$meses meses"
+            dias > 0 -> if (dias == 1L) "1 dia" else "$dias dias"
+            else -> "hoje"
         }
     }
-
     val mesesCobrados = remember(item.dataCriacao) {
-        val mesesPassados = ChronoUnit.MONTHS.between(item.dataCriacao, hoje)
-        maxOf(1, mesesPassados + 1)
+        maxOf(1, ChronoUnit.MONTHS.between(item.dataCriacao, hoje) + 1)
     }
 
-    val totalJaPago = item.valor * mesesCobrados
+    Column(modifier = Modifier.fillMaxWidth()) {
+        CabecalhoDeFolha(
+            titulo = item.nome,
+            aoFechar = aoFechar,
+            subtitulo = if (ehReceita) "Receita fixa mensal" else "Cobrança mensal"
+        )
+        Spacer(modifier = Modifier.height(Espaco.lg))
+        ValorDoHero(formatoMoeda.format(item.valor))
+        Text(
+            "por mês",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(Espaco.md))
 
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 5.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .clickable(role = Role.Button) { expandido = !expandido }
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .background(corTema.copy(alpha = 0.15f), RoundedCornerShape(14.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (item.tipo == TipoTransacao.RECEITA) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
-                        contentDescription = null,
-                        tint = corTema,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        item.nome,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(subtitulo, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (cartaoNome != null) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        EtiquetaCartao(nome = cartaoNome)
-                    }
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        formatoMoeda.format(item.valor),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = corTexto,
-                        maxLines = 1
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Icon(
-                        imageVector = if (expandido) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                        contentDescription = if (expandido) "Recolher detalhes" else "Expandir detalhes",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+        LinhaDeDetalhe("Dia do mês", "Todo dia ${item.diaDoMes}")
+        LinhaDeDetalhe("Ativa há", tempoAtivo)
+        LinhaDeDetalhe(
+            if (ehReceita) "Total já recebido (estimado)" else "Total já pago (estimado)",
+            formatoMoeda.format(item.valor * mesesCobrados)
+        )
+        if (cartaoNome != null) LinhaDeDetalhe("Cartão", cartaoNome)
 
-            AnimatedVisibility(
-                visible = expandido,
-                enter = expandVertically(),
-                exit = shrinkVertically()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp)
-                ) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.Info, contentDescription = null, modifier = Modifier.size(16.dp), tint = LilasRecorrente)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Dia do vencimento:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
-                            }
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text("Todo dia ${item.diaDoMes}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                        }
-
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text("Status", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(tempoAtivoTexto, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.cores.textoGanho)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(
-                            text = if (item.tipo == TipoTransacao.DESPESA) "Total já gasto (estimado):" else "Total já recebido (estimado):",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = formatoMoeda.format(totalJaPago),
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = corTexto
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    if (confirmarExclusao) {
-                        ConfirmarAcaoSheet(
-                            titulo = "Cancelar recorrência?",
-                            texto = "\"${item.nome}\" deixará de ser lançado nos próximos meses.",
-                            textoConfirmar = "Cancelar recorrência",
-                            onConfirmar = onCancelar,
-                            onDismiss = { confirmarExclusao = false }
-                        )
-                    }
-
-                    BotaoSecundario(
-                        texto = "Cancelar Recorrência",
-                        onClick = { confirmarExclusao = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        cor = MaterialTheme.cores.textoGasto,
-                        icone = Icons.Filled.DeleteOutline
-                    )
-                }
-            }
-        }
+        Spacer(modifier = Modifier.height(Espaco.xl))
+        BotaoSecundario(
+            texto = "Cancelar recorrência",
+            onClick = aoCancelar,
+            modifier = Modifier.fillMaxWidth(),
+            cor = MaterialTheme.cores.textoGasto,
+            icone = Icons.Filled.DeleteOutline
+        )
+        Spacer(modifier = Modifier.height(Espaco.lg))
     }
 }
