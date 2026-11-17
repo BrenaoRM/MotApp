@@ -4,13 +4,14 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.financacelular.data.AppDatabase
+import com.example.financacelular.data.Categoria
 import com.example.financacelular.data.conjuntoFaturasPagas
 import com.example.financacelular.data.ehPagamentoDeFatura
 import com.example.financacelular.data.estaComFaturaPaga
 import com.example.financacelular.data.FinancaRepository
 import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.TipoTransacao
-import com.example.financacelular.data.TotalMensal
+import com.example.financacelular.data.Transacao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +24,6 @@ import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
 data class ItemGastoCategoria(val nomeCategoria: String, val total: Double, val icone: String? = null)
@@ -36,19 +36,15 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
     private val _periodo = MutableStateFlow(Periodo.mes(YearMonth.now()))
     val periodo: StateFlow<Periodo> = _periodo
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    private val transacoesValidasDoPeriodo = combine(
-        _periodo,
-        repository.listarTransacoes(),
-        repository.listarCategorias()
-    ) { periodo, todas, categorias ->
+    /** Transações que entram nas contas da Análise para o [periodo]: sem pagamento de fatura, sem futuras nem fatura em aberto. */
+    private fun transacoesValidas(periodo: Periodo, todas: List<Transacao>, categorias: List<Categoria>): List<Transacao> {
         val hoje = LocalDate.now()
         val primeiroAnoMes = YearMonth.from(periodo.inicio).toString()
         val ultimoAnoMes = YearMonth.from(periodo.fim).toString()
         val faturasPagas = conjuntoFaturasPagas(todas)
         val categoriaFaturaId = categorias.find { it.nome.equals("Fatura", ignoreCase = true) }?.id ?: 1L
 
-        todas.filter { t ->
+        return todas.filter { t ->
             // Meses fechados seguem o mês de competência (fatura do cartão); intervalo livre segue a data
             val ehDoPeriodo = if (periodo.mesesFechados) {
                 val anoMesTransacao = t.anoMes ?: t.data.toString().take(7)
@@ -72,6 +68,15 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
                 t
             }
         }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val transacoesValidasDoPeriodo = combine(
+        _periodo,
+        repository.listarTransacoes(),
+        repository.listarCategorias()
+    ) { periodo, todas, categorias ->
+        transacoesValidas(periodo, todas, categorias)
     }.flowOn(Dispatchers.Default)
         .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1)
 
@@ -105,33 +110,19 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
         transacoes.filter { it.tipo == TipoTransacao.RECEITA }.sumOf { it.valor }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
-    val evolucaoMensal: StateFlow<List<TotalMensal>> = repository.listarTransacoes()
-        .map { todas ->
-            val hoje = LocalDate.now()
-            val faturasPagas = conjuntoFaturasPagas(todas)
-            val meses = (0..5).map { hoje.minusMonths(it.toLong()) }.reversed()
-
-            meses.map { ym ->
-                val anoMes = ym.format(DateTimeFormatter.ofPattern("yyyy-MM"))
-                val transacoesDoPeriodo = todas.filter { t ->
-                    val anoMesTransacao = t.anoMes ?: t.data.toString().take(7)
-                    val ehDoMes = anoMesTransacao == anoMes
-                    if (!ehDoMes) return@filter false
-                    if (t.ehPagamentoDeFatura()) return@filter false
-                    val ehFuturo = t.data.isAfter(hoje)
-
-                    if (t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.cartaoId != null) {
-                        t.estaComFaturaPaga(faturasPagas)
-                    } else {
-                        if (ym.year == hoje.year && ym.month == hoje.month) !ehFuturo else true
-                    }
-                }
-                val receitas = transacoesDoPeriodo.filter { it.tipo == TipoTransacao.RECEITA }.sumOf { it.valor }
-                val despesas = transacoesDoPeriodo.filter { it.tipo == TipoTransacao.DESPESA }.sumOf { it.valor }
-                TotalMensal(anoMes = anoMes, totalReceitas = receitas, totalDespesas = despesas)
-            }
-        }.flowOn(Dispatchers.Default)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    /** Fluxo de caixa do período escolhido na tela, com o período anterior do mesmo tamanho para a variação; `null` enquanto carrega. */
+    val fluxo: StateFlow<FluxoDoPeriodo?> = combine(
+        _periodo,
+        repository.listarTransacoes(),
+        repository.listarCategorias()
+    ) { periodo, todas, categorias ->
+        calcularFluxo(
+            transacoes = transacoesValidas(periodo, todas, categorias),
+            transacoesAnteriores = transacoesValidas(periodo.deslocar(-1), todas, categorias),
+            periodo = periodo
+        )
+    }.flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val topDespesas: StateFlow<List<TopDespesaItem>> = combine(transacoesValidasDoPeriodo, repository.listarCategorias()) { transacoes, categorias ->

@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.financacelular.ui.theme.Tamanho
@@ -212,21 +213,29 @@ private fun BarrasDeAportes(
         }
     }
     Spacer(Modifier.height(6.dp))
+    RotulosDasBarras(dados.barras.map { RotuloDeBarra(it.rotulo, it.subrotulo, it.mostrarRotulo) }, foco, espaco)
+}
+
+internal class RotuloDeBarra(val texto: String, val subtexto: String?, val mostrar: Boolean)
+
+/** Linha de rótulos sob as barras (dia, semana ou mês); o da barra focada fica em destaque. */
+@Composable
+internal fun RotulosDasBarras(rotulos: List<RotuloDeBarra>, foco: Int?, espaco: Dp) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(espaco)) {
-        dados.barras.forEachIndexed { indice, barra ->
+        rotulos.forEachIndexed { indice, rotulo ->
             val cor = if (foco == indice) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
             Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    if (barra.mostrarRotulo) barra.rotulo else "",
+                    if (rotulo.mostrar) rotulo.texto else "",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = if (foco == indice) FontWeight.Bold else FontWeight.Medium,
                     color = cor,
                     maxLines = 1,
                     softWrap = false
                 )
-                if (barra.subrotulo != null) {
+                if (rotulo.subtexto != null) {
                     Text(
-                        barra.subrotulo,
+                        rotulo.subtexto,
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 9.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),

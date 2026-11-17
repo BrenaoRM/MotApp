@@ -64,6 +64,65 @@ private fun montarTipos(totais: List<Pair<String, Double>>): List<TipoDeAporte> 
 private fun somaDoIntervalo(lista: List<InvestimentoEntity>, inicio: LocalDate, fim: LocalDate) =
     lista.filter { !it.data.isBefore(inicio) && !it.data.isAfter(fim) }
 
+/** "out" quando o período é um mês; senão "período anterior". */
+internal fun rotuloDoPeriodoAnterior(periodo: Periodo): String =
+    if (periodo.ehMesUnico) periodo.deslocar(-1).inicio.mesCurto().lowercase() else "período anterior"
+
+/** Um pedaço do período que vira uma barra (um dia, uma semana ou um mês). */
+internal data class TrechoDoPeriodo(
+    val rotulo: String,
+    val subrotulo: String?,
+    val mostrarRotulo: Boolean,
+    val descricao: String,
+    val inicio: LocalDate,
+    val fim: LocalDate
+)
+
+/** Divide o [periodo] em dia, semana ou mês conforme [granularidadeDe]; usado pelos cards de Aportes e de Fluxo de caixa. */
+internal fun dividirPeriodo(periodo: Periodo): List<TrechoDoPeriodo> = when (granularidadeDe(periodo)) {
+    GranularidadeAportes.DIA -> (0 until periodo.dias).map { i ->
+        val dia = periodo.inicio.plusDays(i.toLong())
+        TrechoDoPeriodo(
+            rotulo = dia.dayOfMonth.toString(),
+            subrotulo = null,
+            mostrarRotulo = periodo.dias <= 8 || i % 2 == 0 || i == periodo.dias - 1,
+            descricao = "dia ${dia.dayOfMonth} ${dia.mesCurto().lowercase()}",
+            inicio = dia,
+            fim = dia
+        )
+    }
+    GranularidadeAportes.SEMANA -> {
+        val semanas = mutableListOf<TrechoDoPeriodo>()
+        var inicio = periodo.inicio
+        var numero = 1
+        while (!inicio.isAfter(periodo.fim)) {
+            val fim = minOf(inicio.plusDays(6), periodo.fim)
+            semanas += TrechoDoPeriodo(
+                rotulo = "S$numero",
+                subrotulo = "${inicio.dayOfMonth}–${fim.dayOfMonth}",
+                mostrarRotulo = true,
+                descricao = "semana $numero, ${inicio.dayOfMonth} a ${fim.dayOfMonth} de ${fim.mesCurto().lowercase()}",
+                inicio = inicio,
+                fim = fim
+            )
+            inicio = fim.plusDays(1)
+            numero++
+        }
+        semanas
+    }
+    GranularidadeAportes.MES -> (0 until periodo.quantidadeDeMeses).map { i ->
+        val mes = YearMonth.from(periodo.inicio).plusMonths(i.toLong())
+        TrechoDoPeriodo(
+            rotulo = mes.atDay(1).mesCurto(),
+            subrotulo = null,
+            mostrarRotulo = true,
+            descricao = mes.atDay(1).mesCurto().lowercase(),
+            inicio = maxOf(mes.atDay(1), periodo.inicio),
+            fim = minOf(mes.atEndOfMonth(), periodo.fim)
+        )
+    }
+}
+
 /**
  * Aportes do [periodo] da Análise, divididos em barras (dia, semana ou mês conforme o tamanho do período)
  * e por tipo de ativo. Nenhum valor é buscado fora de [investimentos].
@@ -84,49 +143,7 @@ fun calcularAportes(investimentos: List<InvestimentoEntity>, periodo: Periodo): 
     }
 
     val granularidade = granularidadeDe(periodo)
-    val barras = when (granularidade) {
-        GranularidadeAportes.DIA -> (0 until periodo.dias).map { i ->
-            val dia = periodo.inicio.plusDays(i.toLong())
-            barra(
-                rotulo = dia.dayOfMonth.toString(),
-                sub = null,
-                mostrar = periodo.dias <= 8 || i % 2 == 0 || i == periodo.dias - 1,
-                nome = "dia ${dia.dayOfMonth} ${dia.mesCurto().lowercase()}",
-                inicio = dia,
-                fim = dia
-            )
-        }
-        GranularidadeAportes.SEMANA -> {
-            val semanas = mutableListOf<BarraDeAportes>()
-            var inicio = periodo.inicio
-            var numero = 1
-            while (!inicio.isAfter(periodo.fim)) {
-                val fim = minOf(inicio.plusDays(6), periodo.fim)
-                semanas += barra(
-                    rotulo = "S$numero",
-                    sub = "${inicio.dayOfMonth}–${fim.dayOfMonth}",
-                    mostrar = true,
-                    nome = "semana $numero, ${inicio.dayOfMonth} a ${fim.dayOfMonth} de ${fim.mesCurto().lowercase()}",
-                    inicio = inicio,
-                    fim = fim
-                )
-                inicio = fim.plusDays(1)
-                numero++
-            }
-            semanas
-        }
-        GranularidadeAportes.MES -> (0 until periodo.quantidadeDeMeses).map { i ->
-            val mes = YearMonth.from(periodo.inicio).plusMonths(i.toLong())
-            barra(
-                rotulo = mes.atDay(1).mesCurto(),
-                sub = null,
-                mostrar = true,
-                nome = mes.atDay(1).mesCurto().lowercase(),
-                inicio = maxOf(mes.atDay(1), periodo.inicio),
-                fim = minOf(mes.atEndOfMonth(), periodo.fim)
-            )
-        }
-    }
+    val barras = dividirPeriodo(periodo).map { barra(it.rotulo, it.subrotulo, it.mostrarRotulo, it.descricao, it.inicio, it.fim) }
 
     val anterior = periodo.deslocar(-1)
     val totalAnterior = somaDoIntervalo(investimentos, anterior.inicio, anterior.fim).sumOf { it.valorInvestido }
@@ -136,6 +153,6 @@ fun calcularAportes(investimentos: List<InvestimentoEntity>, periodo: Periodo): 
         barras = barras,
         total = doPeriodo.sumOf { it.valorInvestido },
         totalAnterior = totalAnterior,
-        rotuloAnterior = if (periodo.ehMesUnico) anterior.inicio.mesCurto().lowercase() else "período anterior"
+        rotuloAnterior = rotuloDoPeriodoAnterior(periodo)
     )
 }

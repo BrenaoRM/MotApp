@@ -7,14 +7,12 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -53,7 +51,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -78,25 +75,7 @@ import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.util.Locale
 
-private val AlturaGrafico = 130.dp
-
 private val LocalePtBr: Locale = Locale.Builder().setLanguage("pt").setRegion("BR").build()
-private val MesesAbreviados = listOf("Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez")
-
-private fun formatarEixoY(valor: Double): String {
-    if (valor == 0.0) return "0"
-    return when {
-        valor >= 1_000_000 -> String.format(LocalePtBr, "%.1fM", valor / 1_000_000)
-        valor >= 1_000 -> String.format(LocalePtBr, "%.1fk", valor / 1_000)
-        else -> String.format(LocalePtBr, "%.0f", valor)
-    }
-}
-
-/** "2026-10" -> "Out" (se o formato for outro, cai para os dois últimos caracteres). */
-private fun rotuloMes(anoMes: String): String {
-    val mes = anoMes.takeLast(2).toIntOrNull()
-    return if (mes != null && mes in 1..12) MesesAbreviados[mes - 1] else anoMes.takeLast(2)
-}
 
 /** "2026-10-03" -> "03/10" (sem depender do tipo exato da data). */
 private fun formatarDataCurta(texto: String): String {
@@ -128,7 +107,7 @@ fun AnaliseScreen(
 ) {
     val despesasPorCategoria by viewModel.despesasPorCategoria.collectAsState()
     val receitasPorCategoria by viewModel.receitasPorCategoria.collectAsState()
-    val evolucaoMensal by viewModel.evolucaoMensal.collectAsState()
+    val fluxo by viewModel.fluxo.collectAsState()
     val topDespesas by viewModel.topDespesas.collectAsState()
     val aportes by viewModel.aportes.collectAsState()
     val periodo by viewModel.periodo.collectAsState()
@@ -380,54 +359,13 @@ fun AnaliseScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
 
-        // ---------------- FLUXO DE CAIXA (sempre os últimos 6 meses) ----------------
+        // ---------------- FLUXO DE CAIXA (segue o período da tela) ----------------
         item {
-            TituloDeSecao("Fluxo de caixa", "6 meses")
+            val dadosFluxo = fluxo
+            TituloDeSecao("Fluxo de caixa", dadosFluxo?.granularidade?.texto)
             Spacer(modifier = Modifier.height(12.dp))
-            if (graficosProntos) {
-                CartaoAnalise {
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        LegendaPonto(Verde, "Ganhos")
-                        LegendaPonto(Coral, "Gastos")
-                    }
-                    Spacer(modifier = Modifier.height(20.dp))
-                    if (evolucaoMensal.isEmpty()) {
-                        EstadoVazio(Icons.Outlined.BarChart, "Ainda não há dados suficientes para exibir o histórico.")
-                    } else {
-                        val maiorValor = evolucaoMensal.maxOfOrNull { maxOf(it.totalReceitas, it.totalDespesas) }?.coerceAtLeast(1.0) ?: 1.0
-                        GraficoBase(
-                            maiorValor = maiorValor,
-                            rotulos = evolucaoMensal.map { rotuloMes(it.anoMes) },
-                            descricao = "Fluxo de caixa dos últimos ${evolucaoMensal.size} meses: ganhos somam ${formato.format(evolucaoMensal.sumOf { it.totalReceitas })} e gastos somam ${formato.format(evolucaoMensal.sumOf { it.totalDespesas })}"
-                        ) {
-                            evolucaoMensal.forEachIndexed { indice, item ->
-                                // O mês atual (último) em destaque; os anteriores esmaecidos
-                                val opacidade = if (indice == evolucaoMensal.lastIndex) 1f else 0.5f
-                                val fracaoReceita = (item.totalReceitas / maiorValor).toFloat()
-                                val fracaoDespesa = (item.totalDespesas / maiorValor).toFloat()
-                                Row(
-                                    modifier = Modifier.weight(1f),
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.Bottom
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .width(10.dp)
-                                            .height((AlturaGrafico * fracaoReceita).coerceAtLeast(3.dp))
-                                            .background(Verde.copy(alpha = opacidade), RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp, bottomStart = 2.dp, bottomEnd = 2.dp))
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .width(10.dp)
-                                            .height((AlturaGrafico * fracaoDespesa).coerceAtLeast(3.dp))
-                                            .background(Coral.copy(alpha = opacidade), RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp, bottomStart = 2.dp, bottomEnd = 2.dp))
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+            if (graficosProntos && dadosFluxo != null) {
+                CartaoFluxo(dados = dadosFluxo, periodo = periodo, formato = formato)
             } else {
                 PlaceholderGrafico(altura = 250.dp)
             }
@@ -649,74 +587,11 @@ internal fun CartaoAnalise(
 }
 
 @Composable
-private fun LegendaPonto(cor: Color, texto: String) {
+internal fun LegendaPonto(cor: Color, texto: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(modifier = Modifier.size(8.dp).background(cor, CircleShape))
         Spacer(modifier = Modifier.width(6.dp))
         Text(texto, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-/** Eixo Y, grade tracejada e rótulos dos meses. As barras são desenhadas pelo [barras]. */
-@Composable
-private fun GraficoBase(
-    maiorValor: Double,
-    rotulos: List<String>,
-    descricao: String,
-    barras: @Composable RowScope.() -> Unit
-) {
-    val corGrade = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
-    val corEixo = MaterialTheme.colorScheme.onSurfaceVariant
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics(mergeDescendants = true) { contentDescription = descricao },
-        verticalAlignment = Alignment.Top
-    ) {
-        Column(
-            modifier = Modifier
-                .height(AlturaGrafico)
-                .padding(end = 8.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-            horizontalAlignment = Alignment.End
-        ) {
-            Text(formatarEixoY(maiorValor), style = MaterialTheme.typography.labelSmall, color = corEixo)
-            Text(formatarEixoY(maiorValor / 2), style = MaterialTheme.typography.labelSmall, color = corEixo)
-            Text("0", style = MaterialTheme.typography.labelSmall, color = corEixo)
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Box(modifier = Modifier.fillMaxWidth().height(AlturaGrafico)) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val espessura = 1.dp.toPx()
-                    val tracejado = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
-                    listOf(0f, size.height / 2, size.height).forEach { y ->
-                        drawLine(corGrade, Offset(0f, y), Offset(size.width, y), strokeWidth = espessura, pathEffect = tracejado)
-                    }
-                }
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom,
-                    content = barras
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                rotulos.forEach { rotulo ->
-                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                        Text(
-                            rotulo,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = corEixo
-                        )
-                    }
-                }
-            }
-        }
     }
 }
 
