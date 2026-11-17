@@ -20,9 +20,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -53,6 +53,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextAlign
+import com.example.financacelular.ui.theme.Tamanho
 import com.example.financacelular.ui.theme.AmareloInvestimento
 import com.example.financacelular.ui.theme.cores
 import java.time.YearMonth
@@ -154,7 +155,7 @@ fun ColunaFluxo(
                 .background(corMarca.copy(alpha = 0.16f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icone, contentDescription = null, tint = corMarca, modifier = Modifier.size(14.dp))
+            Icon(icone, contentDescription = null, tint = corMarca, modifier = Modifier.size(Tamanho.iconePequeno))
         }
         Spacer(Modifier.height(8.dp))
         Text(
@@ -258,10 +259,10 @@ fun CartaoInvestido(
             // A variação já está na descrição do valor; evita ler duas vezes
             Row(modifier = Modifier.clearAndSetSemantics { }, verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    if (variacao >= 0) Icons.Filled.ArrowUpward else Icons.Filled.ArrowDownward,
+                    if (variacao >= 0) Icons.Outlined.ArrowUpward else Icons.Outlined.ArrowDownward,
                     contentDescription = null,
                     tint = cor,
-                    modifier = Modifier.size(13.dp)
+                    modifier = Modifier.size(Tamanho.iconePequeno)
                 )
                 Spacer(Modifier.width(3.dp))
                 Text(
@@ -333,6 +334,6 @@ fun BotaoExtratoHero(onClick: () -> Unit, modifier: Modifier = Modifier, texto: 
     ) {
         Text(texto, color = corTexto, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.width(2.dp))
-        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = corTexto, modifier = Modifier.size(16.dp))
+        Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = corTexto, modifier = Modifier.size(Tamanho.iconePequeno))
     }
 }

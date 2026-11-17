@@ -29,16 +29,13 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingDown
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Clear
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.IconButton
@@ -61,6 +58,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.financacelular.ui.theme.Tamanho
 import com.example.financacelular.ui.theme.AzulAgenda
 import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.RoxoHero
@@ -109,7 +107,6 @@ internal fun BarraInferiorPrincipal(
                         onClick = aoNovaAgenda,
                         modifier = Modifier.weight(1f),
                         cor = AzulAgenda,
-                        icone = Icons.Filled.CalendarMonth
                     )
                 } else {
                     BotaoPrincipal(
@@ -117,14 +114,12 @@ internal fun BarraInferiorPrincipal(
                         onClick = aoGasto,
                         modifier = Modifier.weight(1f),
                         cor = Coral,
-                        icone = Icons.AutoMirrored.Filled.TrendingDown
                     )
                     BotaoPrincipal(
                         texto = "Ganho",
                         onClick = aoGanho,
                         modifier = Modifier.weight(1f),
                         cor = Verde,
-                        icone = Icons.AutoMirrored.Filled.TrendingUp
                     )
                 }
             }
@@ -201,7 +196,7 @@ private fun RowScope.ItemBarra(
                 imageVector = if (selecionado) destino.iconeSelecionado else destino.icone,
                 contentDescription = null,
                 tint = cor,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(Tamanho.iconeGrande)
             )
             Spacer(modifier = Modifier.height(3.dp))
             Text(
@@ -238,7 +233,7 @@ private fun BotaoCentral(expandido: Boolean, onClick: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Filled.Add,
+                imageVector = Icons.Outlined.Add,
                 contentDescription = if (expandido) "Fechar ações" else "Nova ação",
                 tint = Color.White,
                 modifier = Modifier
@@ -300,7 +295,7 @@ internal fun BotaoIlha(
         contentPadding = PaddingValues(horizontal = 12.dp)
     ) {
         if (icone != null) {
-            Icon(icone, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(icone, contentDescription = null, modifier = Modifier.size(Tamanho.icone))
             Spacer(modifier = Modifier.width(8.dp))
         }
         Text(texto, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -326,7 +321,7 @@ internal fun BotaoIlhaSuave(
         contentPadding = PaddingValues(horizontal = 12.dp)
     ) {
         if (icone != null) {
-            Icon(icone, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(icone, contentDescription = null, modifier = Modifier.size(Tamanho.icone))
             Spacer(modifier = Modifier.width(8.dp))
         }
         Text(texto, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -350,7 +345,7 @@ internal fun CampoBuscaIlha(
             .padding(start = 14.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Filled.Search, contentDescription = "Pesquisar", tint = RoxoHero, modifier = Modifier.size(20.dp))
+        Icon(Icons.Outlined.Search, contentDescription = "Pesquisar", tint = RoxoHero, modifier = Modifier.size(Tamanho.icone))
         Spacer(modifier = Modifier.width(10.dp))
         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
             if (valor.isEmpty()) {
@@ -369,7 +364,7 @@ internal fun CampoBuscaIlha(
         }
         if (valor.isNotEmpty()) {
             IconButton(onClick = { aoMudar("") }) {
-                Icon(Icons.Filled.Clear, contentDescription = "Limpar", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                Icon(Icons.Outlined.Clear, contentDescription = "Limpar", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(Tamanho.icone))
             }
         }
     }

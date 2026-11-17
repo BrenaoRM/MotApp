@@ -31,13 +31,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.SearchOff
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
@@ -282,7 +281,7 @@ fun ExtratoScreen(
         if (transacoesOuNull != null && transacoesFiltradas.isEmpty()) {
             item(key = "vazio") {
                 EstadoVazio(
-                    icone = Icons.Filled.SearchOff,
+                    icone = Icons.Outlined.SearchOff,
                     mensagem = if (textoPesquisa.isBlank()) {
                         "Nenhuma transação realizada encontrada."
                     } else {
@@ -311,7 +310,7 @@ fun ExtratoScreen(
                 TituloSecao(
                     titulo = "Próximos lançamentos",
                     quantidade = futurosFiltrados.size,
-                    icone = Icons.Filled.Schedule
+                    icone = Icons.Outlined.Schedule
                 )
             }
 
@@ -449,9 +448,9 @@ private fun ChipFiltroAtivo(texto: String, aoRemover: () -> Unit) {
         label = { Text(texto, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         trailingIcon = {
             Icon(
-                Icons.Filled.Close,
+                Icons.Outlined.Close,
                 contentDescription = "Remover filtro $texto",
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(Tamanho.iconePequeno)
             )
         },
         shape = RoundedCornerShape(12.dp)
@@ -511,13 +510,13 @@ private fun ResumoExtratoCard(
                     modifier = Modifier.weight(1f),
                     rotulo = "Ganhos",
                     valor = formato.format(receitas),
-                    icone = Icons.Filled.ArrowDownward
+                    icone = Icons.Outlined.ArrowDownward
                 )
                 ResumoMini(
                     modifier = Modifier.weight(1f),
                     rotulo = "Gastos",
                     valor = formato.format(despesas),
-                    icone = Icons.Filled.ArrowUpward
+                    icone = Icons.Outlined.ArrowUpward
                 )
             }
         }
@@ -545,7 +544,7 @@ private fun ResumoMini(
                 .background(onPrimary.copy(alpha = 0.20f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icone, contentDescription = null, tint = onPrimary, modifier = Modifier.size(16.dp))
+            Icon(icone, contentDescription = null, tint = onPrimary, modifier = Modifier.size(Tamanho.iconePequeno))
         }
         Spacer(modifier = Modifier.width(10.dp))
         Column {
@@ -578,7 +577,7 @@ private fun TituloSecao(
                 icone,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(Tamanho.icone)
             )
             Spacer(modifier = Modifier.width(8.dp))
         }
@@ -688,10 +687,10 @@ private fun LinhaTransacao(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                iconeParaCategoria(categoria?.nome ?: ""),
+                iconeParaCategoria(categoria?.nome ?: "", categoria?.icone),
                 contentDescription = null,
                 tint = cor.copy(alpha = intensidade),
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(Tamanho.icone)
             )
         }
         Spacer(modifier = Modifier.width(14.dp))
@@ -802,10 +801,10 @@ private fun CampoData(
         textStyle = MaterialTheme.typography.bodyMedium,
         trailingIcon = {
             Icon(
-                Icons.Filled.CalendarToday,
+                Icons.Outlined.CalendarToday,
                 contentDescription = descricao,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(Tamanho.icone)
             )
         },
         interactionSource = interacao,
@@ -919,7 +918,7 @@ private fun BottomSheetEditarTransacao(
                         CircleShape
                     )
                 ) {
-                    Icon(Icons.Filled.Close, contentDescription = "Fechar")
+                    Icon(Icons.Outlined.Close, contentDescription = "Fechar")
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))
@@ -1000,7 +999,6 @@ private fun BottomSheetEditarTransacao(
                     },
                     modifier = Modifier.weight(1f),
                     cor = MaterialTheme.cores.textoGasto,
-                    icone = Icons.Filled.DeleteOutline
                 )
                 BotaoPrincipal(
                     texto = "Salvar",

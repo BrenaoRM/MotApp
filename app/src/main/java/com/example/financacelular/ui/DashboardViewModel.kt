@@ -33,7 +33,8 @@ data class ResumoMovimentacao(
     val categoriaId: Long,
     val tipo: TipoTransacao,
     val total: Double,
-    val transacoes: List<Transacao>
+    val transacoes: List<Transacao>,
+    val icone: String? = null
 )
 
 class DashboardViewModel(application: Application) : AndroidViewModel(application) {
@@ -167,13 +168,15 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         }.map { (chave, lista) ->
             val categoriaId = chave.first
             val tipo = chave.second
-            val nomeCategoria = listaCategorias.find { c -> c.id == categoriaId }?.nome ?: "Sem categoria"
+            val categoriaDoResumo = listaCategorias.find { c -> c.id == categoriaId }
+            val nomeCategoria = categoriaDoResumo?.nome ?: "Sem categoria"
             ResumoMovimentacao(
                 titulo = nomeCategoria,
                 categoriaId = categoriaId,
                 tipo = tipo,
                 total = lista.sumOf { it.valor },
-                transacoes = lista
+                transacoes = lista,
+                icone = categoriaDoResumo?.icone
             )
         }.sortedByDescending { it.total }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

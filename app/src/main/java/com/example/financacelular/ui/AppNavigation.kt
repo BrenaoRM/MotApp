@@ -29,15 +29,8 @@ import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Analytics
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -250,7 +243,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                     texto = "Novo Aporte",
                                     onClick = { acionarNovoInvestimento = true },
                                     modifier = Modifier.weight(1f),
-                                    icone = Icons.Filled.Add
                                 )
                             }
                             ModoBarraInferior.EXTRATO -> IlhaDeAcao {
@@ -264,7 +256,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                 BotaoIlhaSuave(
                                     texto = "Filtros",
                                     onClick = { acionarFiltrosExtrato = true },
-                                    icone = Icons.Filled.FilterList
                                 )
                             }
                             ModoBarraInferior.CARTAO -> {
@@ -281,7 +272,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                                 texto = "Adicionar Cartão",
                                                 onClick = { cartaoViewModel.solicitarAdicionarCartao() },
                                                 modifier = Modifier.weight(1f),
-                                                icone = Icons.Filled.Add
                                             )
                                         } else {
                                             BotaoIlha(
@@ -299,7 +289,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                                 },
                                                 modifier = Modifier.weight(1f),
                                                 cor = if (!faturaPaga) Verde else Coral,
-                                                icone = if (!faturaPaga) Icons.Filled.CheckCircle else Icons.AutoMirrored.Filled.Undo,
                                                 enabled = podePagar
                                             )
                                         }
@@ -315,7 +304,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                         }
                                     },
                                     modifier = Modifier.weight(1f),
-                                    icone = Icons.Filled.Add
                                 )
                             }
                             ModoBarraInferior.RECORRENTES -> IlhaDeAcao {
@@ -327,7 +315,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                         }
                                     },
                                     modifier = Modifier.weight(1f),
-                                    icone = Icons.Filled.Add
                                 )
                             }
                             ModoBarraInferior.META -> IlhaDeAcao {
@@ -335,13 +322,11 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                     texto = "Nova Meta",
                                     onClick = { acionarNovaMeta = true },
                                     modifier = Modifier.weight(1f),
-                                    icone = Icons.Filled.Flag
                                 )
                                 BotaoIlhaSuave(
                                     texto = "Guardar valor",
                                     onClick = { acionarGuardarValorMeta = true },
                                     modifier = Modifier.weight(1f),
-                                    icone = Icons.Filled.Savings
                                 )
                             }
                             ModoBarraInferior.ORCAMENTO -> IlhaDeAcao {
@@ -349,7 +334,6 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                     texto = "Definir Limite",
                                     onClick = { acionarNovoLimiteOrcamento = true },
                                     modifier = Modifier.weight(1f),
-                                    icone = Icons.Filled.PieChart
                                 )
                             }
                             ModoBarraInferior.PADRAO -> {

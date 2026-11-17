@@ -20,10 +20,9 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -108,10 +107,10 @@ fun RecorrenteScreen(
                     Spacer(modifier = Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            Icons.Filled.ArrowUpward,
+                            Icons.Outlined.ArrowUpward,
                             contentDescription = null,
                             tint = MaterialTheme.cores.textoGanho,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(Tamanho.iconePequeno)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
@@ -142,8 +141,8 @@ fun RecorrenteScreen(
                 if (recorrentes.isNotEmpty()) {
                     SeletorQuadradoIcones(
                         opcoes = listOf(
-                            OpcaoDeIcone(Icons.Filled.ArrowDownward, "Cobranças", MaterialTheme.cores.textoGasto),
-                            OpcaoDeIcone(Icons.Filled.ArrowUpward, "Ganhos", MaterialTheme.cores.textoGanho)
+                            OpcaoDeIcone(Icons.Outlined.ArrowDownward, "Cobranças", MaterialTheme.cores.textoGasto),
+                            OpcaoDeIcone(Icons.Outlined.ArrowUpward, "Ganhos", MaterialTheme.cores.textoGanho)
                         ),
                         indiceSelecionado = if (tipoLista == TipoTransacao.DESPESA) 0 else 1,
                         aoSelecionar = { tipoLista = if (it == 0) TipoTransacao.DESPESA else TipoTransacao.RECEITA }
@@ -156,7 +155,7 @@ fun RecorrenteScreen(
         if (recorrentesCarregados?.isEmpty() == true) {
             item(key = "vazio") {
                 EstadoVazio(
-                    icone = Icons.Filled.Repeat,
+                    icone = Icons.Outlined.Repeat,
                     mensagem = "Nenhum item recorrente cadastrado.",
                     modifier = Modifier.animateItem()
                 )
@@ -179,10 +178,10 @@ fun RecorrenteScreen(
                         LinhaDePagina(
                             inicio = {
                                 Icon(
-                                    Icons.Filled.Repeat,
+                                    Icons.Outlined.Repeat,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(Tamanho.icone)
                                 )
                             },
                             titulo = item.nome,
@@ -288,7 +287,6 @@ private fun DetalheDaRecorrencia(
             onClick = aoCancelar,
             modifier = Modifier.fillMaxWidth(),
             cor = MaterialTheme.cores.textoGasto,
-            icone = Icons.Filled.DeleteOutline
         )
         Spacer(modifier = Modifier.height(Espaco.lg))
     }

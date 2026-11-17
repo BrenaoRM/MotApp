@@ -134,6 +134,7 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
 
     fun salvar(
         nomeCategoriaDigitada: String,
+        iconeNovaCategoria: String? = null,
         aoErro: (String) -> Unit = {},
         aoSalvarComSucesso: () -> Unit
     ) {
@@ -163,7 +164,7 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
                 var nomeCategoriaFinal = categoriaSelecionada?.nome
                 if (catId == null && nomeCategoriaDigitada.isNotBlank()) {
                     val nomeTratado = nomeCategoriaDigitada.trim()
-                    val novaCat = Categoria(nome = nomeTratado, tipo = tipo)
+                    val novaCat = Categoria(nome = nomeTratado, tipo = tipo, icone = iconeNovaCategoria)
                     catId = repository.salvarCategoria(novaCat)
                     nomeCategoriaFinal = nomeTratado
                 }

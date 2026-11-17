@@ -26,8 +26,8 @@ import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
-data class ItemGastoCategoria(val nomeCategoria: String, val total: Double)
-data class TopDespesaItem(val descricao: String, val nomeCategoria: String, val valor: Double, val data: String)
+data class ItemGastoCategoria(val nomeCategoria: String, val total: Double, val icone: String? = null)
+data class TopDespesaItem(val descricao: String, val nomeCategoria: String, val valor: Double, val data: String, val icone: String? = null)
 data class TotalMensalInvestimento(val anoMes: String, val total: Double)
 
 class AnaliseViewModel(application: Application) : AndroidViewModel(application) {
@@ -80,8 +80,8 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
         transacoes.filter { it.tipo == TipoTransacao.DESPESA }
             .groupBy { it.categoriaId }
             .map { (catId, lista) ->
-                val nome = categorias.find { it.id == catId }?.nome ?: "Sem categoria"
-                ItemGastoCategoria(nome, lista.sumOf { it.valor })
+                val cat = categorias.find { it.id == catId }
+                ItemGastoCategoria(cat?.nome ?: "Sem categoria", lista.sumOf { it.valor }, cat?.icone)
             }.sortedByDescending { it.total }
     }.flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -91,8 +91,8 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
         transacoes.filter { it.tipo == TipoTransacao.RECEITA }
             .groupBy { it.categoriaId }
             .map { (catId, lista) ->
-                val nome = categorias.find { it.id == catId }?.nome ?: "Sem categoria"
-                ItemGastoCategoria(nome, lista.sumOf { it.valor })
+                val cat = categorias.find { it.id == catId }
+                ItemGastoCategoria(cat?.nome ?: "Sem categoria", lista.sumOf { it.valor }, cat?.icone)
             }.sortedByDescending { it.total }
     }.flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -139,8 +139,9 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
             .sortedByDescending { it.valor }
             .take(5)
             .map { t ->
-                val cat = categorias.find { it.id == t.categoriaId }?.nome ?: "Geral"
-                TopDespesaItem(t.descricao ?: cat, cat, t.valor, t.data.toString())
+                val categoriaDaDespesa = categorias.find { it.id == t.categoriaId }
+                val cat = categoriaDaDespesa?.nome ?: "Geral"
+                TopDespesaItem(t.descricao ?: cat, cat, t.valor, t.data.toString(), categoriaDaDespesa?.icone)
             }
     }.flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

@@ -20,15 +20,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Event
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.Event
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -240,7 +239,7 @@ fun CartaoScreen(
             if (transacoesFaturaCarregada?.isEmpty() == true) {
                 item(key = "vazio") {
                     EstadoVazio(
-                        icone = Icons.AutoMirrored.Filled.ReceiptLong,
+                        icone = Icons.AutoMirrored.Outlined.ReceiptLong,
                         mensagem = "Não há compras na fatura deste mês para este cartão.",
                         modifier = Modifier.animateItem()
                     )
@@ -272,7 +271,7 @@ fun CartaoScreen(
                                     }
                                     val categoria = categoriaPorId[transacao.categoriaId]
                                     LinhaLancamento(
-                                        icone = iconeParaCategoria(categoria?.nome.orEmpty()),
+                                        icone = iconeParaCategoria(categoria?.nome.orEmpty(), categoria?.icone),
                                         titulo = transacao.descricao ?: "Compra no cartão",
                                         categoria = categoria?.nome,
                                         valor = formatoMoeda.format(transacao.valor)
@@ -348,7 +347,7 @@ fun CartaoScreen(
                             onValueChange = { nomeCartao = it },
                             label = { Text("Nome do cartão") },
                             placeholder = { Text("Ex: Nubank, Inter") },
-                            leadingIcon = { Icon(Icons.Filled.CreditCard, contentDescription = null) },
+                            leadingIcon = { Icon(Icons.Outlined.CreditCard, contentDescription = null) },
                             shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true
@@ -362,7 +361,7 @@ fun CartaoScreen(
                                 onValueChange = { diaFechamento = it.filter { c -> c.isDigit() }.take(2) },
                                 label = { Text("Fechamento") },
                                 placeholder = { Text("18") },
-                                leadingIcon = { Icon(Icons.Filled.Event, contentDescription = null) },
+                                leadingIcon = { Icon(Icons.Outlined.Event, contentDescription = null) },
                                 supportingText = { Text("Dia de 1 a 31") },
                                 isError = diaInvalido(diaFechamento),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -375,7 +374,7 @@ fun CartaoScreen(
                                 onValueChange = { diaVencimento = it.filter { c -> c.isDigit() }.take(2) },
                                 label = { Text("Vencimento") },
                                 placeholder = { Text("25") },
-                                leadingIcon = { Icon(Icons.Filled.CalendarToday, contentDescription = null) },
+                                leadingIcon = { Icon(Icons.Outlined.CalendarToday, contentDescription = null) },
                                 supportingText = { Text("Dia de 1 a 31") },
                                 isError = diaInvalido(diaVencimento),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -409,7 +408,6 @@ fun CartaoScreen(
                             modifier = Modifier.fillMaxWidth(),
                             cor = AzulCartao,
                             corConteudo = Color.White,
-                            icone = Icons.Filled.Check
                         )
 
                         if (cartaoParaEditar != null) {
@@ -419,7 +417,6 @@ fun CartaoScreen(
                                 onClick = { confirmandoExclusao = true },
                                 modifier = Modifier.fillMaxWidth(),
                                 cor = MaterialTheme.cores.textoGasto,
-                                icone = Icons.Filled.Delete
                             )
                         }
                         Spacer(modifier = Modifier.height(Espaco.sm))
@@ -476,10 +473,10 @@ private fun CartaoFatura(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Settings,
+                    imageVector = Icons.Outlined.Settings,
                     contentDescription = "Configurar cartão",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(Tamanho.icone)
                 )
             }
         }
@@ -509,33 +506,33 @@ private fun EstadoFatura(faturaPaga: Boolean, vencimento: LocalDate) {
     when {
         faturaPaga -> {
             cor = MaterialTheme.cores.textoGanho
-            icone = Icons.Filled.Check
+            icone = Icons.Outlined.Check
             texto = "Fatura paga"
         }
         dias < 0 -> {
             cor = MaterialTheme.cores.textoGasto
-            icone = Icons.Filled.Warning
+            icone = Icons.Outlined.Warning
             texto = if (dias == -1) "Venceu ontem, dia $dia" else "Venceu dia $dia, há ${-dias} dias"
         }
         dias == 0 -> {
             cor = MaterialTheme.cores.textoGasto
-            icone = Icons.Filled.Warning
+            icone = Icons.Outlined.Warning
             texto = "Vence hoje, dia $dia"
         }
         dias <= 3 -> {
             cor = MaterialTheme.cores.alerta
-            icone = Icons.Filled.Warning
+            icone = Icons.Outlined.Warning
             texto = if (dias == 1) "Vence amanhã, dia $dia" else "Vence dia $dia, em $dias dias"
         }
         else -> {
             cor = cinza
-            icone = Icons.Filled.CalendarToday
+            icone = Icons.Outlined.CalendarToday
             texto = "Vence dia $dia, em $dias dias"
         }
     }
 
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(icone, contentDescription = null, tint = cor, modifier = Modifier.size(15.dp))
+        Icon(icone, contentDescription = null, tint = cor, modifier = Modifier.size(Tamanho.iconePequeno))
         Spacer(modifier = Modifier.width(6.dp))
         Text(
             texto,
@@ -567,10 +564,10 @@ private fun CardAdicionarCartao(modifier: Modifier = Modifier, onClick: () -> Un
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
-            Icons.Filled.Add,
+            Icons.Outlined.Add,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(Tamanho.iconeGrande)
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
@@ -645,7 +642,7 @@ private fun LinhaLancamento(icone: ImageVector, titulo: String, categoria: Strin
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(modifier = Modifier.width(44.dp), contentAlignment = Alignment.Center) {
-            Icon(icone, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
+            Icon(icone, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(Tamanho.icone))
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {

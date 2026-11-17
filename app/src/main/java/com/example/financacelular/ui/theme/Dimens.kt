@@ -55,8 +55,11 @@ object Espaco {
 object Tamanho {
     val toque = 48.dp
     val controle = 52.dp
+    // Escala de ícones: 16 dentro de texto, 20 em listas e botões, 24 em navegação, 28 em destaque
+    val iconePequeno = 16.dp
     val icone = 20.dp
     val iconeGrande = 24.dp
+    val iconeDestaque = 28.dp
 }
 
 val MaterialTheme.dimens: Dimensions

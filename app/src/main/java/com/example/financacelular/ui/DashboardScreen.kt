@@ -5,8 +5,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.drawBehind
@@ -28,12 +28,12 @@ import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingDown
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.automirrored.outlined.TrendingDown
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
+import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -214,10 +214,10 @@ fun DashboardScreen(
                                     modifier = Modifier.size(Tamanho.toque)
                                 ) {
                                     Icon(
-                                        if (saldoVisivel) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                        if (saldoVisivel) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
                                         contentDescription = if (saldoVisivel) "Ocultar valores" else "Mostrar valores",
                                         tint = corTexto.copy(alpha = 0.8f),
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(Tamanho.icone)
                                     )
                                 }
                             }
@@ -230,7 +230,7 @@ fun DashboardScreen(
                                 .height(IntrinsicSize.Min)
                         ) {
                             ColunaFluxo(
-                                icone = Icons.Filled.ArrowUpward,
+                                icone = Icons.Outlined.ArrowUpward,
                                 corMarca = Verde,
                                 valorFormatado = formatoMoeda.format(totalReceitas),
                                 pontos = serieDoMes.entradas,
@@ -245,7 +245,7 @@ fun DashboardScreen(
                                     .background(MaterialTheme.colorScheme.outline)
                             )
                             ColunaFluxo(
-                                icone = Icons.Filled.ArrowDownward,
+                                icone = Icons.Outlined.ArrowDownward,
                                 corMarca = Coral,
                                 valorFormatado = formatoMoeda.format(totalDespesas),
                                 pontos = serieDoMes.saidas,
@@ -298,8 +298,8 @@ fun DashboardScreen(
                     if (!mesVazio) {
                         SeletorQuadradoIcones(
                             opcoes = listOf(
-                                OpcaoDeIcone(Icons.Filled.ArrowDownward, "Gastos", MaterialTheme.cores.textoGasto),
-                                OpcaoDeIcone(Icons.Filled.ArrowUpward, "Ganhos", MaterialTheme.cores.textoGanho)
+                                OpcaoDeIcone(Icons.Outlined.ArrowDownward, "Gastos", MaterialTheme.cores.textoGasto),
+                                OpcaoDeIcone(Icons.Outlined.ArrowUpward, "Ganhos", MaterialTheme.cores.textoGanho)
                             ),
                             indiceSelecionado = if (tipoCategorias == TipoTransacao.DESPESA) 0 else 1,
                             aoSelecionar = { tipoCategorias = if (it == 0) TipoTransacao.DESPESA else TipoTransacao.RECEITA }
@@ -339,6 +339,7 @@ fun DashboardScreen(
                                 }
                                 LinhaCategoriaInicio(
                                     nome = resumo.titulo,
+                                    iconeChave = resumo.icone,
                                     valor = formatoMoeda.format(resumo.total),
                                     fracao = if (totalDoTipo > 0.0) (resumo.total / totalDoTipo).toFloat() else 0f,
                                     cor = paleta[indice % paleta.size],
@@ -375,7 +376,7 @@ fun DashboardScreen(
                     GrupoDeLista(itens = resumo.transacoes) { transacao ->
                         val ehGasto = transacao.tipo == TipoTransacao.DESPESA
                         LinhaDeLista(
-                            icone = if (ehGasto) Icons.AutoMirrored.Filled.TrendingDown else Icons.AutoMirrored.Filled.TrendingUp,
+                            icone = if (ehGasto) Icons.AutoMirrored.Outlined.TrendingDown else Icons.AutoMirrored.Outlined.TrendingUp,
                             cor = if (ehGasto) Coral else Verde,
                             titulo = transacao.descricao ?: resumo.titulo,
                             subtitulo = formatarDataIso(transacao.data.toString()),
@@ -409,7 +410,7 @@ private fun FaixaFaturaVencendo(aoVerFatura: () -> Unit, aoDispensar: () -> Unit
                     .background(cor.copy(alpha = 0.18f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Filled.Warning, contentDescription = null, tint = cor, modifier = Modifier.size(Tamanho.icone))
+                Icon(Icons.Outlined.Warning, contentDescription = null, tint = cor, modifier = Modifier.size(Tamanho.icone))
             }
             Spacer(modifier = Modifier.width(Espaco.md))
             Column(modifier = Modifier.weight(1f)) {
@@ -432,7 +433,7 @@ private fun FaixaFaturaVencendo(aoVerFatura: () -> Unit, aoDispensar: () -> Unit
             }
             IconButton(onClick = aoDispensar, modifier = Modifier.size(Tamanho.toque)) {
                 Icon(
-                    Icons.Filled.Close,
+                    Icons.Outlined.Close,
                     contentDescription = "Dispensar",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(Tamanho.icone)
@@ -463,7 +464,7 @@ private fun AtalhoRapidoCard(titulo: String, icone: ImageVector, cor: Color, onC
                 .background(cor.copy(alpha = 0.16f), RoundedCornerShape(11.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icone, contentDescription = null, tint = cor, modifier = Modifier.size(18.dp))
+            Icon(icone, contentDescription = null, tint = cor, modifier = Modifier.size(Tamanho.icone))
         }
         Spacer(modifier = Modifier.width(8.dp))
         Text(
@@ -479,6 +480,7 @@ private fun AtalhoRapidoCard(titulo: String, icone: ImageVector, cor: Color, onC
 @Composable
 private fun LinhaCategoriaInicio(
     nome: String,
+    iconeChave: String?,
     valor: String,
     fracao: Float,
     cor: Color,
@@ -497,7 +499,7 @@ private fun LinhaCategoriaInicio(
                 .background(cor.copy(alpha = 0.14f), RoundedCornerShape(14.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(iconeParaCategoria(nome), contentDescription = null, tint = cor, modifier = Modifier.size(22.dp))
+            Icon(iconeParaCategoria(nome, iconeChave), contentDescription = null, tint = cor, modifier = Modifier.size(Tamanho.icone))
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {

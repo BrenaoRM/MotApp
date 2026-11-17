@@ -2,7 +2,7 @@ package com.example.financacelular.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -23,7 +23,7 @@ fun ContasScreen(
         CabecalhoPadrao("Contas", aoAbrirConfiguracoes = aoAbrirConfiguracoes)
         Spacer(modifier = Modifier.height(32.dp))
         EstadoVazio(
-            icone = Icons.Filled.AccountBalanceWallet,
+            icone = Icons.Outlined.AccountBalanceWallet,
             mensagem = "Contas chegam em breve"
         )
     }

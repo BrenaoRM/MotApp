@@ -17,8 +17,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.outlined.ChevronLeft
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -189,7 +189,7 @@ private fun CalendarioDeIntervalo(mesInicial: YearMonth, aoEscolher: (Periodo) -
 
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = { mes = mes.minusMonths(1) }, modifier = Modifier.size(48.dp)) {
-            Icon(Icons.Filled.ChevronLeft, contentDescription = "Mês anterior", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Icons.Outlined.ChevronLeft, contentDescription = "Mês anterior", tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text(
             Periodo.mes(mes).rotulo(),
@@ -199,7 +199,7 @@ private fun CalendarioDeIntervalo(mesInicial: YearMonth, aoEscolher: (Periodo) -
             modifier = Modifier.weight(1f)
         )
         IconButton(onClick = { mes = mes.plusMonths(1) }, modifier = Modifier.size(48.dp)) {
-            Icon(Icons.Filled.ChevronRight, contentDescription = "Próximo mês", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Icons.Outlined.ChevronRight, contentDescription = "Próximo mês", tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
     Row(Modifier.fillMaxWidth()) {

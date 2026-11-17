@@ -20,8 +20,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.financacelular.ui.theme.Tamanho
 import com.example.financacelular.ui.theme.Espaco
 import com.example.financacelular.ui.theme.TealParcelados
 import com.example.financacelular.ui.theme.Verde
@@ -91,10 +92,10 @@ fun ParceladosScreen(
                     Spacer(modifier = Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            Icons.Filled.Check,
+                            Icons.Outlined.Check,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(Tamanho.iconePequeno)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
@@ -119,7 +120,7 @@ fun ParceladosScreen(
         if (comprasCarregadas?.isEmpty() == true) {
             item(key = "vazio") {
                 EstadoVazio(
-                    icone = Icons.Filled.ShoppingCart,
+                    icone = Icons.Outlined.ShoppingCart,
                     mensagem = "Nenhuma compra parcelada em andamento.",
                     modifier = Modifier.animateItem()
                 )
@@ -188,7 +189,7 @@ private fun AnelDaCompra(compra: CompraParceladaAgrupada, cor: Color) {
     val progresso = if (compra.totalParcelas > 0) compra.parcelasPagas.toFloat() / compra.totalParcelas else 0f
     AnelDeProgresso(progresso, cor) {
         if (compra.parcelasRestantes == 0) {
-            Icon(Icons.Filled.Check, contentDescription = "Quitada", tint = cor, modifier = Modifier.size(18.dp))
+            Icon(Icons.Outlined.Check, contentDescription = "Quitada", tint = cor, modifier = Modifier.size(Tamanho.icone))
         } else {
             Text(
                 "${compra.parcelasPagas}/${compra.totalParcelas}",

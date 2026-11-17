@@ -53,3 +53,10 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
         )
     }
 }
+
+/** 10 -> 11: ícone escolhido para a categoria (null = ícone sugerido pelo nome). */
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE categorias ADD COLUMN icone TEXT")
+    }
+}

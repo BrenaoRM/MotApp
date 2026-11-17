@@ -7,5 +7,7 @@ import androidx.room.PrimaryKey
 data class Categoria(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val nome: String,
-    val tipo: TipoTransacao
+    val tipo: TipoTransacao,
+    // Chave do ícone escolhido pelo usuário (ver IconesDeCategoria); null = ícone sugerido pelo nome
+    val icone: String? = null
 )

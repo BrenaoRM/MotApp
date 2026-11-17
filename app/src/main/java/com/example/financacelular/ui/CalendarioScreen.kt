@@ -37,16 +37,16 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.TrendingDown
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.Event
-import androidx.compose.material.icons.filled.EventAvailable
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.TrendingDown
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Event
+import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -152,14 +152,14 @@ private fun ResumoDiaCompacto(
         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
         Spacer(modifier = Modifier.height(12.dp))
         Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-            ValorDoDia(Icons.Filled.ArrowUpward, Verde, ganhos, Modifier.weight(1f).padding(end = 14.dp))
+            ValorDoDia(Icons.Outlined.ArrowUpward, Verde, ganhos, Modifier.weight(1f).padding(end = 14.dp))
             Box(
                 Modifier
                     .width(1.dp)
                     .fillMaxHeight()
                     .background(MaterialTheme.colorScheme.outline)
             )
-            ValorDoDia(Icons.Filled.ArrowDownward, Coral, gastos, Modifier.weight(1f).padding(start = 14.dp))
+            ValorDoDia(Icons.Outlined.ArrowDownward, Coral, gastos, Modifier.weight(1f).padding(start = 14.dp))
         }
     }
 }
@@ -176,7 +176,7 @@ private fun ValorDoDia(
             modifier = Modifier.size(24.dp).background(cor.copy(alpha = 0.16f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icone, contentDescription = null, tint = cor, modifier = Modifier.size(14.dp))
+            Icon(icone, contentDescription = null, tint = cor, modifier = Modifier.size(Tamanho.iconePequeno))
         }
         Spacer(modifier = Modifier.width(8.dp))
         Text(
@@ -493,7 +493,7 @@ fun CalendarioScreen(
                 if (transacoesCalendario != null && transacoesDoDia.isEmpty()) {
                     item {
                         EstadoVazio(
-                            icone = Icons.AutoMirrored.Filled.TrendingUp,
+                            icone = Icons.AutoMirrored.Outlined.TrendingUp,
                             mensagem = "Nenhum lançamento financeiro neste dia."
                         )
                     }
@@ -522,7 +522,7 @@ fun CalendarioScreen(
                                 else -> "+ "
                             }
                             LinhaDeLista(
-                                icone = iconeParaCategoria(nomeCategoria ?: ""),
+                                icone = iconeParaCategoria(nomeCategoria ?: "", categoria?.icone),
                                 cor = cor,
                                 titulo = itemCalendario.titulo,
                                 subtitulo = itemCalendario.subtitulo ?: nomeCategoria ?: "Sem categoria",
@@ -537,7 +537,7 @@ fun CalendarioScreen(
                 if (afazeresCarregados != null && afazeresDoDia.isEmpty() && eventosGoogleVisiveis.isEmpty()) {
                     item {
                         EstadoVazio(
-                            icone = Icons.Filled.EventAvailable,
+                            icone = Icons.Outlined.EventAvailable,
                             mensagem = "Nenhum afazer ou evento cadastrado para este dia."
                         )
                     }
@@ -646,10 +646,10 @@ fun CalendarioScreen(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        Icons.Filled.CalendarMonth,
+                        Icons.Outlined.CalendarMonth,
                         contentDescription = null,
                         tint = RoxoHero,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(Tamanho.icone)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
@@ -744,7 +744,6 @@ fun CalendarioScreen(
                 modifier = Modifier.fillMaxWidth(),
                 cor = RoxoHero,
                 corConteudo = Color.White,
-                icone = Icons.Filled.Check,
                 enabled = textoNovoAfazer.isNotBlank() &&
                         !(sincronizarGoogle && !diaInteiroNovo && horaFimNovo == horaNovo)
             )
@@ -804,12 +803,12 @@ private fun CartaoAgenda(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = if (concluido) Icons.Filled.Check else Icons.Filled.Event,
+                    imageVector = if (concluido) Icons.Outlined.Check else Icons.Outlined.Event,
                     contentDescription = if (onClickIcone != null) {
                         if (concluido) "Marcar como pendente" else "Concluir"
                     } else null,
                     tint = corIcone,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(Tamanho.icone)
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
@@ -992,7 +991,6 @@ private fun FolhaEdicaoAgenda(
                         modifier = Modifier.fillMaxWidth(),
                         cor = RoxoHero,
                         corConteudo = Color.White,
-                        icone = Icons.Filled.Check,
                         enabled = titulo.isNotBlank() && !(evento != null && !diaInteiro && horaFim == hora)
                     )
 
@@ -1006,7 +1004,7 @@ private fun FolhaEdicaoAgenda(
                             .fillMaxWidth()
                             .heightIn(min = Tamanho.toque)
                     ) {
-                        Icon(Icons.Filled.DeleteOutline, contentDescription = null, tint = MaterialTheme.cores.textoGasto, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = MaterialTheme.cores.textoGasto, modifier = Modifier.size(Tamanho.icone))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             if (evento != null) "Excluir evento" else "Excluir afazer",
@@ -1068,7 +1066,7 @@ private fun SeletorDataHora(
                         .background(RoxoHero.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = RoxoHero, modifier = Modifier.size(22.dp))
+                    Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = RoxoHero, modifier = Modifier.size(Tamanho.icone))
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -1104,7 +1102,7 @@ private fun SeletorDataHora(
                         modifier = Modifier.weight(1f)
                     ) { dialogo = DialogoSeletor.INICIO }
                     Icon(
-                        Icons.AutoMirrored.Filled.ArrowForward,
+                        Icons.AutoMirrored.Outlined.ArrowForward,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier

@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
         AfazerEntity::class,
         CartaoEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -48,7 +48,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     NOME_ARQUIVO_BANCO
                 )
-                    .addMigrations(MIGRATION_8_9, MIGRATION_9_10)
+                    .addMigrations(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
                     .addCallback(object : Callback() {
                         override fun onCreate(db: SupportSQLiteDatabase) {
                             super.onCreate(db)

@@ -34,15 +34,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import com.example.financacelular.ui.theme.Verde
 import com.example.financacelular.ui.theme.cores
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -191,7 +190,7 @@ fun MetaScreen(
             if (metasCarregadas != null && metas.isEmpty()) {
                 item {
                     EstadoVazio(
-                        icone = Icons.Filled.Flag,
+                        icone = Icons.Outlined.Flag,
                         mensagem = "Nenhuma meta cadastrada ainda. Crie o seu primeiro objetivo.",
                         textoAcao = "Nova meta",
                         aoAcao = {
@@ -215,7 +214,7 @@ fun MetaScreen(
                                 inicio = {
                                     AnelDeProgresso(progresso, cor) {
                                         if (concluida) {
-                                            Icon(Icons.Filled.Check, contentDescription = "Concluída", tint = cor, modifier = Modifier.size(18.dp))
+                                            Icon(Icons.Outlined.Check, contentDescription = "Concluída", tint = cor, modifier = Modifier.size(Tamanho.icone))
                                         } else {
                                             Text(
                                                 "${(progresso * 100).toInt()}%",
@@ -306,7 +305,6 @@ fun MetaScreen(
                                         },
                                         modifier = Modifier.weight(1f),
                                         cor = Coral,
-                                        icone = Icons.Filled.DeleteOutline
                                     )
                                 }
 
@@ -372,7 +370,7 @@ fun MetaScreen(
                             onClick = { mostrarSheetGuardarValor = false },
                             modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
                         ) {
-                            Icon(Icons.Filled.Close, contentDescription = "Fechar")
+                            Icon(Icons.Outlined.Close, contentDescription = "Fechar")
                         }
                     }
 
@@ -405,7 +403,7 @@ fun MetaScreen(
                                     .padding(12.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Filled.Flag, contentDescription = null, tint = RoxoMeta, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Outlined.Flag, contentDescription = null, tint = RoxoMeta, modifier = Modifier.size(Tamanho.iconePequeno))
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         m.nome,

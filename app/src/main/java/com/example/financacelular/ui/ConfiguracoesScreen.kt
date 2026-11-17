@@ -12,17 +12,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Login
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.CloudSync
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Contrast
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.SettingsBrightness
+import androidx.compose.material.icons.outlined.CloudSync
+import androidx.compose.material.icons.outlined.Contrast
+import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.SettingsBrightness
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,6 +34,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.TemaPreferencia
+import com.example.financacelular.ui.theme.Tamanho
 import com.example.financacelular.ui.theme.CorConfiguracoes
 import com.example.financacelular.ui.theme.dimens
 
@@ -47,10 +45,10 @@ private data class OpcaoDeTema(
 )
 
 private val OpcoesDeTema = listOf(
-    OpcaoDeTema(TemaPreferencia.SISTEMA, "Sistema", Icons.Filled.SettingsBrightness),
-    OpcaoDeTema(TemaPreferencia.CLARO, "Claro", Icons.Filled.LightMode),
-    OpcaoDeTema(TemaPreferencia.ESCURO, "Escuro", Icons.Filled.DarkMode),
-    OpcaoDeTema(TemaPreferencia.AMOLED, "AMOLED", Icons.Filled.Contrast)
+    OpcaoDeTema(TemaPreferencia.SISTEMA, "Sistema", Icons.Outlined.SettingsBrightness),
+    OpcaoDeTema(TemaPreferencia.CLARO, "Claro", Icons.Outlined.LightMode),
+    OpcaoDeTema(TemaPreferencia.ESCURO, "Escuro", Icons.Outlined.DarkMode),
+    OpcaoDeTema(TemaPreferencia.AMOLED, "AMOLED", Icons.Outlined.Contrast)
 )
 
 private tailrec fun Context.encontrarActivity(): Activity = when (this) {
@@ -136,8 +134,8 @@ fun ConfiguracoesScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    IndicadorDePagina("ÚLTIMO BACKUP", viewModel.ultimaDataBackup, Icons.Filled.History, Modifier.weight(1.5f))
-                    IndicadorDePagina("TEMA", nomeDoTemaAtual, Icons.Filled.Palette, Modifier.weight(1f))
+                    IndicadorDePagina("ÚLTIMO BACKUP", viewModel.ultimaDataBackup, Icons.Outlined.History, Modifier.weight(1.5f))
+                    IndicadorDePagina("TEMA", nomeDoTemaAtual, Icons.Outlined.Palette, Modifier.weight(1f))
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))
@@ -160,7 +158,7 @@ fun ConfiguracoesScreen(
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconeDeConfiguracao(Icons.Filled.Palette)
+                        IconeDeConfiguracao(Icons.Outlined.Palette)
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
@@ -217,7 +215,7 @@ fun ConfiguracoesScreen(
                         .padding(14.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconeDeConfiguracao(Icons.Filled.CloudSync)
+                        IconeDeConfiguracao(Icons.Outlined.CloudSync)
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
@@ -244,7 +242,6 @@ fun ConfiguracoesScreen(
                             modifier = Modifier.fillMaxWidth(),
                             cor = CorConfiguracoes,
                             corConteudo = Color.White,
-                            icone = Icons.AutoMirrored.Filled.Login
                         )
                     } else {
                         BotaoPrincipal(
@@ -253,7 +250,6 @@ fun ConfiguracoesScreen(
                             modifier = Modifier.fillMaxWidth(),
                             cor = CorConfiguracoes,
                             corConteudo = Color.White,
-                            icone = Icons.Filled.CloudUpload
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         BotaoSecundario(
@@ -261,7 +257,6 @@ fun ConfiguracoesScreen(
                             onClick = { confirmarRestauracao = true },
                             modifier = Modifier.fillMaxWidth(),
                             cor = CorConfiguracoes,
-                            icone = Icons.Filled.CloudDownload
                         )
                     }
 
@@ -277,10 +272,10 @@ fun ConfiguracoesScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    Icons.Filled.Info,
+                                    Icons.Outlined.Info,
                                     contentDescription = null,
                                     tint = CorConfiguracoes,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(Tamanho.icone)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
@@ -307,7 +302,7 @@ private fun IconeDeConfiguracao(icone: ImageVector) {
             .background(CorConfiguracoes.copy(alpha = 0.14f), RoundedCornerShape(14.dp)),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icone, contentDescription = null, tint = CorConfiguracoes, modifier = Modifier.size(22.dp))
+        Icon(icone, contentDescription = null, tint = CorConfiguracoes, modifier = Modifier.size(Tamanho.icone))
     }
 }
 
@@ -335,7 +330,7 @@ private fun OpcaoDeTemaItem(
             imageVector = opcao.icone,
             contentDescription = null,
             tint = if (selecionada) CorConfiguracoes else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(Tamanho.iconeGrande)
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(

@@ -28,8 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -258,10 +257,10 @@ fun OrcamentoScreen(
                                     // O anel em volta do ícone mostra quanto do limite já foi usado
                                     AnelDeProgresso(if (ultrapassou) 1f else progresso, corAnel) {
                                         Icon(
-                                            imageVector = iconeParaCategoria(item.categoria.nome),
+                                            imageVector = iconeParaCategoria(item.categoria.nome, item.categoria.icone),
                                             contentDescription = null,
                                             tint = if (temOrcamento) corAnel else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(20.dp)
+                                            modifier = Modifier.size(Tamanho.icone)
                                         )
                                     }
                                 },
@@ -323,7 +322,7 @@ fun OrcamentoScreen(
                             onClick = { mostrarSheet = false },
                             modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
                         ) {
-                            Icon(Icons.Filled.Close, contentDescription = "Fechar")
+                            Icon(Icons.Outlined.Close, contentDescription = "Fechar")
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -359,10 +358,10 @@ fun OrcamentoScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
-                                        imageVector = iconeParaCategoria(opcao.categoria.nome),
+                                        imageVector = iconeParaCategoria(opcao.categoria.nome, opcao.categoria.icone),
                                         contentDescription = null,
                                         tint = VerdeOrcamento,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(Tamanho.icone)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
@@ -396,7 +395,6 @@ fun OrcamentoScreen(
                         modifier = Modifier.fillMaxWidth(),
                         cor = VerdeOrcamento,
                         corConteudo = Color.White,
-                        icone = Icons.Filled.Check
                     )
                 }
             }

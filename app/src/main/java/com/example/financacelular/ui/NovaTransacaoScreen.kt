@@ -35,15 +35,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.outlined.AccountBalance
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
@@ -193,7 +192,7 @@ private fun ChipCategoria(
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(imageVector = icone, contentDescription = null, tint = cor, modifier = Modifier.size(18.dp))
+        Icon(imageVector = icone, contentDescription = null, tint = cor, modifier = Modifier.size(Tamanho.icone))
         Spacer(modifier = Modifier.width(6.dp))
         Text(
             text = texto,
@@ -229,7 +228,7 @@ private fun OpcaoPagamento(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(imageVector = icone, contentDescription = null, tint = corConteudo, modifier = Modifier.size(18.dp))
+        Icon(imageVector = icone, contentDescription = null, tint = corConteudo, modifier = Modifier.size(Tamanho.icone))
         Spacer(modifier = Modifier.width(6.dp))
         Text(
             text = titulo,
@@ -336,6 +335,7 @@ fun NovaTransacaoScreen(
     var cartaoMenuExpandido by rememberSaveable { mutableStateOf(false) }
     var mostrarDatePicker by rememberSaveable { mutableStateOf(false) }
     var textoCategoria by rememberSaveable { mutableStateOf("") }
+    var iconeNovaCategoria by rememberSaveable { mutableStateOf<String?>(null) }
     var criandoCategoria by rememberSaveable { mutableStateOf(false) }
 
     // Seleciona o primeiro cartão por defeito se nenhum estiver selecionado
@@ -417,7 +417,7 @@ fun NovaTransacaoScreen(
                             .size(Tamanho.toque)
                             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), CircleShape)
                     ) {
-                        Icon(Icons.Filled.Close, contentDescription = "Fechar", modifier = Modifier.size(Tamanho.icone))
+                        Icon(Icons.Outlined.Close, contentDescription = "Fechar", modifier = Modifier.size(Tamanho.icone))
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
@@ -435,6 +435,7 @@ fun NovaTransacaoScreen(
                         if (viewModel.tipo != novoTipo) {
                             viewModel.definirTipoInicial(novoTipo)
                             textoCategoria = ""
+                            iconeNovaCategoria = null
                             criandoCategoria = false
                             viewModel.onCategoriaChange(null)
                         }
@@ -539,12 +540,13 @@ fun NovaTransacaoScreen(
                             categoriasFiltradas.forEach { categoria ->
                                 ChipCategoria(
                                     texto = categoria.nome,
-                                    icone = iconeParaCategoria(categoria.nome),
+                                    icone = iconeParaCategoria(categoria.nome, categoria.icone),
                                     selecionado = viewModel.categoriaSelecionada?.id == categoria.id,
                                     cor = corTextoTema,
                                     aoClicar = {
                                         viewModel.onCategoriaChange(categoria)
                                         textoCategoria = ""
+                                        iconeNovaCategoria = null
                                         criandoCategoria = false
                                     },
                                     aoTocarLongo = { categoriaParaExcluirId = categoria.id }
@@ -552,7 +554,7 @@ fun NovaTransacaoScreen(
                             }
                             ChipCategoria(
                                 texto = "Nova",
-                                icone = Icons.Filled.Add,
+                                icone = Icons.Outlined.Add,
                                 selecionado = criandoCategoria,
                                 cor = corTextoTema,
                                 role = Role.Button,
@@ -565,32 +567,42 @@ fun NovaTransacaoScreen(
                         AnimatedVisibility(visible = criandoCategoria) {
                             LaunchedEffect(Unit) { focoNovaCategoria.requestFocus() }
                             val existeExata = categoriasFiltradas.any { it.nome.equals(textoCategoria.trim(), ignoreCase = true) }
-                            OutlinedTextField(
-                                value = textoCategoria,
-                                onValueChange = { texto ->
-                                    textoCategoria = texto
-                                    // Nome igual ao de uma categoria existente usa ela em vez de criar outra
-                                    viewModel.onCategoriaChange(
-                                        categoriasFiltradas.find { it.nome.equals(texto.trim(), ignoreCase = true) }
+                            Column {
+                                OutlinedTextField(
+                                    value = textoCategoria,
+                                    onValueChange = { texto ->
+                                        textoCategoria = texto
+                                        // Nome igual ao de uma categoria existente usa ela em vez de criar outra
+                                        viewModel.onCategoriaChange(
+                                            categoriasFiltradas.find { it.nome.equals(texto.trim(), ignoreCase = true) }
+                                        )
+                                    },
+                                    label = { Text("Nome da nova categoria") },
+                                    supportingText = {
+                                        if (textoCategoria.isNotBlank() && !existeExata) {
+                                            Text("Será salva como nova: \"${textoCategoria.trim()}\"")
+                                        }
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Outlined.Category, contentDescription = null, tint = corTextoTema)
+                                    },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                    shape = formaCampo,
+                                    colors = coresCampo,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .focusRequester(focoNovaCategoria)
+                                )
+                                if (textoCategoria.isNotBlank() && !existeExata) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    SeletorDeIconeCategoria(
+                                        selecionada = iconeNovaCategoria,
+                                        aoSelecionar = { iconeNovaCategoria = it },
+                                        cor = corTextoTema
                                     )
-                                },
-                                label = { Text("Nome da nova categoria") },
-                                supportingText = {
-                                    if (textoCategoria.isNotBlank() && !existeExata) {
-                                        Text("Será salva como nova: \"${textoCategoria.trim()}\"")
-                                    }
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Filled.Category, contentDescription = null, tint = corTextoTema)
-                                },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                                shape = formaCampo,
-                                colors = coresCampo,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .focusRequester(focoNovaCategoria)
-                            )
+                                }
+                            }
                         }
 
                         Row(
@@ -609,7 +621,7 @@ fun NovaTransacaoScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    Icons.Filled.CalendarMonth,
+                                    Icons.Outlined.CalendarMonth,
                                     contentDescription = "Selecionar data",
                                     tint = corTextoTema,
                                     modifier = Modifier.size(Tamanho.icone)
@@ -631,7 +643,7 @@ fun NovaTransacaoScreen(
                             onValueChange = viewModel::onDescricaoChange,
                             label = { Text(if (viewModel.ehRecorrente || viewModel.ehParcelado) "Nome (Ex: Salário, Netflix) *" else "Descrição (opcional)") },
                             leadingIcon = {
-                                Icon(Icons.Filled.Edit, contentDescription = null, tint = corTextoTema)
+                                Icon(Icons.Outlined.Edit, contentDescription = null, tint = corTextoTema)
                             },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -652,7 +664,7 @@ fun NovaTransacaoScreen(
                             ) {
                                 OpcaoPagamento(
                                     modifier = Modifier.weight(1f),
-                                    icone = Icons.Filled.AccountBalance,
+                                    icone = Icons.Outlined.AccountBalance,
                                     titulo = "Débito",
                                     selecionado = viewModel.formaPagamento == FormaPagamento.DEBITO,
                                     cor = corTextoTema,
@@ -660,7 +672,7 @@ fun NovaTransacaoScreen(
                                 )
                                 OpcaoPagamento(
                                     modifier = Modifier.weight(1f),
-                                    icone = Icons.Filled.CreditCard,
+                                    icone = Icons.Outlined.CreditCard,
                                     titulo = "Crédito",
                                     selecionado = viewModel.formaPagamento == FormaPagamento.CARTAO_CREDITO,
                                     cor = corTextoTema,
@@ -682,7 +694,7 @@ fun NovaTransacaoScreen(
                                             readOnly = true,
                                             label = { Text("Cartão de Crédito") },
                                             leadingIcon = {
-                                                Icon(Icons.Filled.CreditCard, contentDescription = null, tint = corTextoTema)
+                                                Icon(Icons.Outlined.CreditCard, contentDescription = null, tint = corTextoTema)
                                             },
                                             trailingIcon = {
                                                 ExposedDropdownMenuDefaults.TrailingIcon(expanded = cartaoMenuExpandido)
@@ -717,7 +729,7 @@ fun NovaTransacaoScreen(
                                     }
 
                                     LinhaSwitch(
-                                        icone = Icons.Filled.CreditCard,
+                                        icone = Icons.Outlined.CreditCard,
                                         cor = corTema,
                                         titulo = "Compra Parcelada?",
                                         subtitulo = "Dividir em várias vezes",
@@ -743,7 +755,7 @@ fun NovaTransacaoScreen(
                                         )
                                     }
                                     LinhaSwitch(
-                                        icone = Icons.Filled.Repeat,
+                                        icone = Icons.Outlined.Repeat,
                                         cor = corTema,
                                         titulo = "Repetir todo mês (Assinatura)",
                                         subtitulo = "Cobrança recorrente no cartão",
@@ -754,7 +766,7 @@ fun NovaTransacaoScreen(
                             }
                         } else {
                             LinhaSwitch(
-                                icone = Icons.Filled.Repeat,
+                                icone = Icons.Outlined.Repeat,
                                 cor = corTema,
                                 titulo = "Ganho recorrente?",
                                 subtitulo = "Repetir todo mês (ex: Salário)",
@@ -777,6 +789,7 @@ fun NovaTransacaoScreen(
                         onClick = {
                             viewModel.salvar(
                                 nomeCategoriaDigitada = textoCategoria,
+                                iconeNovaCategoria = iconeNovaCategoria,
                                 aoErro = { erro -> mensagem(erro) }
                             ) {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -787,7 +800,6 @@ fun NovaTransacaoScreen(
                         modifier = Modifier.fillMaxWidth(),
                         cor = corTema,
                         corConteudo = Color.White,
-                        icone = Icons.Filled.Check
                     )
                 }
             }

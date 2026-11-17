@@ -6,9 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.OpenInBrowser
-import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -60,7 +58,7 @@ fun AtualizacaoSheet(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
-                imageVector = Icons.Filled.SystemUpdate,
+                imageVector = Icons.Outlined.SystemUpdate,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(44.dp)
@@ -137,7 +135,6 @@ fun AtualizacaoSheet(
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        icone = Icons.Filled.Download
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                 }
@@ -147,7 +144,6 @@ fun AtualizacaoSheet(
                     texto = "Baixar pelo Navegador",
                     onClick = aoAbrirNavegador,
                     modifier = Modifier.fillMaxWidth(),
-                    icone = Icons.Filled.OpenInBrowser
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))

@@ -10,8 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudSync
-import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -69,7 +68,7 @@ fun WelcomeScreen(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Filled.Savings,
+                imageVector = Icons.Outlined.Savings,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(50.dp)
@@ -123,7 +122,6 @@ fun WelcomeScreen(
             },
             modifier = Modifier.fillMaxWidth(),
             cor = MaterialTheme.colorScheme.primary,
-            icone = Icons.Filled.CloudSync
         )
         Spacer(modifier = Modifier.height(24.dp))
         TextButton(

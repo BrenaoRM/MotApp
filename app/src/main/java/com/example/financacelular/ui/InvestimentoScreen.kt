@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.Role
@@ -54,13 +54,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -271,7 +269,7 @@ fun InvestimentoScreen(
 
                 if (ativosCarregados != null && ativosFiltrados.isEmpty()) {
                     EstadoVazio(
-                        icone = Icons.Filled.Savings,
+                        icone = Icons.Outlined.Savings,
                         mensagem = "Nenhum investimento registrado nesta categoria."
                     )
                 } else if (ativosFiltrados.isNotEmpty()) {
@@ -406,7 +404,6 @@ fun InvestimentoScreen(
                                     modifier = Modifier.weight(1f),
                                     cor = AmareloInvestimento,
                                     corConteudo = Color.White,
-                                    icone = Icons.Filled.Add
                                 )
                                 BotaoSecundario(
                                     texto = "Resgatar",
@@ -418,7 +415,6 @@ fun InvestimentoScreen(
                                     },
                                     modifier = Modifier.weight(1f),
                                     cor = MaterialTheme.cores.textoGasto,
-                                    icone = Icons.Filled.Remove
                                 )
                             }
 
@@ -461,7 +457,7 @@ fun InvestimentoScreen(
                                                     modifier = Modifier.size(Tamanho.toque)
                                                 ) {
                                                     Icon(
-                                                        Icons.Filled.DeleteOutline,
+                                                        Icons.Outlined.DeleteOutline,
                                                         contentDescription = "Excluir aporte",
                                                         tint = MaterialTheme.cores.textoGasto,
                                                         modifier = Modifier.size(Tamanho.icone)
@@ -517,7 +513,7 @@ fun InvestimentoScreen(
                             onClick = { mostrarSheetResgate = false },
                             modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
                         ) {
-                            Icon(Icons.Filled.Close, contentDescription = "Fechar")
+                            Icon(Icons.Outlined.Close, contentDescription = "Fechar")
                         }
                     }
 
@@ -572,7 +568,6 @@ fun InvestimentoScreen(
                         modifier = Modifier.fillMaxWidth(),
                         cor = Coral,
                         corConteudo = Color.White,
-                        icone = Icons.Filled.Check
                     )
                 }
             }
@@ -605,7 +600,7 @@ fun InvestimentoScreen(
                             onClick = { mostrarSheetNovoAporte = false },
                             modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
                         ) {
-                            Icon(Icons.Filled.Close, contentDescription = "Fechar")
+                            Icon(Icons.Outlined.Close, contentDescription = "Fechar")
                         }
                     }
 
@@ -685,7 +680,7 @@ fun InvestimentoScreen(
                         readOnly = true,
                         label = { Text("Data do Aporte") },
                         shape = RoundedCornerShape(14.dp),
-                        trailingIcon = { Icon(Icons.Filled.CalendarToday, contentDescription = "Selecionar Data", tint = AmareloInvestimento) },
+                        trailingIcon = { Icon(Icons.Outlined.CalendarToday, contentDescription = "Selecionar Data", tint = AmareloInvestimento) },
                         interactionSource = interactionSource,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -710,7 +705,6 @@ fun InvestimentoScreen(
                         modifier = Modifier.fillMaxWidth(),
                         cor = AmareloInvestimento,
                         corConteudo = Color.White,
-                        icone = Icons.Filled.Check
                     )
                 }
             }
@@ -853,10 +847,10 @@ private fun BotaoFiltroTipo(ativo: Boolean, onClick: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         Icon(
-            Icons.Filled.FilterList,
+            Icons.Outlined.FilterList,
             contentDescription = if (ativo) "Filtrar por tipo, filtro ativo" else "Filtrar por tipo",
             tint = if (ativo) AmareloInvestimento else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(18.dp)
+            modifier = Modifier.size(Tamanho.icone)
         )
     }
 }
@@ -892,7 +886,7 @@ private fun ChipFiltroAtivo(categoria: String, subtotal: String, onRemover: () -
             maxLines = 1
         )
         Spacer(modifier = Modifier.width(4.dp))
-        Icon(Icons.Filled.Close, contentDescription = null, modifier = Modifier.size(16.dp))
+        Icon(Icons.Outlined.Close, contentDescription = null, modifier = Modifier.size(Tamanho.iconePequeno))
     }
 }
 
@@ -913,7 +907,7 @@ private fun LinhaAtivo(ativo: InvestimentoAgrupado, valor: String, onClick: () -
                 .background(AmareloInvestimento.copy(alpha = 0.14f), RoundedCornerShape(14.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Filled.Savings, contentDescription = null, tint = AmareloInvestimento, modifier = Modifier.size(22.dp))
+            Icon(Icons.Outlined.Savings, contentDescription = null, tint = AmareloInvestimento, modifier = Modifier.size(Tamanho.icone))
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -1005,7 +999,7 @@ private fun OpcaoFiltro(
         Spacer(modifier = Modifier.width(12.dp))
         Box(Modifier.size(20.dp), contentAlignment = Alignment.Center) {
             if (selecionado) {
-                Icon(Icons.Filled.Check, contentDescription = "Selecionado", tint = AmareloInvestimento, modifier = Modifier.size(20.dp))
+                Icon(Icons.Outlined.Check, contentDescription = "Selecionado", tint = AmareloInvestimento, modifier = Modifier.size(Tamanho.icone))
             }
         }
     }

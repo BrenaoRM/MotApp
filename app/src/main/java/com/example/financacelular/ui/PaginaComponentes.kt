@@ -49,14 +49,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.ChevronLeft
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -162,7 +162,7 @@ fun CabecalhoDeFolha(
                 .size(Tamanho.toque)
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
         ) {
-            Icon(Icons.Filled.Close, contentDescription = "Fechar", modifier = Modifier.size(Tamanho.icone))
+            Icon(Icons.Outlined.Close, contentDescription = "Fechar", modifier = Modifier.size(Tamanho.icone))
         }
     }
 }
@@ -227,7 +227,7 @@ fun ConfirmarAcaoConteudo(
     textoConfirmar: String,
     onConfirmar: () -> Unit,
     onCancelar: () -> Unit,
-    icone: ImageVector = Icons.Filled.DeleteOutline,
+    icone: ImageVector = Icons.Outlined.DeleteOutline,
     cor: Color = Coral,
     corConteudoBotao: Color = Color.White,
     textoCancelar: String = "Cancelar",
@@ -243,7 +243,7 @@ fun ConfirmarAcaoConteudo(
                 .background(cor.copy(alpha = 0.14f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icone, contentDescription = null, tint = cor, modifier = Modifier.size(28.dp))
+            Icon(icone, contentDescription = null, tint = cor, modifier = Modifier.size(Tamanho.iconeDestaque))
         }
 
         Spacer(modifier = Modifier.height(Espaco.lg))
@@ -296,7 +296,7 @@ fun ConfirmarAcaoSheet(
     textoConfirmar: String,
     onConfirmar: () -> Unit,
     onDismiss: () -> Unit,
-    icone: ImageVector = Icons.Filled.DeleteOutline,
+    icone: ImageVector = Icons.Outlined.DeleteOutline,
     cor: Color = Coral,
     corConteudoBotao: Color = Color.White,
     textoCancelar: String = "Cancelar",
@@ -427,7 +427,7 @@ fun SeletorQuadradoIcones(
                             opcao.icone,
                             contentDescription = opcao.descricao,
                             tint = if (ativo) opcao.cor else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(Tamanho.icone)
                         )
                     }
                 }
@@ -573,10 +573,10 @@ fun EtiquetaCartao(nome: String, modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = Icons.Filled.CreditCard,
+            imageVector = Icons.Outlined.CreditCard,
             contentDescription = null,
             tint = AzulCartao,
-            modifier = Modifier.size(11.dp)
+            modifier = Modifier.size(Tamanho.iconePequeno)
         )
         Spacer(modifier = Modifier.width(4.dp))
         Text(
@@ -626,7 +626,7 @@ fun CabecalhoPadrao(
         if (aoAbrirConfiguracoes != null) {
             BotaoLogoConfiguracoes(onClick = aoAbrirConfiguracoes)
         } else if (aoVoltar != null) {
-            IconeDeCabecalho(Icons.AutoMirrored.Filled.ArrowBack, "Voltar", Alignment.CenterStart, MaterialTheme.colorScheme.onSurface, aoVoltar)
+            IconeDeCabecalho(Icons.AutoMirrored.Outlined.ArrowBack, "Voltar", Alignment.CenterStart, MaterialTheme.colorScheme.onSurface, aoVoltar)
         }
         Box(modifier = Modifier.weight(1f)) {
             Column(
@@ -652,10 +652,10 @@ fun CabecalhoPadrao(
                     )
                     if (aoTocarTitulo != null) {
                         Icon(
-                            Icons.Filled.ExpandMore,
+                            Icons.Outlined.ExpandMore,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(Tamanho.icone)
                         )
                     }
                 }
@@ -673,8 +673,8 @@ fun CabecalhoPadrao(
         }
         if (aoAnterior != null && aoSeguinte != null) {
             val corSeta = MaterialTheme.colorScheme.onSurfaceVariant
-            IconeDeCabecalho(Icons.Filled.ChevronLeft, "Mês anterior", Alignment.CenterEnd, corSeta, aoAnterior)
-            IconeDeCabecalho(Icons.Filled.ChevronRight, "Próximo mês", Alignment.CenterEnd, corSeta, aoSeguinte)
+            IconeDeCabecalho(Icons.Outlined.ChevronLeft, "Mês anterior", Alignment.CenterEnd, corSeta, aoAnterior)
+            IconeDeCabecalho(Icons.Outlined.ChevronRight, "Próximo mês", Alignment.CenterEnd, corSeta, aoSeguinte)
         }
     }
 }
@@ -738,10 +738,10 @@ private fun BotaoLogoConfiguracoes(onClick: () -> Unit) {
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    Icons.Filled.Settings,
+                    Icons.Outlined.Settings,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(12.dp)
+                    modifier = Modifier.size(Tamanho.iconePequeno)
                 )
             }
         }
@@ -845,7 +845,7 @@ fun IndicadorDePagina(
             .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icone, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(13.dp))
+            Icon(icone, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(Tamanho.iconePequeno))
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 titulo,

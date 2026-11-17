@@ -28,12 +28,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingDown
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.automirrored.outlined.TrendingDown
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.PieChart
+import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -208,7 +208,7 @@ fun AnaliseScreen(
                         .height(IntrinsicSize.Min)
                 ) {
                     ColunaFluxo(
-                        icone = Icons.Filled.ArrowUpward,
+                        icone = Icons.Outlined.ArrowUpward,
                         corMarca = Verde,
                         valorFormatado = formato.format(totalReceitas),
                         pontos = serie.entradas,
@@ -223,7 +223,7 @@ fun AnaliseScreen(
                             .background(MaterialTheme.colorScheme.outline)
                     )
                     ColunaFluxo(
-                        icone = Icons.Filled.ArrowDownward,
+                        icone = Icons.Outlined.ArrowDownward,
                         corMarca = Coral,
                         valorFormatado = formato.format(totalDespesas),
                         pontos = serie.saidas,
@@ -296,7 +296,7 @@ fun AnaliseScreen(
                     val paletaCores = if (gastos) CoresCategoria else CoresCategoriaGanhos
 
                     if (dados.isEmpty()) {
-                        EstadoVazio(Icons.Filled.PieChart, "Nenhum registro para este gráfico no período.")
+                        EstadoVazio(Icons.Outlined.PieChart, "Nenhum registro para este gráfico no período.")
                     } else {
                         val maiorFatia = dados.maxByOrNull { it.total }
                         val descricaoRosca = (if (gastos) "Distribuição de gastos" else "Distribuição de ganhos") +
@@ -360,7 +360,7 @@ fun AnaliseScreen(
             TituloDeSecao("Maiores gastos")
             Spacer(modifier = Modifier.height(12.dp))
             if (topDespesas.isEmpty()) {
-                EstadoVazio(Icons.AutoMirrored.Filled.TrendingDown, "Nenhuma despesa registrada neste período.")
+                EstadoVazio(Icons.AutoMirrored.Outlined.TrendingDown, "Nenhuma despesa registrada neste período.")
             } else {
                 Box(
                     modifier = Modifier
@@ -369,7 +369,7 @@ fun AnaliseScreen(
                 ) {
                     GrupoDeLista(topDespesas) { despesa ->
                         LinhaDeLista(
-                            icone = iconeParaCategoria(despesa.nomeCategoria),
+                            icone = iconeParaCategoria(despesa.nomeCategoria, despesa.icone),
                             cor = Coral,
                             titulo = despesa.descricao,
                             subtitulo = "${despesa.nomeCategoria} • ${formatarDataCurta(despesa.data)}",
@@ -394,7 +394,7 @@ fun AnaliseScreen(
                     }
                     Spacer(modifier = Modifier.height(20.dp))
                     if (evolucaoMensal.isEmpty()) {
-                        EstadoVazio(Icons.Filled.BarChart, "Ainda não há dados suficientes para exibir o histórico.")
+                        EstadoVazio(Icons.Outlined.BarChart, "Ainda não há dados suficientes para exibir o histórico.")
                     } else {
                         val maiorValor = evolucaoMensal.maxOfOrNull { maxOf(it.totalReceitas, it.totalDespesas) }?.coerceAtLeast(1.0) ?: 1.0
                         GraficoBase(
@@ -443,7 +443,7 @@ fun AnaliseScreen(
             if (graficosProntos) {
                 CartaoAnalise {
                     if (evolucaoInvestimentos.isEmpty()) {
-                        EstadoVazio(Icons.Filled.Savings, "Ainda não há dados suficientes para exibir o histórico de aportes.")
+                        EstadoVazio(Icons.Outlined.Savings, "Ainda não há dados suficientes para exibir o histórico de aportes.")
                     } else {
                         Text(
                             "Total investido",
