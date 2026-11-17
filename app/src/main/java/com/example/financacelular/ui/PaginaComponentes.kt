@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
@@ -53,6 +54,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.Surface
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Icon
@@ -395,17 +397,19 @@ fun SeletorQuadradoIcones(
                 Box(
                     modifier = Modifier
                         .width(40.dp)
-                        .fillMaxHeight()
-                        .selectable(selected = ativo, role = Role.Tab, onClick = { aoSelecionar(indice) }),
+                        .fillMaxHeight(),
                     contentAlignment = Alignment.Center
                 ) {
+                    // O efeito de toque fica só no bloco visível (40x32dp); o toque continua com 48dp de altura.
                     Box(
                         modifier = Modifier
+                            .minimumInteractiveComponentSize()
                             .fillMaxWidth()
                             .height(32.dp)
                             .clip(formaAtiva)
                             .background(if (ativo) MaterialTheme.colorScheme.background else Color.Transparent)
-                            .then(if (ativo) Modifier.border(1.dp, MaterialTheme.colorScheme.outline, formaAtiva) else Modifier),
+                            .then(if (ativo) Modifier.border(1.dp, MaterialTheme.colorScheme.outline, formaAtiva) else Modifier)
+                            .selectable(selected = ativo, role = Role.Tab, onClick = { aoSelecionar(indice) }),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -617,10 +621,14 @@ fun CabecalhoPadrao(
         }
         Box(modifier = Modifier.weight(1f)) {
             Column(
+                // O recuo interno evita que o canto arredondado do toque corte a 1ª letra do ano;
+                // o deslocamento negativo mantém o texto alinhado à margem da tela.
                 modifier = if (aoTocarTitulo != null) {
                     Modifier
+                        .offset(x = (-8).dp)
                         .clip(RoundedCornerShape(12.dp))
                         .clickable(onClickLabel = "Escolher período", role = Role.Button, onClick = aoTocarTitulo)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 } else Modifier
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -671,12 +679,17 @@ private fun IconeDeCabecalho(
     cor: Color,
     onClick: () -> Unit
 ) {
+    // Toque de 48dp, mas o efeito de toque é um círculo de 40dp centrado no ícone; o deslocamento
+    // encosta o ícone na borda (esquerda ou direita) como antes.
+    val folga = (Tamanho.toque - Tamanho.iconeGrande) / 2
     Box(
         modifier = Modifier
-            .size(Tamanho.toque)
+            .offset(x = if (alinhamento == Alignment.CenterStart) -folga else folga)
+            .minimumInteractiveComponentSize()
+            .size(40.dp)
             .clip(CircleShape)
             .clickable(role = Role.Button, onClick = onClick),
-        contentAlignment = alinhamento
+        contentAlignment = Alignment.Center
     ) {
         Icon(icone, contentDescription = descricao, tint = cor, modifier = Modifier.size(Tamanho.iconeGrande))
     }
@@ -685,14 +698,16 @@ private fun IconeDeCabecalho(
 /** Logo do app sem moldura, com uma engrenagem pequena no canto; abre as Configurações. Toque de 48dp. */
 @Composable
 private fun BotaoLogoConfiguracoes(onClick: () -> Unit) {
+    // O efeito de toque cobre só a logo (36x34dp); o toque continua com 48dp.
     Box(
         modifier = Modifier
-            .size(Tamanho.toque)
-            .clip(CircleShape)
-            .clickable(role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.CenterStart
+            .offset(x = -(Tamanho.toque - 36.dp) / 2)
+            .minimumInteractiveComponentSize()
+            .size(width = 36.dp, height = 34.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(role = Role.Button, onClick = onClick)
     ) {
-        Box(modifier = Modifier.size(width = 36.dp, height = 34.dp)) {
+        Box(modifier = Modifier.fillMaxSize()) {
             // Ícone adaptativo: o desenho ocupa só a zona central, por isso o primeiro plano é ampliado
             Box(modifier = Modifier.size(30.dp).clip(RoundedCornerShape(10.dp))) {
                 Image(
