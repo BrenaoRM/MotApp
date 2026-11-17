@@ -14,6 +14,12 @@ interface DespesaRecorrenteDao {
     @Delete
     suspend fun excluir(despesa: DespesaRecorrente)
 
+    @Query("SELECT categoriaId, COUNT(*) AS total FROM despesas_recorrentes GROUP BY categoriaId")
+    fun contarPorCategoria(): Flow<List<ContagemPorCategoria>>
+
+    @Query("DELETE FROM despesas_recorrentes WHERE categoriaId = :categoriaId")
+    suspend fun excluirPorCategoria(categoriaId: Long)
+
     /** Apaga todas as assinaturas cobradas em um cartão (usado ao excluir o cartão). */
     @Query("DELETE FROM despesas_recorrentes WHERE cartaoId = :cartaoId")
     suspend fun excluirDoCartao(cartaoId: Long)

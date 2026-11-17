@@ -73,7 +73,7 @@ import com.example.financacelular.ui.theme.Verde
 import kotlinx.coroutines.launch
 
 private enum class ModoBarraInferior {
-    PADRAO, EXTRATO, CARTAO, PARCELADOS, RECORRENTES, INVESTIMENTO, META, ORCAMENTO
+    PADRAO, EXTRATO, CARTAO, PARCELADOS, RECORRENTES, INVESTIMENTO, META, ORCAMENTO, CATEGORIAS
 }
 
 internal enum class DestinoPrincipal(
@@ -99,6 +99,7 @@ private const val ROTA_EXTRATO = "extrato"
 private const val ROTA_INVESTIMENTO = "investimento"
 private const val ROTA_CONFIGURACOES = "configuracoes"
 private const val ROTA_PARCELADOS = "parcelados"
+private const val ROTA_CATEGORIAS = "categorias"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -142,6 +143,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     var acionarNovaMeta by rememberSaveable { mutableStateOf(false) }
     var acionarGuardarValorMeta by rememberSaveable { mutableStateOf(false) }
     var acionarNovoLimiteOrcamento by rememberSaveable { mutableStateOf(false) }
+    var acionarNovaCategoria by rememberSaveable { mutableStateOf(false) }
     var textoPesquisaExtrato by rememberSaveable { mutableStateOf("") }
     var acionarFiltrosExtrato by rememberSaveable { mutableStateOf(false) }
     // ViewModel do Cartão exposto à barra inferior (evita buscá-lo na entrada atual, que pode ser outra durante a transição)
@@ -183,6 +185,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     val emTelaParcelados = currentDestination?.route == ROTA_PARCELADOS
     val emTelaRecorrentes = currentDestination?.route == ROTA_RECORRENTES
     val emTelaOrcamento = currentDestination?.route == ROTA_ORCAMENTO
+    val emTelaCategorias = currentDestination?.route == ROTA_CATEGORIAS
 
     val modoBarraInferior = when {
         emTelaExtrato -> ModoBarraInferior.EXTRATO
@@ -192,6 +195,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
         emTelaInvestimento -> ModoBarraInferior.INVESTIMENTO
         emTelaMetas -> ModoBarraInferior.META
         emTelaOrcamento -> ModoBarraInferior.ORCAMENTO
+        emTelaCategorias -> ModoBarraInferior.CATEGORIAS
         else -> ModoBarraInferior.PADRAO
     }
 
@@ -336,6 +340,13 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                     modifier = Modifier.weight(1f),
                                 )
                             }
+                            ModoBarraInferior.CATEGORIAS -> IlhaDeAcao {
+                                BotaoIlha(
+                                    texto = "Nova Categoria",
+                                    onClick = { acionarNovaCategoria = true },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
                             ModoBarraInferior.PADRAO -> {
                                 BarraInferiorPrincipal(
                                     estaSelecionado = { destino ->
@@ -419,6 +430,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                 composable(ROTA_CONFIGURACOES) {
                     ConfiguracoesScreen(
                         viewModel = configuracoesViewModel,
+                        aoAbrirCategorias = { navController.navigate(ROTA_CATEGORIAS) },
                         aoVoltar = { navController.popBackStack() }
                     )
                 }
@@ -488,6 +500,13 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                 }
                 composable(ROTA_PARCELADOS) {
                     ParceladosScreen(aoVoltar = { navController.popBackStack() })
+                }
+                composable(ROTA_CATEGORIAS) {
+                    CategoriasScreen(
+                        acionarNovaExterna = acionarNovaCategoria,
+                        aoNovaAcionada = { acionarNovaCategoria = false },
+                        aoVoltar = { navController.popBackStack() }
+                    )
                 }
             }
 

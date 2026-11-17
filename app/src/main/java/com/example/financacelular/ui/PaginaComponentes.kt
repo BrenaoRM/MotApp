@@ -958,6 +958,7 @@ fun LinhaDePagina(
     subtitulo: String? = null,
     corSubtitulo: Color = Color.Unspecified,
     corValor: Color = Color.Unspecified,
+    fim: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
     val corNeutra = MaterialTheme.colorScheme.onSurface
@@ -981,6 +982,7 @@ fun LinhaDePagina(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                if (valor.isNotEmpty() || valorSecundario != null) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     buildAnnotatedString {
@@ -996,6 +998,7 @@ fun LinhaDePagina(
                     color = if (corValor != Color.Unspecified) corValor else corNeutra,
                     maxLines = 1
                 )
+                }
             }
             if (subtitulo != null) {
                 Text(
@@ -1006,6 +1009,10 @@ fun LinhaDePagina(
                     overflow = TextOverflow.Ellipsis
                 )
             }
+        }
+        if (fim != null) {
+            Spacer(modifier = Modifier.width(8.dp))
+            fim()
         }
     }
 }

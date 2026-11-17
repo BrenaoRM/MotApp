@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 
 data class GastoCategoria(val categoriaId: Long, val total: Double)
+
+/** Quantos registros usam cada categoria (lançamentos ou recorrências). */
+data class ContagemPorCategoria(val categoriaId: Long, val total: Int)
 data class TotalMensal(val anoMes: String, val totalReceitas: Double, val totalDespesas: Double)
 
 @Dao
@@ -42,6 +45,12 @@ interface TransacaoDao {
 
     @Query("SELECT categoriaId, SUM(valor) as total FROM transacoes WHERE anoMes = :anoMes AND tipo = 'DESPESA' GROUP BY categoriaId")
     fun gastoPorCategoriaNoMes(anoMes: String): Flow<List<GastoCategoria>>
+
+    @Query("SELECT categoriaId, COUNT(*) AS total FROM transacoes GROUP BY categoriaId")
+    fun contarPorCategoria(): Flow<List<ContagemPorCategoria>>
+
+    @Query("DELETE FROM transacoes WHERE categoriaId = :categoriaId")
+    suspend fun excluirPorCategoria(categoriaId: Long)
 
     // ---- Recorrentes / assinaturas ----
 

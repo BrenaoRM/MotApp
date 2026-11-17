@@ -1,7 +1,6 @@
 package com.example.financacelular.ui
 
 import android.app.Application
-import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -119,17 +118,6 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
     fun onRecorrenteChange(recorrente: Boolean) {
         ehRecorrente = recorrente
         if (recorrente) ehParcelado = false
-    }
-
-    fun excluirCategoria(categoria: Categoria, onError: () -> Unit) {
-        viewModelScope.launch {
-            try {
-                repository.excluirCategoria(categoria)
-            } catch (e: Exception) {
-                Log.e("NovaTransacaoViewModel", "Erro ao excluir categoria", e)
-                onError()
-            }
-        }
     }
 
     fun salvar(

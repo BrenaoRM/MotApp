@@ -331,7 +331,9 @@ fun NovaTransacaoScreen(
     val categorias by viewModel.categorias.collectAsState()
     val listaCartoes by viewModel.listaCartoes.collectAsState()
 
-    var categoriaParaExcluirId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var categoriaParaEditarId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val categoriasViewModel: CategoriasViewModel = viewModel()
+    val itensCategoria by categoriasViewModel.itens.collectAsState()
     var cartaoMenuExpandido by rememberSaveable { mutableStateOf(false) }
     var mostrarDatePicker by rememberSaveable { mutableStateOf(false) }
     var textoCategoria by rememberSaveable { mutableStateOf("") }
@@ -549,7 +551,7 @@ fun NovaTransacaoScreen(
                                         iconeNovaCategoria = null
                                         criandoCategoria = false
                                     },
-                                    aoTocarLongo = { categoriaParaExcluirId = categoria.id }
+                                    aoTocarLongo = { categoriaParaEditarId = categoria.id }
                                 )
                             }
                             ChipCategoria(
@@ -805,18 +807,28 @@ fun NovaTransacaoScreen(
             }
         }
 
-        categoriasFiltradas.find { it.id == categoriaParaExcluirId }?.let { categoria ->
-            ConfirmarAcaoSheet(
-                titulo = "Excluir categoria?",
-                texto = "A categoria \"${categoria.nome}\" será removida. Categorias em uso por lançamentos não podem ser excluídas.",
-                textoConfirmar = "Excluir",
-                onConfirmar = {
-                    if (viewModel.categoriaSelecionada?.id == categoria.id) viewModel.onCategoriaChange(null)
-                    viewModel.excluirCategoria(categoria) {
-                        mensagem("Categoria em uso não pode ser excluída.")
+        itensCategoria?.find { it.categoria.id == categoriaParaEditarId }?.let { item ->
+            FolhaEditarCategoria(
+                item = item,
+                tipoNova = item.categoria.tipo,
+                nomesDoTipo = itensCategoria.orEmpty().filter { it.categoria.tipo == item.categoria.tipo }.map { it.categoria.nome },
+                aoSalvar = { nome, icone ->
+                    categoriasViewModel.salvar(item.categoria.id, nome, item.categoria.tipo, icone)
+                    // mantém a categoria já escolhida com o nome e o ícone novos
+                    if (viewModel.categoriaSelecionada?.id == item.categoria.id) {
+                        viewModel.onCategoriaChange(item.categoria.copy(nome = nome, icone = icone))
                     }
+                    categoriaParaEditarId = null
+                    mensagem("Categoria salva.")
                 },
-                onDismiss = { categoriaParaExcluirId = null }
+                aoExcluir = {
+                    if (viewModel.categoriaSelecionada?.id == item.categoria.id) viewModel.onCategoriaChange(null)
+                    categoriasViewModel.excluir(item.categoria)
+                    categoriaParaEditarId = null
+                    mensagem("Categoria excluída.")
+                },
+                aoFechar = { categoriaParaEditarId = null },
+                cor = corTema
             )
         }
 

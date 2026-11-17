@@ -1,54 +1,65 @@
 package com.example.financacelular.ui
 
-import androidx.compose.foundation.BorderStroke
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.CloudSync
-import androidx.compose.material.icons.outlined.Contrast
-import androidx.compose.material.icons.outlined.DarkMode
-import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.LightMode
-import androidx.compose.material.icons.outlined.Palette
-import androidx.compose.material.icons.outlined.SettingsBrightness
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.TemaPreferencia
-import com.example.financacelular.ui.theme.Tamanho
 import com.example.financacelular.ui.theme.CorConfiguracoes
+import com.example.financacelular.ui.theme.Tamanho
+import com.example.financacelular.ui.theme.Verde
 import com.example.financacelular.ui.theme.dimens
 
 private data class OpcaoDeTema(
     val tema: TemaPreferencia,
-    val rotulo: String,
-    val icone: ImageVector
+    val rotulo: String
 )
 
 private val OpcoesDeTema = listOf(
-    OpcaoDeTema(TemaPreferencia.SISTEMA, "Sistema", Icons.Outlined.SettingsBrightness),
-    OpcaoDeTema(TemaPreferencia.CLARO, "Claro", Icons.Outlined.LightMode),
-    OpcaoDeTema(TemaPreferencia.ESCURO, "Escuro", Icons.Outlined.DarkMode),
-    OpcaoDeTema(TemaPreferencia.AMOLED, "AMOLED", Icons.Outlined.Contrast)
+    OpcaoDeTema(TemaPreferencia.SISTEMA, "Sistema"),
+    OpcaoDeTema(TemaPreferencia.CLARO, "Claro"),
+    OpcaoDeTema(TemaPreferencia.ESCURO, "Escuro"),
+    OpcaoDeTema(TemaPreferencia.AMOLED, "AMOLED")
 )
 
 private tailrec fun Context.encontrarActivity(): Activity = when (this) {
@@ -60,6 +71,7 @@ private tailrec fun Context.encontrarActivity(): Activity = when (this) {
 @Composable
 fun ConfiguracoesScreen(
     viewModel: ConfiguracoesViewModel = viewModel(),
+    aoAbrirCategorias: () -> Unit = {},
     aoVoltar: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -96,7 +108,6 @@ fun ConfiguracoesScreen(
     }
 
     val logado = viewModel.estaLogadoGoogle
-    val nomeDoTemaAtual = OpcoesDeTema.firstOrNull { it.tema == viewModel.temaAtual }?.rotulo ?: "Sistema"
 
     LazyColumn(
         modifier = Modifier
@@ -109,119 +120,91 @@ fun ConfiguracoesScreen(
             CabecalhoPadrao("Configurações", aoVoltar = aoVoltar)
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Cartão do topo: o estado do backup em uma linha, como os cartões das outras páginas
             CartaoHeroDePagina(CorConfiguracoes) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "BACKUP NA NUVEM",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f)
-                    )
-                    PilulaDePagina(if (logado) "CONECTADO" else "DESCONECTADO")
-                }
-                Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    "Google Drive",
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    "Backup na nuvem",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.height(14.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    IndicadorDePagina("ÚLTIMO BACKUP", viewModel.ultimaDataBackup, Icons.Outlined.History, Modifier.weight(1.5f))
-                    IndicadorDePagina("TEMA", nomeDoTemaAtual, Icons.Outlined.Palette, Modifier.weight(1f))
+                Spacer(modifier = Modifier.height(4.dp))
+                ValorDoHero("Google Drive")
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .size(8.dp)
+                            .background(if (logado) Verde else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), CircleShape)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        if (logado) "Conectado · último backup: ${viewModel.ultimaDataBackup}" else "Desconectado",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+
+        // --- Seção: Geral ---
+        item {
+            Text("Geral", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            CartaoUnicoDeLinhas {
+                LinhaDePagina(
+                    inicio = { IconeDeLinha(Icons.Outlined.Category) },
+                    titulo = "Categorias",
+                    valor = "",
+                    subtitulo = "Nome e ícone de cada categoria",
+                    fim = {
+                        Icon(
+                            Icons.Outlined.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(Tamanho.iconeGrande)
+                        )
+                    },
+                    onClick = aoAbrirCategorias
+                )
             }
             Spacer(modifier = Modifier.height(24.dp))
         }
 
         // --- Seção: Aparência ---
         item {
-            Text(
-                text = "Aparência",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+            Text("Aparência", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            SeletorQuadrado(
+                opcoes = OpcoesDeTema.map { it.rotulo },
+                indiceSelecionado = OpcoesDeTema.indexOfFirst { it.tema == viewModel.temaAtual }.coerceAtLeast(0),
+                aoSelecionar = { viewModel.definirTema(OpcoesDeTema[it].tema) }
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+        }
 
-            Card(
+        // --- Seção: Dados e nuvem ---
+        item {
+            Text("Dados e nuvem", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Surface(
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                color = MaterialTheme.colorScheme.surface,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconeDeConfiguracao(Icons.Outlined.Palette)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                "Tema do Aplicativo",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                "Escolha como o app deve aparecer",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OpcoesDeTema.forEach { opcao ->
-                            OpcaoDeTemaItem(
-                                opcao = opcao,
-                                selecionada = viewModel.temaAtual == opcao.tema,
-                                aoSelecionar = { viewModel.definirTema(opcao.tema) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-        }
-
-        // --- Seção: Google Drive / Backup ---
-        item {
-            Text(
-                text = "Dados e Nuvem",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconeDeConfiguracao(Icons.Outlined.CloudSync)
+                        IconeDeLinha(Icons.Outlined.CloudSync)
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 "Google Drive",
                                 style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.SemiBold
                             )
                             Text(
                                 if (logado) "Conta: ${viewModel.emailUtilizador}" else "Proteja os seus dados na nuvem",
@@ -262,30 +245,11 @@ fun ConfiguracoesScreen(
 
                     if (viewModel.statusBackupMessage.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(12.dp))
-                        Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            color = CorConfiguracoes.copy(alpha = 0.10f),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Outlined.Info,
-                                    contentDescription = null,
-                                    tint = CorConfiguracoes,
-                                    modifier = Modifier.size(Tamanho.icone)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = viewModel.statusBackupMessage,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
+                        Text(
+                            text = viewModel.statusBackupMessage,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
@@ -293,51 +257,15 @@ fun ConfiguracoesScreen(
     }
 }
 
-/** Caixinha de ícone no mesmo estilo dos itens das outras páginas. */
+/** Ícone neutro de 44dp no início de uma linha (o mesmo de Categorias), sem cor de destaque. */
 @Composable
-private fun IconeDeConfiguracao(icone: ImageVector) {
+private fun IconeDeLinha(icone: androidx.compose.ui.graphics.vector.ImageVector) {
     Box(
         modifier = Modifier
             .size(44.dp)
-            .background(CorConfiguracoes.copy(alpha = 0.14f), RoundedCornerShape(14.dp)),
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f), RoundedCornerShape(14.dp)),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icone, contentDescription = null, tint = CorConfiguracoes, modifier = Modifier.size(Tamanho.icone))
-    }
-}
-
-/** Opção de tema (Sistema / Claro / Escuro) no estilo dos chips de seleção do app. */
-@Composable
-private fun OpcaoDeTemaItem(
-    opcao: OpcaoDeTema,
-    selecionada: Boolean,
-    aoSelecionar: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val forma = RoundedCornerShape(16.dp)
-    Column(
-        modifier = modifier
-            .clip(forma)
-            .background(
-                if (selecionada) CorConfiguracoes.copy(alpha = 0.14f)
-                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-            )
-            .selectable(selected = selecionada, onClick = aoSelecionar, role = Role.RadioButton)
-            .padding(vertical = 14.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(
-            imageVector = opcao.icone,
-            contentDescription = null,
-            tint = if (selecionada) CorConfiguracoes else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(Tamanho.iconeGrande)
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            opcao.rotulo,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = if (selecionada) FontWeight.Bold else FontWeight.Medium,
-            maxLines = 1
-        )
+        Icon(icone, contentDescription = null, modifier = Modifier.size(Tamanho.icone))
     }
 }

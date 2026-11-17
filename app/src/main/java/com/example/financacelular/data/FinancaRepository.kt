@@ -327,6 +327,20 @@ class FinancaRepository(private val database: AppDatabase) {
     suspend fun excluirCategoria(categoria: Categoria) = categoriaDao.excluir(categoria)
     suspend fun atualizarCategoria(categoria: Categoria) = categoriaDao.atualizar(categoria)
 
+    fun contarTransacoesPorCategoria(): Flow<List<ContagemPorCategoria>> = dao.contarPorCategoria()
+    fun contarRecorrentesPorCategoria(): Flow<List<ContagemPorCategoria>> = despesaRecorrenteDao.contarPorCategoria()
+
+    /**
+     * Exclui a categoria junto com tudo que depende dela: os lançamentos e as recorrências que a usam
+     * (as chaves estrangeiras impedem apagar só a categoria) e, em cascata, os limites de orçamento.
+     * Tudo numa transação: se algo falhar, nada é apagado.
+     */
+    suspend fun excluirCategoriaComDados(categoria: Categoria) = database.withTransaction {
+        dao.excluirPorCategoria(categoria.id)
+        despesaRecorrenteDao.excluirPorCategoria(categoria.id)
+        categoriaDao.excluir(categoria)
+    }
+
     fun listarMetas(): Flow<List<Meta>> = metaDao.listarTodas()
     suspend fun salvarMeta(meta: Meta) = metaDao.inserir(meta)
     suspend fun atualizarMeta(meta: Meta) = metaDao.atualizar(meta)
