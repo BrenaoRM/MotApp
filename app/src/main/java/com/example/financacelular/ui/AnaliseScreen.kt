@@ -33,7 +33,6 @@ import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.PieChart
-import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -69,7 +68,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.financacelular.ui.theme.AmareloInvestimento
 import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.CoresCategoria
 import com.example.financacelular.ui.theme.CoresCategoriaGanhos
@@ -132,7 +130,7 @@ fun AnaliseScreen(
     val receitasPorCategoria by viewModel.receitasPorCategoria.collectAsState()
     val evolucaoMensal by viewModel.evolucaoMensal.collectAsState()
     val topDespesas by viewModel.topDespesas.collectAsState()
-    val evolucaoInvestimentos by viewModel.evolucaoInvestimentos.collectAsState()
+    val aportes by viewModel.aportes.collectAsState()
     val periodo by viewModel.periodo.collectAsState()
     val totalDespesas by viewModel.totalDespesasPeriodo.collectAsState()
     val totalReceitas by viewModel.totalReceitasPeriodo.collectAsState()
@@ -436,50 +434,13 @@ fun AnaliseScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
 
-        // ---------------- APORTES (sempre os últimos 6 meses) ----------------
+        // ---------------- APORTES (segue o período da tela) ----------------
         item {
-            TituloDeSecao("Aportes", "6 meses")
+            TituloDeSecao("Aportes", aportes?.granularidade?.texto)
             Spacer(modifier = Modifier.height(12.dp))
-            if (graficosProntos) {
-                CartaoAnalise {
-                    if (evolucaoInvestimentos.isEmpty()) {
-                        EstadoVazio(Icons.Outlined.Savings, "Ainda não há dados suficientes para exibir o histórico de aportes.")
-                    } else {
-                        Text(
-                            "Total investido",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            formato.format(evolucaoInvestimentos.sumOf { it.total }),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                        Spacer(modifier = Modifier.height(20.dp))
-                        val maiorInv = evolucaoInvestimentos.maxOfOrNull { it.total }?.coerceAtLeast(1.0) ?: 1.0
-                        GraficoBase(
-                            maiorValor = maiorInv,
-                            rotulos = evolucaoInvestimentos.map { rotuloMes(it.anoMes) },
-                            descricao = "Aportes dos últimos ${evolucaoInvestimentos.size} meses: total ${formato.format(evolucaoInvestimentos.sumOf { it.total })}, maior mês ${rotuloMes(evolucaoInvestimentos.maxByOrNull { it.total }?.anoMes.orEmpty())}"
-                        ) {
-                            evolucaoInvestimentos.forEachIndexed { indice, item ->
-                                val opacidade = if (indice == evolucaoInvestimentos.lastIndex) 1f else 0.5f
-                                val fracao = (item.total / maiorInv).toFloat()
-                                Box(
-                                    modifier = Modifier.weight(1f),
-                                    contentAlignment = Alignment.BottomCenter
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .width(18.dp)
-                                            .height((AlturaGrafico * fracao).coerceAtLeast(3.dp))
-                                            .background(AmareloInvestimento.copy(alpha = opacidade), RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 2.dp, bottomEnd = 2.dp))
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+            val dadosAportes = aportes
+            if (graficosProntos && dadosAportes != null) {
+                CartaoAportes(dados = dadosAportes, periodo = periodo, formato = formato)
             } else {
                 PlaceholderGrafico(altura = 250.dp)
             }
@@ -670,7 +631,7 @@ private fun LinhaDeCategoria(
 }
 
 @Composable
-private fun CartaoAnalise(
+internal fun CartaoAnalise(
     modifier: Modifier = Modifier,
     conteudo: @Composable ColumnScope.() -> Unit
 ) {

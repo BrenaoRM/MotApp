@@ -749,7 +749,7 @@ private data class SegmentoComposicao(
     fun casa(filtro: String) = filtro == "Todas" || categorias.any { it.equals(filtro, ignoreCase = true) }
 }
 
-private val PaletaComposicao = listOf(AmareloInvestimento, RoxoHero, TealParcelados, AzulCartao)
+internal val PaletaComposicao = listOf(AmareloInvestimento, RoxoHero, TealParcelados, AzulCartao)
 
 /** Até 4 faixas: se houver mais tipos, os menores se juntam em "Outros". */
 private fun montarSegmentos(tipos: List<Pair<String, Double>>, corOutros: Color): List<SegmentoComposicao> {

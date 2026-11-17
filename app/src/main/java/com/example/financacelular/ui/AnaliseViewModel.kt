@@ -146,13 +146,11 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
     }.flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val evolucaoInvestimentos: StateFlow<List<TotalMensalInvestimento>> = repository.listarInvestimentos()
-        .map { lista ->
-            lista.groupBy { it.anoMes }
-                .map { (mes, invs) -> TotalMensalInvestimento(mes, invs.sumOf { it.valorInvestido }) }
-                .sortedBy { it.anoMes }
-                .takeLast(6)
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    /** Aportes do período escolhido na tela; `null` enquanto carrega. */
+    val aportes: StateFlow<AportesDoPeriodo?> = combine(_periodo, repository.listarInvestimentos()) { periodo, lista ->
+        calcularAportes(lista, periodo)
+    }.flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     /** Acumulado por dia, do início do período até hoje (ou o fim); o último valor é igual ao total exibido. */
     data class SerieDoPeriodo(
