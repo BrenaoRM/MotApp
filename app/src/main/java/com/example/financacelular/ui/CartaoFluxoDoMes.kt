@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,6 +26,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -53,7 +54,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextAlign
 import com.example.financacelular.ui.theme.AmareloInvestimento
-import com.example.financacelular.ui.theme.Tamanho
 import com.example.financacelular.ui.theme.cores
 import java.time.YearMonth
 import java.time.format.TextStyle
@@ -189,8 +189,8 @@ fun ColunaFluxo(
 
 /**
  * Card Investido: valor do mês com o botão "Investimentos ›", variação sobre o mês anterior sob o valor
- * e barras dos 6 meses que terminam no mês selecionado (último item de [aportes]). O card inteiro leva
- * à tela de investimentos.
+ * e barras dos 6 meses que terminam no mês selecionado (último item de [aportes]). Só o botão
+ * "Investimentos ›" leva à tela de investimentos ([onClick]); o resto do card não é tocável.
  */
 @Composable
 fun CartaoInvestido(
@@ -227,8 +227,6 @@ fun CartaoInvestido(
             .clip(forma)
             .background(MaterialTheme.colorScheme.surface)
             .border(1.dp, MaterialTheme.colorScheme.outline, forma)
-            .clickable(role = Role.Button, onClick = onClick)
-            .semantics(mergeDescendants = true) { contentDescription = descricao }
             .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -244,7 +242,9 @@ fun CartaoInvestido(
                         append(textoValor)
                     }
                 },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { contentDescription = descricao },
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = corTexto,
@@ -255,7 +255,8 @@ fun CartaoInvestido(
         }
         if (visivel && variacao != null) {
             val cor = if (variacao >= 0) MaterialTheme.cores.textoGanho else MaterialTheme.cores.textoGasto
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // A variação já está na descrição do valor; evita ler duas vezes
+            Row(modifier = Modifier.clearAndSetSemantics { }, verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     if (variacao >= 0) Icons.Filled.ArrowUpward else Icons.Filled.ArrowDownward,
                     contentDescription = null,
@@ -317,24 +318,21 @@ fun CartaoInvestido(
 @Composable
 fun BotaoExtratoHero(onClick: () -> Unit, modifier: Modifier = Modifier, texto: String = "Extrato") {
     val corTexto = MaterialTheme.colorScheme.onSurface
-    Box(
+    val forma = RoundedCornerShape(50)
+    // O efeito de toque fica só na pílula (clip antes do clickable); o toque continua com 48dp de altura.
+    Row(
         modifier = modifier
-            .heightIn(min = Tamanho.toque)
-            .clickable(role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.Center
+            .minimumInteractiveComponentSize()
+            .height(32.dp)
+            .clip(forma)
+            .background(corTexto.copy(alpha = 0.08f))
+            .border(1.dp, MaterialTheme.colorScheme.outline, forma)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(start = 12.dp, end = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .height(32.dp)
-                .clip(RoundedCornerShape(50))
-                .background(corTexto.copy(alpha = 0.08f))
-                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(50))
-                .padding(start = 12.dp, end = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(texto, color = corTexto, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.width(2.dp))
-            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = corTexto, modifier = Modifier.size(16.dp))
-        }
+        Text(texto, color = corTexto, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.width(2.dp))
+        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = corTexto, modifier = Modifier.size(16.dp))
     }
 }
