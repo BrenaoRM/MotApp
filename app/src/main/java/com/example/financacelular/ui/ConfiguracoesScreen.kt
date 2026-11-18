@@ -3,6 +3,18 @@ package com.example.financacelular.ui
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.Intent
+import android.provider.Settings
+import androidx.compose.material.icons.outlined.AccountBalance
+import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.runtime.DisposableEffect
+import androidx.core.app.NotificationManagerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import com.example.financacelular.deteccao.BancosMonitorados
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -65,6 +77,9 @@ private val OpcoesDeTema = listOf(
     OpcaoDeTema(TemaPreferencia.AMOLED, "AMOLED")
 )
 
+private fun acessoAsNotificacoesLiberado(context: Context): Boolean =
+    NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+
 private tailrec fun Context.encontrarActivity(): Activity = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.encontrarActivity()
@@ -80,6 +95,17 @@ fun ConfiguracoesScreen(
     val context = LocalContext.current
     val activity = remember(context) { context.encontrarActivity() }
     val mensagem = LocalMensagem.current
+
+    // O acesso às notificações é uma liberação do Android: reavaliada ao voltar da tela do sistema
+    var acessoLiberado by remember { mutableStateOf(acessoAsNotificacoesLiberado(context)) }
+    DisposableEffect(activity) {
+        val observador = LifecycleEventObserver { _, evento ->
+            if (evento == Lifecycle.Event.ON_RESUME) acessoLiberado = acessoAsNotificacoesLiberado(context)
+        }
+        val ciclo = (activity as? LifecycleOwner)?.lifecycle
+        ciclo?.addObserver(observador)
+        onDispose { ciclo?.removeObserver(observador) }
+    }
 
     // Resultado do backup também vira Snackbar (mensagens de progresso terminam em "...")
     LaunchedEffect(viewModel.statusBackupMessage) {
@@ -172,6 +198,55 @@ fun ConfiguracoesScreen(
                     },
                     onClick = aoAbrirCategorias
                 )
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+
+        // --- Seção: Detectar transações ---
+        item {
+            Text("Detectar transações", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            CartaoUnicoDeLinhas {
+                if (!acessoLiberado) {
+                    LinhaDePagina(
+                        inicio = { IconeDeLinha(Icons.Outlined.NotificationsActive) },
+                        titulo = "Liberar acesso às notificações",
+                        valor = "",
+                        subtitulo = "Para ler os avisos do seu banco",
+                        fim = {
+                            Icon(
+                                Icons.Outlined.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(Tamanho.iconeGrande)
+                            )
+                        },
+                        onClick = {
+                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                        }
+                    )
+                    DivisorDeLinha()
+                }
+                BancosMonitorados.todos.forEachIndexed { indice, banco ->
+                    if (indice > 0) DivisorDeLinha()
+                    val ativo = banco.pacote in viewModel.bancosAtivos
+                    LinhaDePagina(
+                        inicio = { IconeDeLinha(Icons.Outlined.AccountBalance) },
+                        titulo = banco.nome,
+                        valor = "",
+                        fim = {
+                            Switch(
+                                checked = ativo,
+                                onCheckedChange = null,
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = CorConfiguracoes
+                                )
+                            )
+                        },
+                        onClick = { viewModel.alternarBanco(banco.pacote, !ativo) }
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(24.dp))
         }

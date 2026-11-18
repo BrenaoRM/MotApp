@@ -21,6 +21,7 @@ import com.example.financacelular.data.BackupManager
 import com.example.financacelular.data.FinancaRepository
 import com.example.financacelular.data.GoogleDriveService
 import com.example.financacelular.data.TemaPreferencia
+import com.example.financacelular.deteccao.BancosMonitorados
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.android.gms.auth.api.identity.Identity
@@ -61,6 +62,14 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         private set
     var nomeUtilizador: String by mutableStateOf("")
         private set
+
+    var bancosAtivos: Set<String> by mutableStateOf(BancosMonitorados.ativados(prefs))
+        private set
+
+    fun alternarBanco(pacote: String, ativo: Boolean) {
+        BancosMonitorados.definirAtivo(prefs, pacote, ativo)
+        bancosAtivos = BancosMonitorados.ativados(prefs)
+    }
 
     private var acaoPendente: AcaoPendenteDrive? = null
 
