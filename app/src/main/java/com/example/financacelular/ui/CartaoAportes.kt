@@ -131,15 +131,7 @@ private fun LinhaDeVariacao(dados: AportesDoPeriodo, barraFocada: BarraDeAportes
         modifier = Modifier.heightIn(min = 18.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (barraFocada != null) {
-            Text(
-                barraFocada.descricao,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        } else if (variacao != null) {
+        if (barraFocada == null && variacao != null) {
             val cor = if (variacao >= 0) MaterialTheme.cores.textoGanho else MaterialTheme.cores.textoGasto
             Icon(
                 if (variacao >= 0) Icons.Outlined.ArrowUpward else Icons.Outlined.ArrowDownward,
@@ -188,6 +180,7 @@ private fun BarrasDeAportes(
                     .weight(1f)
                     .fillMaxHeight()
                     .clip(RoundedCornerShape(6.dp))
+                    .background(if (selecionada) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f) else Color.Transparent)
                     .clickable(role = Role.Button) { aoTocar(indice) }
                     .semantics {
                         this.selected = selecionada
