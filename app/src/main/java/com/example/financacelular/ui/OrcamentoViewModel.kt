@@ -34,7 +34,7 @@ class OrcamentoViewModel(application: Application) : AndroidViewModel(applicatio
     private val repository: FinancaRepository = FinancaRepository.getInstance(AppDatabase.getInstance(application))
     private val formatoAnoMes = DateTimeFormatter.ofPattern("yyyy-MM")
 
-    private val _mesSelecionado = MutableStateFlow(YearMonth.now())
+    private val _mesSelecionado: StateFlow<YearMonth> = MesGlobal.mes
     val mesSelecionado: StateFlow<YearMonth> = _mesSelecionado
 
     private val anoMesTexto: Flow<String> = _mesSelecionado.map { it.format(formatoAnoMes) }
@@ -81,11 +81,11 @@ class OrcamentoViewModel(application: Application) : AndroidViewModel(applicatio
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun mesAnterior() {
-        _mesSelecionado.value = _mesSelecionado.value.minusMonths(1)
+        MesGlobal.anterior()
     }
 
     fun mesSeguinte() {
-        _mesSelecionado.value = _mesSelecionado.value.plusMonths(1)
+        MesGlobal.seguinte()
     }
 
     fun definirLimite(categoria: Categoria, valor: Double) {

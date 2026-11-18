@@ -6,6 +6,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -17,11 +19,21 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.windowInsetsTopHeight
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.AccountBalanceWallet
@@ -51,6 +63,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -71,7 +89,18 @@ import com.example.financacelular.data.AtualizacaoService
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.Verde
+import com.example.financacelular.ui.theme.dimens
 import kotlinx.coroutines.launch
+
+/** Altura do cabeçalho das abas; as telas das abas a usam como espaço no topo da lista para o cabeçalho subir junto com elas. */
+val LocalEspacoCabecalho = compositionLocalOf { 0.dp }
+
+/** Primeiro item das listas das abas: reserva exatamente a altura do cabeçalho que fica sobre a lista. */
+fun LazyListScope.espacoDoCabecalho() {
+    item(key = "espaco_cabecalho", contentType = "espaco_cabecalho") {
+        Spacer(Modifier.height(LocalEspacoCabecalho.current))
+    }
+}
 
 private enum class ModoBarraInferior {
     PADRAO, EXTRATO, CARTAO, PARCELADOS, RECORRENTES, INVESTIMENTO, META, ORCAMENTO, CATEGORIAS
@@ -89,6 +118,10 @@ internal enum class DestinoPrincipal(
     CALENDARIO("calendario", "Calendário", "Agenda", Icons.Outlined.CalendarMonth, Icons.Filled.CalendarMonth),
     CONTAS("contas", "Contas", "Contas", Icons.Outlined.AccountBalanceWallet, Icons.Filled.AccountBalanceWallet)
 }
+
+// Troca de tela: a saída é curta e a entrada começa depois dela (total de 300 ms)
+private const val TEMPO_SAIDA = 90
+private const val TEMPO_ENTRADA = 210
 
 private const val ROTA_NOVA_TRANSACAO_BASE = "nova_transacao"
 private const val ROTA_NOVA_TRANSACAO = "nova_transacao?tipo={tipo}&parcelado={parcelado}&recorrente={recorrente}"
@@ -150,6 +183,16 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     // ViewModel do Cartão exposto à barra inferior (evita buscá-lo na entrada atual, que pode ser outra durante a transição)
     var cartaoViewModelBarra by remember { mutableStateOf<CartaoViewModel?>(null) }
     var atualizacaoDisponivel by remember { mutableStateOf<AtualizacaoDisponivel?>(null) }
+    // Cabeçalho fixo das abas: o ViewModel da Análise e a folha de período ficam aqui, fora das telas
+    val analiseViewModel: AnaliseViewModel = viewModel()
+    val mesGlobal by MesGlobal.mes.collectAsState()
+    val periodoAnalise by analiseViewModel.periodo.collectAsState()
+    var folhaPeriodoAberta by rememberSaveable { mutableStateOf(false) }
+    // Uma lista por aba: o cabeçalho é derivado da rolagem real da lista da aba atual
+    var alturaCabecalhoPx by remember { mutableFloatStateOf(0f) }
+    val listaInicio = rememberLazyListState()
+    val listaAnalise = rememberLazyListState()
+    val listaAgenda = rememberLazyListState()
 
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -197,6 +240,31 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     val emTelaOrcamento = currentDestination?.route == ROTA_ORCAMENTO
     val emTelaCategorias = currentDestination?.route == ROTA_CATEGORIAS
     val emTelaConfiguracoes = currentDestination?.route == ROTA_CONFIGURACOES
+    val abaAtual = DestinoPrincipal.values().firstOrNull { it.rota == currentDestination?.route }
+    // Última aba exibida: mantém o cabeçalho certo enquanto ele some indo para Configurações etc.
+    var ultimaAba by remember { mutableStateOf(DestinoPrincipal.INICIO) }
+    if (abaAtual != null) ultimaAba = abaAtual
+    val listaDaAba: LazyListState? = when (ultimaAba) {
+        DestinoPrincipal.INICIO -> listaInicio
+        DestinoPrincipal.ANALISE -> listaAnalise
+        DestinoPrincipal.CALENDARIO -> listaAgenda
+        else -> null // Contas não rola
+    }
+    val deslocamentoCabecalho = remember { Animatable(0f) }
+    LaunchedEffect(listaDaAba) {
+        fun alvo(): Float {
+            val lista = listaDaAba ?: return 0f
+            return if (lista.firstVisibleItemIndex == 0) {
+                lista.firstVisibleItemScrollOffset.toFloat().coerceAtMost(alturaCabecalhoPx)
+            } else {
+                alturaCabecalhoPx
+            }
+        }
+        // Troca de aba: o cabeçalho desliza até a posição da lista nova, no ritmo do fade/scale do NavHost
+        deslocamentoCabecalho.animateTo(alvo(), tween(TEMPO_ENTRADA, TEMPO_SAIDA, FastOutSlowInEasing))
+        // Depois acompanha a rolagem real, quadro a quadro
+        snapshotFlow { alvo() }.collect { deslocamentoCabecalho.snapTo(it) }
+    }
 
     val modoBarraInferior = when {
         emTelaExtrato -> ModoBarraInferior.EXTRATO
@@ -400,125 +468,172 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            NavHost(
-                navController = navController,
-                startDestination = DestinoPrincipal.INICIO.rota,
-                modifier = Modifier.fillMaxSize(),
-                enterTransition = { fadeIn(tween(300)) + scaleIn(initialScale = 0.95f, animationSpec = tween(300)) },
-                exitTransition = { fadeOut(tween(300)) },
-                popEnterTransition = { fadeIn(tween(300)) + scaleIn(initialScale = 0.95f, animationSpec = tween(300)) },
-                popExitTransition = { fadeOut(tween(300)) }
-            ) {
-                composable(DestinoPrincipal.INICIO.rota) {
-                    DashboardScreen(
-                        aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) },
-                        aoAbrirExtrato = { navController.navigate(ROTA_EXTRATO) },
-                        aoAbrirInvestimento = { navController.navigate(ROTA_INVESTIMENTO) },
-                        aoAbrirCartao = { navController.navigate(ROTA_CARTAO) },
-                        aoAbrirAssinaturas = { navController.navigate(ROTA_RECORRENTES) },
-                        aoAbrirParcelados = { navController.navigate(ROTA_PARCELADOS) },
-                        aoAbrirOrcamento = { navController.navigate(ROTA_ORCAMENTO) },
-                        aoAbrirMetas = { navController.navigate(ROTA_METAS) }
-                    )
-                }
-                composable(DestinoPrincipal.ANALISE.rota) {
-                    AnaliseScreen(
-                        aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) }
-                    )
-                }
-                composable(DestinoPrincipal.CALENDARIO.rota) {
-                    CalendarioScreen(
-                        acionarNovaAgendaExterno = acionarNovaAgenda,
-                        aoNovaAgendaAcionada = { acionarNovaAgenda = false },
-                        aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) }
-                    )
-                }
-                composable(DestinoPrincipal.CONTAS.rota) {
-                    ContasScreen(
-                        aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) }
-                    )
-                }
-                composable(ROTA_CONFIGURACOES) {
-                    ConfiguracoesScreen(
-                        viewModel = configuracoesViewModel,
-                        aoAbrirCategorias = { navController.navigate(ROTA_CATEGORIAS) },
-                        aoVoltar = { navController.popBackStack() }
-                    )
-                }
-                composable(
-                    route = ROTA_NOVA_TRANSACAO,
-                    arguments = listOf(
-                        navArgument("tipo") { type = NavType.StringType; defaultValue = "DESPESA" },
-                        navArgument("parcelado") { type = NavType.BoolType; defaultValue = false },
-                        navArgument("recorrente") { type = NavType.BoolType; defaultValue = false }
-                    )
-                ) { backStackEntry ->
-                    val tipoTexto = backStackEntry.arguments?.getString("tipo") ?: "DESPESA"
-                    val isParcelado = backStackEntry.arguments?.getBoolean("parcelado") ?: false
-                    val isRecorrente = backStackEntry.arguments?.getBoolean("recorrente") ?: false
-                    NovaTransacaoScreen(
-                        tipoInicial = TipoTransacao.valueOf(tipoTexto),
-                        isParceladoInicial = isParcelado,
-                        isRecorrenteInicial = isRecorrente,
-                        aoSalvar = { navController.popBackStack() },
-                        aoFechar = { navController.popBackStack() }
-                    )
-                }
-                composable(ROTA_ORCAMENTO) {
-                    OrcamentoScreen(
-                        acionarNovoLimiteExterno = acionarNovoLimiteOrcamento,
-                        aoNovoLimiteAcionado = { acionarNovoLimiteOrcamento = false },
-                        aoVoltar = { navController.popBackStack() }
-                    )
-                }
-                composable(ROTA_METAS) {
-                    MetaScreen(
-                        acionarNovaMetaExterna = acionarNovaMeta,
-                        aoMetaAcionada = { acionarNovaMeta = false },
-                        acionarGuardarValorExterno = acionarGuardarValorMeta,
-                        aoGuardarValorAcionado = { acionarGuardarValorMeta = false },
-                        aoVoltar = { navController.popBackStack() }
-                    )
-                }
-                composable(ROTA_RECORRENTES) {
-                    RecorrenteScreen(aoVoltar = { navController.popBackStack() })
-                }
-                composable(ROTA_CARTAO) { backStackEntry ->
-                    val cartaoViewModel: CartaoViewModel = viewModel(backStackEntry)
-                    SideEffect { cartaoViewModelBarra = cartaoViewModel }
-                    DisposableEffect(cartaoViewModel) {
-                        onDispose { if (cartaoViewModelBarra === cartaoViewModel) cartaoViewModelBarra = null }
+            CompositionLocalProvider(LocalEspacoCabecalho provides with(LocalDensity.current) { alturaCabecalhoPx.toDp() }) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                NavHost(
+                    navController = navController,
+                    startDestination = DestinoPrincipal.INICIO.rota,
+                    modifier = Modifier.fillMaxSize(),
+                    // Em sequência: a tela antiga some e só então a nova aparece, para os textos nunca ficarem um sobre o outro
+                    enterTransition = { fadeIn(tween(TEMPO_ENTRADA, TEMPO_SAIDA, FastOutSlowInEasing)) + scaleIn(initialScale = 0.97f, animationSpec = tween(TEMPO_ENTRADA, TEMPO_SAIDA, FastOutSlowInEasing)) },
+                    exitTransition = { fadeOut(tween(TEMPO_SAIDA)) },
+                    popEnterTransition = { fadeIn(tween(TEMPO_ENTRADA, TEMPO_SAIDA, FastOutSlowInEasing)) + scaleIn(initialScale = 0.97f, animationSpec = tween(TEMPO_ENTRADA, TEMPO_SAIDA, FastOutSlowInEasing)) },
+                    popExitTransition = { fadeOut(tween(TEMPO_SAIDA)) }
+                ) {
+                    composable(DestinoPrincipal.INICIO.rota) {
+                        DashboardScreen(
+                            estadoLista = listaInicio,
+                            aoAbrirExtrato = { navController.navigate(ROTA_EXTRATO) },
+                            aoAbrirInvestimento = { navController.navigate(ROTA_INVESTIMENTO) },
+                            aoAbrirCartao = { navController.navigate(ROTA_CARTAO) },
+                            aoAbrirAssinaturas = { navController.navigate(ROTA_RECORRENTES) },
+                            aoAbrirParcelados = { navController.navigate(ROTA_PARCELADOS) },
+                            aoAbrirOrcamento = { navController.navigate(ROTA_ORCAMENTO) },
+                            aoAbrirMetas = { navController.navigate(ROTA_METAS) }
+                        )
                     }
-                    CartaoScreen(
-                        viewModel = cartaoViewModel,
-                        aoVoltar = { navController.popBackStack() }
-                    )
+                    composable(DestinoPrincipal.ANALISE.rota) {
+                        AnaliseScreen(viewModel = analiseViewModel, estadoLista = listaAnalise)
+                    }
+                    composable(DestinoPrincipal.CALENDARIO.rota) {
+                        CalendarioScreen(
+                            estadoLista = listaAgenda,
+                            acionarNovaAgendaExterno = acionarNovaAgenda,
+                            aoNovaAgendaAcionada = { acionarNovaAgenda = false }
+                        )
+                    }
+                    composable(DestinoPrincipal.CONTAS.rota) {
+                        ContasScreen()
+                    }
+                    composable(ROTA_CONFIGURACOES) {
+                        ConfiguracoesScreen(
+                            viewModel = configuracoesViewModel,
+                            aoAbrirCategorias = { navController.navigate(ROTA_CATEGORIAS) },
+                            aoVoltar = { navController.popBackStack() }
+                        )
+                    }
+                    composable(
+                        route = ROTA_NOVA_TRANSACAO,
+                        arguments = listOf(
+                            navArgument("tipo") { type = NavType.StringType; defaultValue = "DESPESA" },
+                            navArgument("parcelado") { type = NavType.BoolType; defaultValue = false },
+                            navArgument("recorrente") { type = NavType.BoolType; defaultValue = false }
+                        )
+                    ) { backStackEntry ->
+                        val tipoTexto = backStackEntry.arguments?.getString("tipo") ?: "DESPESA"
+                        val isParcelado = backStackEntry.arguments?.getBoolean("parcelado") ?: false
+                        val isRecorrente = backStackEntry.arguments?.getBoolean("recorrente") ?: false
+                        NovaTransacaoScreen(
+                            tipoInicial = TipoTransacao.valueOf(tipoTexto),
+                            isParceladoInicial = isParcelado,
+                            isRecorrenteInicial = isRecorrente,
+                            aoSalvar = { navController.popBackStack() },
+                            aoFechar = { navController.popBackStack() }
+                        )
+                    }
+                    composable(ROTA_ORCAMENTO) {
+                        OrcamentoScreen(
+                            acionarNovoLimiteExterno = acionarNovoLimiteOrcamento,
+                            aoNovoLimiteAcionado = { acionarNovoLimiteOrcamento = false },
+                            aoVoltar = { navController.popBackStack() }
+                        )
+                    }
+                    composable(ROTA_METAS) {
+                        MetaScreen(
+                            acionarNovaMetaExterna = acionarNovaMeta,
+                            aoMetaAcionada = { acionarNovaMeta = false },
+                            acionarGuardarValorExterno = acionarGuardarValorMeta,
+                            aoGuardarValorAcionado = { acionarGuardarValorMeta = false },
+                            aoVoltar = { navController.popBackStack() }
+                        )
+                    }
+                    composable(ROTA_RECORRENTES) {
+                        RecorrenteScreen(aoVoltar = { navController.popBackStack() })
+                    }
+                    composable(ROTA_CARTAO) { backStackEntry ->
+                        val cartaoViewModel: CartaoViewModel = viewModel(backStackEntry)
+                        SideEffect { cartaoViewModelBarra = cartaoViewModel }
+                        DisposableEffect(cartaoViewModel) {
+                            onDispose { if (cartaoViewModelBarra === cartaoViewModel) cartaoViewModelBarra = null }
+                        }
+                        CartaoScreen(
+                            viewModel = cartaoViewModel,
+                            aoVoltar = { navController.popBackStack() }
+                        )
+                    }
+                    composable(ROTA_EXTRATO) {
+                        ExtratoScreen(
+                            textoPesquisa = textoPesquisaExtrato,
+                            acionarFiltrosExterno = acionarFiltrosExtrato,
+                            aoFiltrosAcionado = { acionarFiltrosExtrato = false },
+                            aoVoltar = { navController.popBackStack() }
+                        )
+                    }
+                    composable(ROTA_INVESTIMENTO) {
+                        InvestimentoScreen(
+                            acionarNovoAporteExterno = acionarNovoInvestimento,
+                            aoAporteAcionado = { acionarNovoInvestimento = false },
+                            aoVoltar = { navController.popBackStack() }
+                        )
+                    }
+                    composable(ROTA_PARCELADOS) {
+                        ParceladosScreen(aoVoltar = { navController.popBackStack() })
+                    }
+                    composable(ROTA_CATEGORIAS) {
+                        CategoriasScreen(
+                            acionarNovaExterna = acionarNovaCategoria,
+                            aoNovaAcionada = { acionarNovaCategoria = false },
+                            aoVoltar = { navController.popBackStack() }
+                        )
+                    }
                 }
-                composable(ROTA_EXTRATO) {
-                    ExtratoScreen(
-                        textoPesquisa = textoPesquisaExtrato,
-                        acionarFiltrosExterno = acionarFiltrosExtrato,
-                        aoFiltrosAcionado = { acionarFiltrosExtrato = false },
-                        aoVoltar = { navController.popBackStack() }
-                    )
+
+            // Cabeçalho das 4 abas: não troca junto com a transição entre telas e sobe junto com a lista
+            AnimatedVisibility(
+                visible = abaAtual != null,
+                enter = fadeIn(tween(TEMPO_ENTRADA, TEMPO_SAIDA, FastOutSlowInEasing)),
+                exit = fadeOut(tween(TEMPO_SAIDA))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .graphicsLayer {
+                            translationY = -deslocamentoCabecalho.value
+                            // Esmaece enquanto sobe, para não cortar o texto de repente nem encostar nos cards
+                            alpha = if (alturaCabecalhoPx > 0f) (1f - deslocamentoCabecalho.value / alturaCabecalhoPx * 1.4f).coerceIn(0f, 1f) else 1f
+                        }
+                        .onSizeChanged { if (it.height > alturaCabecalhoPx) alturaCabecalhoPx = it.height.toFloat() }
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.background)
+                        .statusBarsPadding()
+                        .padding(horizontal = MaterialTheme.dimens.paddingScreen)
+                        .padding(top = 16.dp, bottom = 16.dp)
+                ) {
+                    when (ultimaAba) {
+                        DestinoPrincipal.ANALISE -> CabecalhoPadrao(
+                            titulo = periodoAnalise.tituloCurto(),
+                            subtitulo = periodoAnalise.subtituloCurto(),
+                            aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) },
+                            aoAnterior = { analiseViewModel.periodoAnterior() },
+                            aoSeguinte = { analiseViewModel.periodoSeguinte() },
+                            aoTocarTitulo = { folhaPeriodoAberta = true }
+                        )
+                        DestinoPrincipal.CONTAS -> CabecalhoPadrao(
+                            titulo = "Contas",
+                            aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) }
+                        )
+                        else -> CabecalhoPadrao(
+                            titulo = mesGlobal.nomeDoMes(),
+                            subtitulo = mesGlobal.year.toString(),
+                            aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) },
+                            aoAnterior = { MesGlobal.anterior() },
+                            aoSeguinte = { MesGlobal.seguinte() }
+                        )
+                    }
                 }
-                composable(ROTA_INVESTIMENTO) {
-                    InvestimentoScreen(
-                        acionarNovoAporteExterno = acionarNovoInvestimento,
-                        aoAporteAcionado = { acionarNovoInvestimento = false },
-                        aoVoltar = { navController.popBackStack() }
-                    )
-                }
-                composable(ROTA_PARCELADOS) {
-                    ParceladosScreen(aoVoltar = { navController.popBackStack() })
-                }
-                composable(ROTA_CATEGORIAS) {
-                    CategoriasScreen(
-                        acionarNovaExterna = acionarNovaCategoria,
-                        aoNovaAcionada = { acionarNovaCategoria = false },
-                        aoVoltar = { navController.popBackStack() }
-                    )
-                }
+            }
+            // Tampa a faixa da barra de status para o conteúdo não passar por baixo dela
+            Box(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(MaterialTheme.colorScheme.background))
+            }
             }
 
             AnimatedVisibility(
@@ -538,6 +653,17 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
             }
         }
     }
+    }
+
+    if (folhaPeriodoAberta) {
+        FolhaPeriodo(
+            periodo = periodoAnalise,
+            aoEscolher = {
+                analiseViewModel.definirPeriodo(it)
+                folhaPeriodoAberta = false
+            },
+            aoFechar = { folhaPeriodoAberta = false }
+        )
     }
 
     atualizacaoDisponivel?.let { atualizacao ->

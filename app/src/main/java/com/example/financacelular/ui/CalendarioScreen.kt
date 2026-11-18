@@ -32,6 +32,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
@@ -195,7 +197,7 @@ fun CalendarioScreen(
     viewModel: CalendarioViewModel = viewModel(),
     acionarNovaAgendaExterno: Boolean = false,
     aoNovaAgendaAcionada: () -> Unit = {},
-    aoAbrirConfiguracoes: () -> Unit = {}
+    estadoLista: LazyListState = rememberLazyListState()
 ) {
     val context = LocalContext.current
     val mensagem = LocalMensagem.current
@@ -207,7 +209,7 @@ fun CalendarioScreen(
     val diasComEventosGoogle by viewModel.diasComEventosGoogle.collectAsState()
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(LocalePtBrCalendario) }
 
-    var mesAnoSelecionado by remember { mutableStateOf(YearMonth.now()) }
+    val mesAnoSelecionado by MesGlobal.mes.collectAsState()
     var dataSelecionada by remember { mutableStateOf(LocalDate.now()) }
     var abaAtiva by rememberSaveable { mutableStateOf(0) }
 
@@ -314,25 +316,14 @@ fun CalendarioScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
+            state = estadoLista,
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
                 .padding(horizontal = MaterialTheme.dimens.paddingScreen),
-            contentPadding = PaddingValues(
-                top = 16.dp,
-                bottom = espacoParaBarraFlutuante()
-            )
+            contentPadding = PaddingValues(bottom = espacoParaBarraFlutuante())
         ) {
+            espacoDoCabecalho()
             item {
-                CabecalhoPadrao(
-                    titulo = mesAnoSelecionado.nomeDoMes(),
-                    subtitulo = mesAnoSelecionado.year.toString(),
-                    aoAbrirConfiguracoes = aoAbrirConfiguracoes,
-                    aoAnterior = { mesAnoSelecionado = mesAnoSelecionado.minusMonths(1) },
-                    aoSeguinte = { mesAnoSelecionado = mesAnoSelecionado.plusMonths(1) }
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-
                 // ---------------- RESUMO DO DIA SELECIONADO (compacto) ----------------
                 ResumoDiaCompacto(
                     titulo = tituloDia,

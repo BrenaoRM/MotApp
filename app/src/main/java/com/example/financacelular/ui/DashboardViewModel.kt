@@ -39,7 +39,7 @@ data class ResumoMovimentacao(
 
 class DashboardViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = FinancaRepository.getInstance(AppDatabase.getInstance(application))
-    private val _mesSelecionado = MutableStateFlow(YearMonth.now())
+    private val _mesSelecionado: StateFlow<YearMonth> = MesGlobal.mes
     val mesSelecionado: StateFlow<YearMonth> = _mesSelecionado
 
     private val anoMesTexto: Flow<String> = _mesSelecionado.map {
@@ -182,10 +182,10 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun mesAnterior() {
-        _mesSelecionado.value = _mesSelecionado.value.minusMonths(1)
+        MesGlobal.anterior()
     }
 
     fun mesSeguinte() {
-        _mesSelecionado.value = _mesSelecionado.value.plusMonths(1)
+        MesGlobal.seguinte()
     }
 }

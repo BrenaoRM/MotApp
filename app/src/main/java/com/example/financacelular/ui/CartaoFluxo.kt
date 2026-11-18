@@ -50,6 +50,7 @@ import com.example.financacelular.ui.theme.Verde
 import com.example.financacelular.ui.theme.cores
 import java.text.NumberFormat
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 private val AlturaBarrasFluxo = 104.dp
 
@@ -93,43 +94,25 @@ fun CartaoFluxo(
             aoSelecionar = { visao = VisaoDoFluxo.values()[it] }
         )
         Spacer(Modifier.height(18.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.heightIn(min = 24.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.heightIn(min = 28.dp)) {
             Text(
-                "Saldo · " + (barraFocada?.descricao ?: periodo.tituloCurto()),
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                (if (saldo >= 0) "+ " else "- ") + formato.format(abs(saldo)),
+                modifier = Modifier.semantics {
+                    contentDescription = "Saldo ${if (barraFocada != null) "em ${barraFocada.descricao}" else "no período"}: ${formato.format(saldo)}"
+                },
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = if (saldo >= 0) MaterialTheme.cores.textoGanho else MaterialTheme.cores.textoGasto,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                softWrap = false
             )
             if (referencia != null) {
-                Spacer(Modifier.width(8.dp))
-                PilulaDeVariacao(saldo - referencia.first, referencia.second, formato)
+                Box(modifier = Modifier.weight(1f).padding(start = 8.dp), contentAlignment = Alignment.CenterEnd) {
+                    PilulaDeVariacao(saldo, referencia.first, referencia.second, formato)
+                }
             }
         }
-        Text(
-            (if (saldo >= 0) "+ " else "- ") + formato.format(abs(saldo)),
-            modifier = Modifier.semantics {
-                contentDescription = "Saldo ${if (barraFocada != null) "em ${barraFocada.descricao}" else "no período"}: ${formato.format(saldo)}"
-            },
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = if (saldo >= 0) MaterialTheme.cores.textoGanho else MaterialTheme.cores.textoGasto,
-            maxLines = 1,
-            softWrap = false
-        )
         Spacer(Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.heightIn(min = 28.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            if (visao == VisaoDoFluxo.GANHOS_E_GASTOS) {
-                LegendaPonto(Verde, "Ganhos")
-                LegendaPonto(Coral, "Gastos")
-            }
-        }
-        Spacer(Modifier.height(10.dp))
         BarrasDeFluxo(dados, visao, foco, formato) { indice -> foco = if (foco == indice) null else indice }
         Spacer(Modifier.height(14.dp))
         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
@@ -149,8 +132,16 @@ fun CartaoFluxo(
 }
 
 @Composable
-private fun PilulaDeVariacao(diferenca: Double, referencia: String, formato: NumberFormat) {
+private fun PilulaDeVariacao(saldo: Double, saldoAnterior: Double, referencia: String, formato: NumberFormat) {
+    val diferenca = saldo - saldoAnterior
     val positiva = diferenca >= 0
+    val alvo = if (referencia == "anterior") "o período anterior" else referencia
+    // Em percentual sobre o saldo de antes; sem base (saldo anterior zero) mostra o valor
+    val texto = when {
+        diferenca == 0.0 -> "Igual a $alvo"
+        saldoAnterior == 0.0 -> "${formato.format(abs(diferenca))} a ${if (positiva) "mais" else "menos"} que $alvo"
+        else -> "${(abs(diferenca) / abs(saldoAnterior) * 100).roundToInt()}% a ${if (positiva) "mais" else "menos"} que $alvo"
+    }
     val cor = if (positiva) MaterialTheme.cores.textoGanho else MaterialTheme.cores.textoGasto
     Row(
         modifier = Modifier
@@ -167,12 +158,12 @@ private fun PilulaDeVariacao(diferenca: Double, referencia: String, formato: Num
         )
         Spacer(Modifier.width(3.dp))
         Text(
-            "${formato.format(abs(diferenca))} vs. $referencia",
+            texto,
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold,
             color = cor,
             maxLines = 1,
-            softWrap = false
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

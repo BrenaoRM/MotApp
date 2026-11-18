@@ -1,13 +1,17 @@
 package com.example.financacelular.ui
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -18,11 +22,14 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -103,7 +110,7 @@ private fun moedaCompacta(texto: String): AnnotatedString {
 @Composable
 fun AnaliseScreen(
     viewModel: AnaliseViewModel = viewModel(),
-    aoAbrirConfiguracoes: () -> Unit = {}
+    estadoLista: LazyListState = rememberLazyListState()
 ) {
     val despesasPorCategoria by viewModel.despesasPorCategoria.collectAsState()
     val receitasPorCategoria by viewModel.receitasPorCategoria.collectAsState()
@@ -124,48 +131,21 @@ fun AnaliseScreen(
     val maiorCategoriaDespesa = despesasPorCategoria.maxByOrNull { it.total }
 
     var abaDistribuicao by rememberSaveable { mutableIntStateOf(0) }
-    var folhaPeriodoAberta by rememberSaveable { mutableStateOf(false) }
     var graficosProntos by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         graficosProntos = true
     }
 
-    if (folhaPeriodoAberta) {
-        FolhaPeriodo(
-            periodo = periodo,
-            aoEscolher = {
-                viewModel.definirPeriodo(it)
-                folhaPeriodoAberta = false
-            },
-            aoFechar = { folhaPeriodoAberta = false }
-        )
-    }
-
     LazyColumn(
+        state = estadoLista,
         modifier = Modifier
             .fillMaxSize()
-            .statusBarsPadding()
             .padding(horizontal = MaterialTheme.dimens.paddingScreen),
-        contentPadding = PaddingValues(
-            top = 16.dp,
-            bottom = espacoParaBarraFlutuante()
-        )
+        contentPadding = PaddingValues(bottom = espacoParaBarraFlutuante())
     ) {
-        // ---------------- CABEÇALHO + PERÍODO ----------------
-        item {
-            // tocar no período abre a folha de escolha
-            CabecalhoPadrao(
-                titulo = periodo.tituloCurto(),
-                subtitulo = periodo.subtituloCurto(),
-                aoAbrirConfiguracoes = aoAbrirConfiguracoes,
-                aoAnterior = { viewModel.periodoAnterior() },
-                aoSeguinte = { viewModel.periodoSeguinte() },
-                aoTocarTitulo = { folhaPeriodoAberta = true }
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
+        espacoDoCabecalho()
+        // O cabeçalho (logo e período) é desenhado em AppNavigation e sobe junto com esta lista
         // ---------------- CARTÃO PRINCIPAL (mesmo desenho do saldo da Home) ----------------
         item {
             CartaoHeroDePagina(
@@ -362,7 +342,7 @@ fun AnaliseScreen(
         // ---------------- FLUXO DE CAIXA (segue o período da tela) ----------------
         item {
             val dadosFluxo = fluxo
-            TituloDeSecao("Fluxo de caixa", dadosFluxo?.granularidade?.texto)
+            TituloDeSecao("Fluxo de caixa")
             Spacer(modifier = Modifier.height(12.dp))
             if (graficosProntos && dadosFluxo != null) {
                 CartaoFluxo(dados = dadosFluxo, periodo = periodo, formato = formato)
@@ -374,7 +354,7 @@ fun AnaliseScreen(
 
         // ---------------- APORTES (segue o período da tela) ----------------
         item {
-            TituloDeSecao("Aportes", aportes?.granularidade?.texto)
+            TituloDeSecao("Aportes")
             Spacer(modifier = Modifier.height(12.dp))
             val dadosAportes = aportes
             if (graficosProntos && dadosAportes != null) {
@@ -400,7 +380,7 @@ internal fun SeletorQuadrado(
 ) {
     val forma = RoundedCornerShape(12.dp)
     val formaAtiva = RoundedCornerShape(10.dp)
-    Row(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
             .height(48.dp)
@@ -408,24 +388,36 @@ internal fun SeletorQuadrado(
             .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
             .padding(4.dp)
     ) {
-        opcoes.forEachIndexed { indice, texto ->
-            val ativo = indice == indiceSelecionado
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(formaAtiva)
-                    .background(if (ativo) MaterialTheme.colorScheme.background else Color.Transparent)
-                    .then(if (ativo) Modifier.border(1.dp, MaterialTheme.colorScheme.outline, formaAtiva) else Modifier)
-                    .clickable(role = Role.Tab, onClick = { aoSelecionar(indice) }),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    texto,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (ativo) FontWeight.Bold else FontWeight.Medium,
-                    color = if (ativo) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
-                )
+        // A pílula ativa desliza de uma opção para a outra
+        val larguraOpcao = maxWidth / opcoes.size
+        val deslocamento by animateDpAsState(larguraOpcao * indiceSelecionado, tween(280, easing = FastOutSlowInEasing), label = "deslizeSeletor")
+        Box(
+            modifier = Modifier
+                .offset(x = deslocamento)
+                .width(larguraOpcao)
+                .fillMaxHeight()
+                .clip(formaAtiva)
+                .background(MaterialTheme.colorScheme.background)
+                .border(1.dp, MaterialTheme.colorScheme.outline, formaAtiva)
+        )
+        Row(modifier = Modifier.fillMaxSize()) {
+            opcoes.forEachIndexed { indice, texto ->
+                val ativo = indice == indiceSelecionado
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(formaAtiva)
+                        .clickable(role = Role.Tab, onClick = { aoSelecionar(indice) }),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        texto,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (ativo) FontWeight.Bold else FontWeight.Medium,
+                        color = if (ativo) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
@@ -583,15 +575,6 @@ internal fun CartaoAnalise(
             modifier = Modifier.padding(MaterialTheme.dimens.paddingMedium),
             content = conteudo
         )
-    }
-}
-
-@Composable
-internal fun LegendaPonto(cor: Color, texto: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.size(8.dp).background(cor, CircleShape))
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(texto, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

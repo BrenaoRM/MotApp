@@ -241,7 +241,7 @@ internal fun RotulosDasBarras(rotulos: List<RotuloDeBarra>, foco: Int?, espaco: 
     }
 }
 
-/** "Maior parte: X · N%" e, abaixo, até 4 tipos em duas colunas com %, barra fina e valor. */
+/** Até 4 tipos em duas colunas com %, barra fina e valor. */
 @Composable
 private fun DivisaoPorTipo(
     tipos: List<TipoDeAporte>,
@@ -251,27 +251,8 @@ private fun DivisaoPorTipo(
     formato: NumberFormat
 ) {
     val ordem = tipos.indices.filter { valores[it] > 0.0 }.sortedByDescending { valores[it] }
-    val maior = ordem.first()
     val percentual = { indice: Int -> (valores[indice] / total * 100).roundToInt() }
 
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
-            .padding(horizontal = 10.dp, vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(Modifier.size(8.dp).background(cores[maior], CircleShape))
-        Spacer(Modifier.width(6.dp))
-        Text(
-            "Maior parte: ${tipos[maior].nome} · ${percentual(maior)}%",
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-    Spacer(Modifier.height(14.dp))
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         ordem.take(4).chunked(2).forEach { linha ->
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {

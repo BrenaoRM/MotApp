@@ -33,7 +33,12 @@ data class TotalMensalInvestimento(val anoMes: String, val total: Double)
 class AnaliseViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: FinancaRepository = FinancaRepository.getInstance(AppDatabase.getInstance(application))
 
-    private val _periodo = MutableStateFlow(Periodo.mes(YearMonth.now()))
+    /** Intervalo personalizado; `null` = a Análise segue o mês global do cabeçalho. */
+    private val _personalizado = MutableStateFlow<Periodo?>(null)
+
+    private val _periodo: StateFlow<Periodo> = combine(MesGlobal.mes, _personalizado) { mes, custom ->
+        custom ?: Periodo.mes(mes)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, Periodo.mes(MesGlobal.mes.value))
     val periodo: StateFlow<Periodo> = _periodo
 
     /** Transações que entram nas contas da Análise para o [periodo]: sem pagamento de fatura, sem futuras nem fatura em aberto. */
@@ -169,15 +174,24 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
     }.flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SerieDoPeriodo())
 
+    /** Mês global: anda o mês de todas as telas. Intervalo personalizado: anda só o intervalo da Análise. */
     fun periodoAnterior() {
-        _periodo.value = _periodo.value.deslocar(-1)
+        val custom = _personalizado.value
+        if (custom == null) MesGlobal.anterior() else _personalizado.value = custom.deslocar(-1)
     }
 
     fun periodoSeguinte() {
-        _periodo.value = _periodo.value.deslocar(1)
+        val custom = _personalizado.value
+        if (custom == null) MesGlobal.seguinte() else _personalizado.value = custom.deslocar(1)
     }
 
+    /** Um mês inteiro vira o mês global (vale para todas as telas); qualquer outro intervalo fica só na Análise. */
     fun definirPeriodo(novo: Periodo) {
-        _periodo.value = novo
+        if (novo.ehMesUnico) {
+            _personalizado.value = null
+            MesGlobal.definir(YearMonth.from(novo.inicio))
+        } else {
+            _personalizado.value = novo
+        }
     }
 }

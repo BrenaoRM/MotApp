@@ -10,18 +10,14 @@ import androidx.compose.ui.unit.dp
 import com.example.financacelular.ui.theme.dimens
 
 @Composable
-fun ContasScreen(
-    aoAbrirConfiguracoes: () -> Unit = {}
-) {
+fun ContasScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .statusBarsPadding()
             .padding(horizontal = MaterialTheme.dimens.paddingScreen)
-            .padding(top = 16.dp, bottom = espacoParaBarraFlutuante())
+            .padding(bottom = espacoParaBarraFlutuante())
     ) {
-        CabecalhoPadrao("Contas", aoAbrirConfiguracoes = aoAbrirConfiguracoes)
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(LocalEspacoCabecalho.current + 16.dp))
         EstadoVazio(
             icone = Icons.Outlined.AccountBalanceWallet,
             mensagem = "Contas chegam em breve"

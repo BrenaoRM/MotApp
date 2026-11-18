@@ -19,6 +19,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -77,14 +79,14 @@ private fun formatarDataIso(texto: String): String {
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel = viewModel(),
-    aoAbrirConfiguracoes: () -> Unit = {},
     aoAbrirExtrato: () -> Unit = {},
     aoAbrirInvestimento: () -> Unit = {},
     aoAbrirCartao: () -> Unit = {},
     aoAbrirAssinaturas: () -> Unit = {},
     aoAbrirParcelados: () -> Unit = {},
     aoAbrirOrcamento: () -> Unit = {},
-    aoAbrirMetas: () -> Unit = {}
+    aoAbrirMetas: () -> Unit = {},
+    estadoLista: LazyListState = rememberLazyListState()
 ) {
     val totalDespesas by viewModel.totalDespesas.collectAsState()
     val totalReceitas by viewModel.totalReceitas.collectAsState()
@@ -130,26 +132,15 @@ fun DashboardScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
+            state = estadoLista,
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
                 .padding(horizontal = MaterialTheme.dimens.paddingScreen),
-            contentPadding = PaddingValues(
-                top = 16.dp,
-                bottom = espacoParaBarraFlutuante()
-            )
+            contentPadding = PaddingValues(bottom = espacoParaBarraFlutuante())
         ) {
+            espacoDoCabecalho()
             item {
-                // ---------------- CABEÇALHO ----------------
-                CabecalhoPadrao(
-                    titulo = mesCapitalizado,
-                    subtitulo = mesSelecionado.year.toString(),
-                    aoAbrirConfiguracoes = aoAbrirConfiguracoes,
-                    aoAnterior = { viewModel.mesAnterior() },
-                    aoSeguinte = { viewModel.mesSeguinte() }
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-
+                // O cabeçalho (logo e mês) é desenhado em AppNavigation e sobe junto com esta lista
                 if (alertaFaturaPendente) {
                     FaixaFaturaVencendo(
                         aoVerFatura = {
