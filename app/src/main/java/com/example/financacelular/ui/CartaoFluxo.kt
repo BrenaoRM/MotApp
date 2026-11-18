@@ -3,7 +3,6 @@ package com.example.financacelular.ui
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -88,6 +87,12 @@ fun CartaoFluxo(
     }
 
     CartaoAnalise(modifier) {
+        SeletorQuadrado(
+            opcoes = VisaoDoFluxo.values().map { it.texto },
+            indiceSelecionado = visao.ordinal,
+            aoSelecionar = { visao = VisaoDoFluxo.values()[it] }
+        )
+        Spacer(Modifier.height(18.dp))
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.heightIn(min = 24.dp)) {
             Text(
                 "Saldo · " + (barraFocada?.descricao ?: periodo.tituloCurto()),
@@ -114,14 +119,15 @@ fun CartaoFluxo(
             softWrap = false
         )
         Spacer(Modifier.height(16.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.heightIn(min = 28.dp)) {
-            Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                if (visao == VisaoDoFluxo.GANHOS_E_GASTOS) {
-                    LegendaPonto(Verde, "Ganhos")
-                    LegendaPonto(Coral, "Gastos")
-                }
+        Row(
+            modifier = Modifier.heightIn(min = 28.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            if (visao == VisaoDoFluxo.GANHOS_E_GASTOS) {
+                LegendaPonto(Verde, "Ganhos")
+                LegendaPonto(Coral, "Gastos")
             }
-            SeletorDeVisao(visao) { visao = it }
         }
         Spacer(Modifier.height(10.dp))
         BarrasDeFluxo(dados, visao, foco, formato) { indice -> foco = if (foco == indice) null else indice }
@@ -168,40 +174,6 @@ private fun PilulaDeVariacao(diferenca: Double, referencia: String, formato: Num
             maxLines = 1,
             softWrap = false
         )
-    }
-}
-
-@Composable
-private fun SeletorDeVisao(visao: VisaoDoFluxo, aoMudar: (VisaoDoFluxo) -> Unit) {
-    val forma = RoundedCornerShape(50)
-    Row(
-        modifier = Modifier
-            .clip(forma)
-            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
-            .padding(2.dp)
-    ) {
-        VisaoDoFluxo.values().forEach { opcao ->
-            val ativa = opcao == visao
-            Text(
-                opcao.texto,
-                modifier = Modifier
-                    .clip(forma)
-                    .then(
-                        if (ativa) Modifier
-                            .background(MaterialTheme.colorScheme.surface)
-                            .border(1.dp, MaterialTheme.colorScheme.outline, forma)
-                        else Modifier
-                    )
-                    .clickable(role = Role.Tab) { aoMudar(opcao) }
-                    .semantics { selected = ativa }
-                    .padding(horizontal = 11.dp, vertical = 6.dp),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = if (ativa) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                softWrap = false
-            )
-        }
     }
 }
 
