@@ -1,7 +1,10 @@
 package com.example.financacelular
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import com.example.financacelular.deteccao.PreenchimentoPendente
+import com.example.financacelular.deteccao.paraDetectada
 import android.os.Build
 import android.os.Bundle
 import android.graphics.Color
@@ -43,6 +46,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         enableEdgeToEdge()
+
+        // Aberto pelo aviso de transação detectada (só na criação, para não repetir ao girar a tela)
+        if (savedInstanceState == null) intent.paraDetectada()?.let(PreenchimentoPendente::definir)
 
         pedirPermissaoDeNotificacaoSeNecessario()
 
@@ -105,6 +111,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        intent.paraDetectada()?.let(PreenchimentoPendente::definir)
     }
 
     /** No Android 13+ (API 33) a permissão de notificação precisa ser pedida em runtime. */

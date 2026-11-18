@@ -39,6 +39,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import com.example.financacelular.deteccao.PreenchimentoPendente
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -173,6 +174,15 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
         isFabExpanded = false
         if (currentDestination?.route != ROTA_EXTRATO) {
             textoPesquisaExtrato = ""
+        }
+    }
+
+    // Transação detectada numa notificação de banco: abre Nova Transação, que preenche os campos
+    val transacaoDetectada by PreenchimentoPendente.atual.collectAsState()
+    LaunchedEffect(transacaoDetectada) {
+        val detectada = transacaoDetectada ?: return@LaunchedEffect
+        navController.navigate("$ROTA_NOVA_TRANSACAO_BASE?tipo=${detectada.tipo.name}") {
+            launchSingleTop = true
         }
     }
 

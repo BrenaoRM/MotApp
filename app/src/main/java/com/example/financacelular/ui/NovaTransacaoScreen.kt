@@ -63,6 +63,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import com.example.financacelular.deteccao.PreenchimentoPendente
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -325,6 +326,15 @@ fun NovaTransacaoScreen(
                 viewModel.onFormaPagamentoChange(FormaPagamento.CARTAO_CREDITO)
             }
             viewModel.onRecorrenteChange(true)
+        }
+    }
+
+    // Transação detectada numa notificação de banco: preenche o que o banco informou
+    val transacaoDetectada by PreenchimentoPendente.atual.collectAsState()
+    LaunchedEffect(transacaoDetectada) {
+        transacaoDetectada?.let {
+            viewModel.aplicarDetectada(it)
+            PreenchimentoPendente.consumir()
         }
     }
 

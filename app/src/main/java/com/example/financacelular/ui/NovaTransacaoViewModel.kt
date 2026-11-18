@@ -12,6 +12,8 @@ import com.example.financacelular.data.FinancaRepository
 import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.data.Transacao
+import com.example.financacelular.deteccao.TransacaoDetectada
+import com.example.financacelular.deteccao.valorParaCampo
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -76,6 +78,15 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
             formaPagamento = FormaPagamento.DEBITO
             ehParcelado = false
         }
+    }
+
+    /** Preenche o que veio da notificação do banco; categoria e cartão ficam para a pessoa escolher. */
+    fun aplicarDetectada(detectada: TransacaoDetectada) {
+        definirTipoInicial(detectada.tipo)
+        valor = detectada.valorParaCampo()
+        descricao = detectada.descricao.orEmpty()
+        data = LocalDate.now()
+        if (detectada.tipo == TipoTransacao.DESPESA) onFormaPagamentoChange(detectada.formaPagamento)
     }
 
     fun onValorChange(novoValor: String) {
