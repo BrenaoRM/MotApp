@@ -34,6 +34,13 @@ fun resolverVersionName(): String {
     }
 }
 
+/** maior*10000 + menor*100 + correção (1.5 -> 10500, 1.0.83 -> 10083). Nunca pode diminuir. */
+fun resolverVersionCode(versionName: String): Int {
+    val numeros = versionName.substringBefore("-").split(".").mapNotNull { it.toIntOrNull() }
+    if (numeros.isEmpty()) return 1
+    return numeros[0] * 10000 + numeros.getOrElse(1) { 0 } * 100 + numeros.getOrElse(2) { 0 }
+}
+
 android {
     namespace = "com.example.financacelular"
     compileSdk = 37
@@ -56,8 +63,8 @@ android {
         applicationId = "com.example.financacelular"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
         versionName = resolverVersionName()
+        versionCode = resolverVersionCode(versionName!!)
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

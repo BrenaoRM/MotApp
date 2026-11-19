@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.financacelular.data.ApkDownloader
 import com.example.financacelular.data.AtualizacaoDisponivel
+import com.example.financacelular.data.StatusInstalacao
 import com.example.financacelular.ui.theme.RoxoHero
 import com.example.financacelular.ui.theme.Tamanho
 import com.example.financacelular.ui.theme.cores
@@ -35,6 +36,15 @@ fun AtualizacaoSheet(
     var baixando by remember { mutableStateOf(false) }
     var progresso by remember { mutableStateOf(0f) }
     var erroDownload by remember { mutableStateOf<String?>(null) }
+
+    val erroInstalacao by StatusInstalacao.erro.collectAsState()
+    LaunchedEffect(erroInstalacao) {
+        erroInstalacao?.let {
+            baixando = false
+            erroDownload = it.ifBlank { null }
+            StatusInstalacao.erro.value = null
+        }
+    }
 
     BackHandler(enabled = baixando) {}
 
@@ -89,7 +99,7 @@ fun AtualizacaoSheet(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Baixando… ${(progresso * 100).toInt()}%",
+                text = if (progresso >= 1f) "Instalando…" else "Baixando… ${(progresso * 100).toInt()}%",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
