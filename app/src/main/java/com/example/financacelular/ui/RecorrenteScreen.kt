@@ -16,9 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.ArrowUpward
@@ -26,6 +24,7 @@ import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -57,7 +56,7 @@ import java.util.Locale
 @Composable
 fun RecorrenteScreen(
     viewModel: RecorrenteViewModel = viewModel(),
-    aoVoltar: (() -> Unit)? = null
+    estadoLista: LazyListState
 ) {
     val recorrentesCarregados by viewModel.recorrentes.collectAsState()
     val recorrentes = recorrentesCarregados.orEmpty()
@@ -84,17 +83,8 @@ fun RecorrenteScreen(
         return (cartoes.find { it.id == item.cartaoId } ?: cartoes.firstOrNull())?.nome
     }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .padding(horizontal = MaterialTheme.dimens.paddingScreen),
-        contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
-    ) {
+    ListaDePagina(estadoLista) {
         item {
-            CabecalhoPadrao("Recorrentes", aoVoltar = aoVoltar)
-            Spacer(modifier = Modifier.height(16.dp))
-
             CartaoHeroDePagina(LilasRecorrente) {
                 Text(
                     "Cobranças por mês",

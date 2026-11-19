@@ -353,6 +353,17 @@ fun DashboardScreen(
                 )
                 Spacer(modifier = Modifier.height(Espaco.lg))
 
+                ValorDoHero(formatoMoeda.format(resumo.total))
+                if (totalDoTipo > 0.0) {
+                    Text(
+                        "${(resumo.total / totalDoTipo * 100).toInt()}% " +
+                            if (resumo.tipo == TipoTransacao.DESPESA) "dos gastos" else "dos ganhos",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.height(Espaco.md))
+
                 if (resumo.transacoes.isEmpty()) {
                     Text(
                         text = "Nenhum lançamento encontrado.",
@@ -364,16 +375,37 @@ fun DashboardScreen(
                             .padding(Espaco.xxl)
                     )
                 } else {
-                    GrupoDeLista(itens = resumo.transacoes) { transacao ->
-                        val ehGasto = transacao.tipo == TipoTransacao.DESPESA
-                        LinhaDeLista(
-                            icone = if (ehGasto) Icons.AutoMirrored.Outlined.TrendingDown else Icons.AutoMirrored.Outlined.TrendingUp,
-                            cor = if (ehGasto) Coral else Verde,
-                            titulo = transacao.descricao ?: resumo.titulo,
-                            subtitulo = formatarDataIso(transacao.data.toString()),
-                            valor = (if (ehGasto) "- " else "+ ") + formatoMoeda.format(transacao.valor),
-                            corValor = if (ehGasto) MaterialTheme.cores.textoGasto else MaterialTheme.cores.textoGanho
-                        )
+                    Column {
+                        resumo.transacoes.forEachIndexed { indice, transacao ->
+                            if (indice > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        transacao.descricao ?: resumo.titulo,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        formatarDataIso(transacao.data.toString()),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(Espaco.md))
+                                Text(
+                                    formatoMoeda.format(transacao.valor),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(Espaco.lg))

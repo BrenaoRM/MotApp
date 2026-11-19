@@ -12,7 +12,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
@@ -29,6 +28,7 @@ import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.*
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -82,7 +82,7 @@ private fun formatarDiaAmigavel(texto: String): String =
 @Composable
 fun CartaoScreen(
     viewModel: CartaoViewModel = viewModel(),
-    aoVoltar: (() -> Unit)? = null
+    estadoLista: LazyListState
 ) {
     val mensagem = LocalMensagem.current
     val focusManager = LocalFocusManager.current
@@ -145,23 +145,8 @@ fun CartaoScreen(
         transacoesFatura.groupBy { it.data.toString().take(10) }
     }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .padding(horizontal = MaterialTheme.dimens.paddingScreen),
-        contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
-    ) {
+    ListaDePagina(estadoLista) {
         item {
-            CabecalhoPadrao(
-                titulo = mesSelecionado.nomeDoMes(),
-                subtitulo = "Cartões · ${mesSelecionado.year}",
-                aoVoltar = aoVoltar,
-                aoAnterior = { viewModel.mesAnterior() },
-                aoSeguinte = { viewModel.mesSeguinte() }
-            )
-            Spacer(modifier = Modifier.height(20.dp))
-
             // CARROSSEL DE CARTÕES (cartão centralizado, na largura das demais seções)
             if (listaCartoesCarregada != null) HorizontalPager(
                 state = pagerState,
@@ -341,45 +326,28 @@ fun CartaoScreen(
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        OutlinedTextField(
-                            value = nomeCartao,
-                            onValueChange = { nomeCartao = it },
-                            label = { Text("Nome do cartão") },
-                            placeholder = { Text("Ex: Nubank, Inter") },
-                            leadingIcon = { Icon(Icons.Outlined.CreditCard, contentDescription = null) },
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
+                        CampoApp(valor = nomeCartao, aoMudar = { nomeCartao = it }, rotulo = "Nome")
 
                         Spacer(modifier = Modifier.height(14.dp))
 
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            OutlinedTextField(
-                                value = diaFechamento,
-                                onValueChange = { diaFechamento = it.filter { c -> c.isDigit() }.take(2) },
-                                label = { Text("Fechamento") },
-                                placeholder = { Text("18") },
-                                leadingIcon = { Icon(Icons.Outlined.Event, contentDescription = null) },
-                                supportingText = { Text("Dia de 1 a 31") },
+                            CampoApp(
+                                valor = diaFechamento,
+                                aoMudar = { diaFechamento = it.filter { c -> c.isDigit() }.take(2) },
+                                rotulo = "Fecha dia",
+                                textoApoio = if (diaInvalido(diaFechamento)) "Dia de 1 a 31" else null,
                                 isError = diaInvalido(diaFechamento),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                shape = RoundedCornerShape(14.dp),
-                                modifier = Modifier.weight(1f),
-                                singleLine = true
+                                modifier = Modifier.weight(1f)
                             )
-                            OutlinedTextField(
-                                value = diaVencimento,
-                                onValueChange = { diaVencimento = it.filter { c -> c.isDigit() }.take(2) },
-                                label = { Text("Vencimento") },
-                                placeholder = { Text("25") },
-                                leadingIcon = { Icon(Icons.Outlined.CalendarToday, contentDescription = null) },
-                                supportingText = { Text("Dia de 1 a 31") },
+                            CampoApp(
+                                valor = diaVencimento,
+                                aoMudar = { diaVencimento = it.filter { c -> c.isDigit() }.take(2) },
+                                rotulo = "Vence dia",
+                                textoApoio = if (diaInvalido(diaVencimento)) "Dia de 1 a 31" else null,
                                 isError = diaInvalido(diaVencimento),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                shape = RoundedCornerShape(14.dp),
-                                modifier = Modifier.weight(1f),
-                                singleLine = true
+                                modifier = Modifier.weight(1f)
                             )
                         }
 

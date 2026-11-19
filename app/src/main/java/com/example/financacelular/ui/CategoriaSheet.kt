@@ -116,19 +116,14 @@ fun FolhaEditarCategoria(
                     )
                     Spacer(modifier = Modifier.height(Espaco.lg))
 
-                    OutlinedTextField(
-                        value = nome,
-                        onValueChange = { nome = it },
-                        label = { Text("Nome") },
-                        enabled = !sistema,
+                    CampoApp(
+                        valor = nome,
+                        aoMudar = { nome = it },
+                        rotulo = "Nome",
+                        habilitado = !sistema,
                         isError = repetido,
-                        supportingText = if (repetido) {
-                            { Text("Já existe uma categoria com esse nome") }
-                        } else null,
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        textoApoio = if (repetido) "Já existe uma categoria com esse nome" else null,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
                     )
 
                     Spacer(modifier = Modifier.height(Espaco.md))

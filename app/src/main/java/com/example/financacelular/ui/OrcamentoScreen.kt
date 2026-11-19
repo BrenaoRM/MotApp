@@ -19,9 +19,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -29,16 +28,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -62,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.Tamanho
+import com.example.financacelular.ui.theme.Espaco
 import com.example.financacelular.ui.theme.VerdeOrcamento
 import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
@@ -111,7 +108,7 @@ fun OrcamentoScreen(
     viewModel: OrcamentoViewModel = viewModel(),
     acionarNovoLimiteExterno: Boolean = false,
     aoNovoLimiteAcionado: () -> Unit = {},
-    aoVoltar: (() -> Unit)? = null
+    estadoLista: LazyListState
 ) {
     val itens by viewModel.itens.collectAsState(initial = emptyList())
     val mesSelecionado by viewModel.mesSelecionado.collectAsState()
@@ -136,7 +133,6 @@ fun OrcamentoScreen(
     var mostrarSheet by remember { mutableStateOf(false) }
     var modoNovoLimite by remember { mutableStateOf(false) }
     var valorInput by remember { mutableStateOf("") }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val totalGasto = remember(itens) { itens.sumOf { it.gasto } }
     val totalLimite = remember(itens) { itens.sumOf { it.limite ?: 0.0 } }
@@ -158,24 +154,7 @@ fun OrcamentoScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .padding(horizontal = MaterialTheme.dimens.paddingScreen),
-            contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
-        ) {
-            item {
-                CabecalhoPadrao(
-                    titulo = mesSelecionado.nomeDoMes(),
-                    subtitulo = "Orçamento · ${mesSelecionado.year}",
-                    aoVoltar = aoVoltar,
-                    aoAnterior = { viewModel.mesAnterior() },
-                    aoSeguinte = { viewModel.mesSeguinte() }
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
+        ListaDePagina(estadoLista) {
             item {
                 val progressoGeral = if (totalLimite > 0.0) (totalGasto / totalLimite).toFloat() else 0f
                 CartaoHeroDePagina(
@@ -289,74 +268,24 @@ fun OrcamentoScreen(
 
         if (mostrarSheet) {
             val item = categoriaEmEdicao
-            ModalBottomSheet(
-                onDismissRequest = { mostrarSheet = false },
-                sheetState = sheetState,
-                containerColor = MaterialTheme.colorScheme.surface,
-                dragHandle = { BottomSheetDefaults.DragHandle() },
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                contentWindowInsets = { WindowInsets.statusBars }
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = MaterialTheme.dimens.paddingScreen)
-                        .navigationBarsPadding()
-                        .imePadding()
-                        .padding(bottom = 10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (modoNovoLimite) "Definir limite" else "Orçamento: ${item?.categoria?.nome.orEmpty()}",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(
-                            onClick = { mostrarSheet = false },
-                            modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
-                        ) {
-                            Icon(Icons.Outlined.Close, contentDescription = "Fechar")
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Limite de gastos para $nomeMes. Deixe em branco (ou zero) para remover o limite deste mês.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    if (modoNovoLimite) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            "PARA QUAL CATEGORIA?",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(itens) { opcao ->
-                                val selecionada = item?.categoria == opcao.categoria
-                                Row(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(50))
-                                        .background(
-                                            if (selecionada) VerdeOrcamento.copy(alpha = 0.14f)
-                                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                                        )
-                                        .clickable(role = Role.Button) {
-                                            categoriaEmEdicao = opcao
-                                            valorInput = limiteParaTexto(opcao.limite)
-                                        }
-                                        .heightIn(min = Tamanho.toque)
-                                        .padding(horizontal = 14.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
+            FolhaApp(onDismiss = { mostrarSheet = false }) {
+                CabecalhoDeFolha(
+                    titulo = if (modoNovoLimite) "Limite de gastos" else item?.categoria?.nome.orEmpty(),
+                    aoFechar = { mostrarSheet = false },
+                    subtitulo = if (modoNovoLimite) nomeMes else "Limite de $nomeMes"
+                )
+                if (modoNovoLimite) {
+                    Spacer(modifier = Modifier.height(Espaco.md))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(itens) { opcao ->
+                            BlocoDeEscolha(
+                                selecionado = item?.categoria == opcao.categoria,
+                                onClick = {
+                                    categoriaEmEdicao = opcao
+                                    valorInput = limiteParaTexto(opcao.limite)
+                                }
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
                                         imageVector = iconeParaCategoria(opcao.categoria.nome, opcao.categoria.icone),
                                         contentDescription = null,
@@ -366,37 +295,30 @@ fun OrcamentoScreen(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         opcao.categoria.nome,
-                                        fontWeight = if (selecionada) FontWeight.Bold else FontWeight.Medium,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.SemiBold,
                                         maxLines = 1
                                     )
                                 }
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(24.dp))
-                    OutlinedTextField(
-                        value = valorInput,
-                        onValueChange = { valorInput = it },
-                        label = { Text("Valor Limite (R$)") },
-                        placeholder = { Text("Ex: 500,00 ou 500.50") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        shape = RoundedCornerShape(14.dp),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(28.dp))
-                    BotaoPrincipal(
-                        texto = "Definir Limite",
-                        onClick = {
-                            val valorDouble = converterTextoParaDouble(valorInput)
-                            item?.let { viewModel.definirLimite(it.categoria, valorDouble) }
-                            mostrarSheet = false
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        cor = VerdeOrcamento,
-                        corConteudo = Color.White,
-                    )
                 }
+                Spacer(modifier = Modifier.height(Espaco.md))
+                CampoValor(valor = valorInput, aoMudar = { valorInput = it }, legenda = "Zero remove o limite")
+                Spacer(modifier = Modifier.height(Espaco.lg))
+                BotaoPrincipal(
+                    texto = "Definir limite",
+                    onClick = {
+                        val valorDouble = converterTextoParaDouble(valorInput)
+                        item?.let { viewModel.definirLimite(it.categoria, valorDouble) }
+                        mostrarSheet = false
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    cor = VerdeOrcamento,
+                    corConteudo = Color.White,
+                )
+                Spacer(modifier = Modifier.height(Espaco.sm))
             }
         }
     }

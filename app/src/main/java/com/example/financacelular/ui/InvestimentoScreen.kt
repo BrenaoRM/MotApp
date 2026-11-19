@@ -27,6 +27,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
@@ -59,28 +61,22 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Savings
-import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -140,14 +136,11 @@ fun InvestimentoScreen(
     var mostrarSheetResgate by remember { mutableStateOf(false) }
     var valorResgateInput by remember { mutableStateOf("") }
 
-    val sheetStateAporte = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val sheetStateResgate = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var aporteParaExcluir by remember { mutableStateOf<AporteParaExcluir?>(null) }
 
     var novoNome by remember { mutableStateOf("") }
     var novaCategoria by remember { mutableStateOf("Renda Fixa") }
     var novoValor by remember { mutableStateOf("") }
-    var menuExpandido by remember { mutableStateOf(false) }
     var dataSelecionada by remember { mutableStateOf(LocalDate.now()) }
     var mostrarDatePicker by remember { mutableStateOf(false) }
     val formatoData = DateTimeFormatter.ofPattern("dd/MM/yyyy")
@@ -414,61 +407,51 @@ fun InvestimentoScreen(
                                         mostrarSheetResgate = true
                                     },
                                     modifier = Modifier.weight(1f),
-                                    cor = MaterialTheme.cores.textoGasto,
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(Espaco.lg))
-                            Text("Histórico de aportes", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Espaco.md))
 
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                ativo.aportes.forEach { aporte ->
-                                    Card(
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                            Column {
+                                ativo.aportes.forEachIndexed { indice, aporte ->
+                                    if (indice > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                "Aporte de ${aporte.data.format(formatoData)}",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Text(
-                                                    formatoMoeda.format(aporte.valorInvestido),
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    fontWeight = FontWeight.Bold
+                                        Text(
+                                            aporte.data.format(formatoData),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Text(
+                                            formatoMoeda.format(aporte.valorInvestido),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        IconButton(
+                                            onClick = {
+                                                aporteParaExcluir = AporteParaExcluir(
+                                                    data = aporte.data,
+                                                    valor = aporte.valorInvestido,
+                                                    nomeAtivo = ativo.nome,
+                                                    confirmar = { viewModel.deletarAporte(aporte) }
                                                 )
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                IconButton(
-                                                    onClick = {
-                                                        aporteParaExcluir = AporteParaExcluir(
-                                                            data = aporte.data,
-                                                            valor = aporte.valorInvestido,
-                                                            nomeAtivo = ativo.nome,
-                                                            confirmar = { viewModel.deletarAporte(aporte) }
-                                                        )
-                                                    },
-                                                    modifier = Modifier.size(Tamanho.toque)
-                                                ) {
-                                                    Icon(
-                                                        Icons.Outlined.DeleteOutline,
-                                                        contentDescription = "Excluir aporte",
-                                                        tint = MaterialTheme.cores.textoGasto,
-                                                        modifier = Modifier.size(Tamanho.icone)
-                                                    )
-                                                }
-                                            }
+                                            },
+                                            modifier = Modifier.size(Tamanho.toque)
+                                        ) {
+                                            Icon(
+                                                Icons.Outlined.DeleteOutline,
+                                                contentDescription = "Excluir aporte",
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(Tamanho.icone)
+                                            )
                                         }
                                     }
                                 }
                             }
-                            Spacer(modifier = Modifier.height(Espaco.lg))
+                            Spacer(modifier = Modifier.height(Espaco.md))
                         }
                     }
                 }
@@ -478,235 +461,125 @@ fun InvestimentoScreen(
         if (mostrarSheetResgate && ativoParaAporteOuResgate != null) {
             val ativo = ativoParaAporteOuResgate!!
             val valorTotalAtivo = ativo.valorTotal
+            var atalhoResgate by remember { mutableIntStateOf(-1) }
+            val fracoes = listOf(0.25, 0.50, 0.75, 1.0)
+            val valorDigitado = valorResgateInput.replace(",", ".").toDoubleOrNull() ?: 0.0
 
-            ModalBottomSheet(
-                onDismissRequest = { mostrarSheetResgate = false },
-                sheetState = sheetStateResgate,
-                containerColor = MaterialTheme.colorScheme.surface,
-                dragHandle = { BottomSheetDefaults.DragHandle() },
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                contentWindowInsets = { WindowInsets.statusBars }
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .imePadding()
-                        .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                "Resgatar de ${ativo.nome}",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text("Saldo disponível: ${formatoMoeda.format(valorTotalAtivo)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        IconButton(
-                            onClick = { mostrarSheetResgate = false },
-                            modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
-                        ) {
-                            Icon(Icons.Outlined.Close, contentDescription = "Fechar")
-                        }
+            FolhaApp(onDismiss = { mostrarSheetResgate = false }) {
+                CabecalhoDeFolha(
+                    titulo = "Resgatar",
+                    aoFechar = { mostrarSheetResgate = false },
+                    subtitulo = "${ativo.nome} · disponível ${formatoMoeda.format(valorTotalAtivo)}"
+                )
+                Spacer(modifier = Modifier.height(Espaco.md))
+                CampoValor(
+                    valor = valorResgateInput,
+                    aoMudar = { valorResgateInput = it; atalhoResgate = -1 },
+                    destrutivo = true
+                )
+                Spacer(modifier = Modifier.height(Espaco.md))
+                AtalhosDeValor(
+                    opcoes = listOf("25%", "50%", "75%", "Tudo"),
+                    selecionado = atalhoResgate,
+                    aoSelecionar = { i ->
+                        atalhoResgate = i
+                        valorResgateInput = String.format(Locale.ROOT, "%.2f", valorTotalAtivo * fracoes[i])
                     }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf(0.25 to "25%", 0.50 to "50%", 0.75 to "75%", 1.0 to "Total").forEach { (perc, label) ->
-                            OutlinedButton(
-                                onClick = {
-                                    val valorCalc = valorTotalAtivo * perc
-                                    valorResgateInput = String.format(Locale.ROOT, "%.2f", valorCalc)
-                                },
-                                modifier = Modifier.weight(1f).heightIn(min = Tamanho.toque),
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Text(label, style = MaterialTheme.typography.labelSmall)
+                )
+                Spacer(modifier = Modifier.height(Espaco.lg))
+                BotaoPrincipal(
+                    texto = if (valorDigitado > 0) "Resgatar ${formatoMoeda.format(valorDigitado)}" else "Resgatar",
+                    onClick = {
+                        if (valorDigitado > 0) {
+                            if (valorDigitado > valorTotalAtivo) {
+                                mensagem("Valor superior ao saldo do ativo!")
+                            } else {
+                                viewModel.resgatarDoAtivo(ativo.aportes, valorDigitado)
+                                mostrarSheetResgate = false
+                                mensagem("Resgate efetuado com sucesso!")
                             }
                         }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    OutlinedTextField(
-                        value = valorResgateInput,
-                        onValueChange = { valorResgateInput = it },
-                        label = { Text("Valor a retirar (R$)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    BotaoPrincipal(
-                        texto = "Confirmar Resgate",
-                        onClick = {
-                            val valorResgate = valorResgateInput.replace(",", ".").toDoubleOrNull() ?: 0.0
-                            if (valorResgate > 0) {
-                                if (valorResgate > valorTotalAtivo) {
-                                    mensagem("Valor superior ao saldo do ativo!")
-                                } else {
-                                    viewModel.resgatarDoAtivo(ativo.aportes, valorResgate)
-                                    mostrarSheetResgate = false
-                                    mensagem("Resgate efetuado com sucesso!")
-                                }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        cor = Coral,
-                        corConteudo = Color.White,
-                    )
-                }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    cor = Coral,
+                    corConteudo = Color.White,
+                )
+                Spacer(modifier = Modifier.height(Espaco.sm))
             }
         }
 
         if (mostrarSheetNovoAporte) {
-            ModalBottomSheet(
-                onDismissRequest = { mostrarSheetNovoAporte = false },
-                sheetState = sheetStateAporte,
-                containerColor = MaterialTheme.colorScheme.surface,
-                dragHandle = { BottomSheetDefaults.DragHandle() },
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                contentWindowInsets = { WindowInsets.statusBars }
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .imePadding()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = MaterialTheme.dimens.paddingScreen, vertical = 10.dp)
+            var outraCategoria by remember {
+                mutableStateOf(novaCategoria.isNotBlank() && categoriasSugestoes.none { it.equals(novaCategoria, ignoreCase = true) })
+            }
+            FolhaApp(onDismiss = { mostrarSheetNovoAporte = false }) {
+                CabecalhoDeFolha(titulo = "Novo aporte", aoFechar = { mostrarSheetNovoAporte = false })
+                Spacer(modifier = Modifier.height(Espaco.md))
+                CampoApp(valor = novoNome, aoMudar = { novoNome = it }, rotulo = "Ativo")
+                Spacer(modifier = Modifier.height(Espaco.md))
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Novo Aporte", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        IconButton(
-                            onClick = { mostrarSheetNovoAporte = false },
-                            modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
+                    categoriasSugestoes.forEach { sugestao ->
+                        BlocoDeEscolha(
+                            selecionado = !outraCategoria && novaCategoria.equals(sugestao, ignoreCase = true),
+                            onClick = { outraCategoria = false; novaCategoria = sugestao }
                         ) {
-                            Icon(Icons.Outlined.Close, contentDescription = "Fechar")
+                            Text(sugestao, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, maxLines = 1)
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    OutlinedTextField(
-                        value = novoNome,
-                        onValueChange = { novoNome = it },
-                        label = { Text("Nome do Ativo (ex: CDB Porquinho)") },
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    ExposedDropdownMenuBox(
-                        expanded = menuExpandido,
-                        onExpandedChange = { menuExpandido = it }
+                    BlocoDeEscolha(
+                        selecionado = outraCategoria,
+                        onClick = { outraCategoria = true; novaCategoria = "" }
                     ) {
-                        OutlinedTextField(
-                            value = novaCategoria,
-                            onValueChange = { novaCategoria = it },
-                            label = { Text("Categoria") },
-                            shape = RoundedCornerShape(14.dp),
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuExpandido) },
-                            modifier = Modifier
-                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable)
-                                .fillMaxWidth(),
-                            singleLine = true
-                        )
-                        val categoriasFiltradas = categoriasSugestoes.filter { it.contains(novaCategoria, ignoreCase = true) }
-                        if (categoriasFiltradas.isNotEmpty()) {
-                            ExposedDropdownMenu(
-                                expanded = menuExpandido,
-                                onDismissRequest = { menuExpandido = false }
-                            ) {
-                                categoriasFiltradas.forEach { sugestao ->
-                                    DropdownMenuItem(
-                                        text = { Text(sugestao) },
-                                        onClick = {
-                                            novaCategoria = sugestao
-                                            menuExpandido = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
+                        Text("Outra", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, maxLines = 1)
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    OutlinedTextField(
-                        value = novoValor,
-                        onValueChange = { novoValor = it },
-                        label = { Text("Valor Investido (R$)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    val interactionSource = remember { MutableInteractionSource() }
-                    LaunchedEffect(interactionSource) {
-                        interactionSource.interactions.collect {
-                            if (it is PressInteraction.Release) {
-                                mostrarDatePicker = true
-                            }
+                }
+                if (outraCategoria) {
+                    Spacer(modifier = Modifier.height(Espaco.md))
+                    CampoApp(valor = novaCategoria, aoMudar = { novaCategoria = it }, rotulo = "Categoria")
+                }
+                Spacer(modifier = Modifier.height(Espaco.sm))
+                CampoValor(valor = novoValor, aoMudar = { novoValor = it })
+                Spacer(modifier = Modifier.height(Espaco.sm))
+                Box {
+                    CampoApp(
+                        valor = dataSelecionada.format(formatoData),
+                        aoMudar = {},
+                        rotulo = "Data",
+                        leitura = true,
+                        trailingIcon = {
+                            Icon(Icons.Outlined.CalendarToday, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                    }
-
-                    OutlinedTextField(
-                        value = dataSelecionada.format(formatoData),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Data do Aporte") },
-                        shape = RoundedCornerShape(14.dp),
-                        trailingIcon = { Icon(Icons.Outlined.CalendarToday, contentDescription = "Selecionar Data", tint = AmareloInvestimento) },
-                        interactionSource = interactionSource,
-                        modifier = Modifier.fillMaxWidth()
                     )
-
-                    Spacer(modifier = Modifier.height(28.dp))
-
-                    BotaoPrincipal(
-                        texto = "Salvar Aporte",
-                        onClick = {
-                            val valorDouble = novoValor.replace(",", ".").toDoubleOrNull() ?: 0.0
-                            if (novoNome.isNotBlank() && valorDouble > 0) {
-                                viewModel.inserirAporte(
-                                    nome = novoNome,
-                                    categoria = novaCategoria.ifBlank { "Geral" },
-                                    valor = valorDouble,
-                                    dataAporte = dataSelecionada
-                                )
-                                mostrarSheetNovoAporte = false
-                                mensagem("Aporte guardado com sucesso!")
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        cor = AmareloInvestimento,
-                        corConteudo = Color.White,
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable(role = Role.Button, onClickLabel = "Selecionar data") { mostrarDatePicker = true }
                     )
                 }
+                Spacer(modifier = Modifier.height(Espaco.lg))
+                BotaoPrincipal(
+                    texto = "Aportar",
+                    onClick = {
+                        val valorDouble = novoValor.replace(",", ".").toDoubleOrNull() ?: 0.0
+                        if (novoNome.isNotBlank() && valorDouble > 0) {
+                            viewModel.inserirAporte(
+                                nome = novoNome,
+                                categoria = novaCategoria.ifBlank { "Geral" },
+                                valor = valorDouble,
+                                dataAporte = dataSelecionada
+                            )
+                            mostrarSheetNovoAporte = false
+                            mensagem("Aporte guardado com sucesso!")
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    cor = AmareloInvestimento,
+                    corConteudo = Color.White,
+                )
+                Spacer(modifier = Modifier.height(Espaco.sm))
             }
         }
 

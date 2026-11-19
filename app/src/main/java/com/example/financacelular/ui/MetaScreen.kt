@@ -25,9 +25,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -42,16 +41,14 @@ import com.example.financacelular.ui.theme.Verde
 import com.example.financacelular.ui.theme.cores
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Flag
-import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import com.example.financacelular.ui.theme.Espaco
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -92,7 +89,7 @@ fun MetaScreen(
     aoMetaAcionada: () -> Unit = {},
     acionarGuardarValorExterno: Boolean = false,
     aoGuardarValorAcionado: () -> Unit = {},
-    aoVoltar: (() -> Unit)? = null
+    estadoLista: LazyListState
 ) {
     val metasCarregadas by viewModel.metas.collectAsState()
     val metas = metasCarregadas ?: emptyList()
@@ -104,8 +101,6 @@ fun MetaScreen(
     var mostrarSheetGuardarValor by rememberSaveable { mutableStateOf(false) }
     val metaParaEditar: Meta? = metas.firstOrNull { it.id == metaParaEditarId }
     val metaParaAdicionarValor: Meta? = metas.firstOrNull { it.id == metaParaAdicionarValorId }
-
-    val sheetStateAdicionarValor = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var novoNome by rememberSaveable { mutableStateOf("") }
     var novoValorAlvo by rememberSaveable { mutableStateOf("") }
@@ -140,20 +135,8 @@ fun MetaScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .padding(horizontal = MaterialTheme.dimens.paddingScreen),
-            contentPadding = PaddingValues(
-                top = 16.dp,
-                bottom = espacoParaBarraFlutuante()
-            )
-        ) {
+        ListaDePagina(estadoLista) {
             item {
-                CabecalhoPadrao("Metas", aoVoltar = aoVoltar)
-                Spacer(modifier = Modifier.height(16.dp))
-
                 val metasConcluidas = metas.count { it.valorAlvo > 0 && it.valorAtual >= it.valorAlvo }
                 val progressoGeral = if (totalAlvo > 0) (totalAcumulado / totalAlvo).toFloat() else 0f
                 CartaoHeroDePagina(RoxoMeta) {
@@ -270,30 +253,15 @@ fun MetaScreen(
                                 aoFechar = { mostrarSheetNovaMeta = false }
                             )
 
-                            Spacer(modifier = Modifier.height(24.dp))
+                            Spacer(modifier = Modifier.height(Espaco.md))
 
-                            OutlinedTextField(
-                                value = novoNome,
-                                onValueChange = { novoNome = it },
-                                label = { Text("Nome da Meta (ex: Viagem de Férias)") },
-                                shape = RoundedCornerShape(14.dp),
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
+                            CampoApp(valor = novoNome, aoMudar = { novoNome = it }, rotulo = "Nome")
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(Espaco.sm))
 
-                            OutlinedTextField(
-                                value = novoValorAlvo,
-                                onValueChange = { novoValorAlvo = it },
-                                label = { Text("Valor Alvo (R$)") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                shape = RoundedCornerShape(14.dp),
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
+                            CampoValor(valor = novoValorAlvo, aoMudar = { novoValorAlvo = it }, legenda = "Valor alvo")
 
-                            Spacer(modifier = Modifier.height(32.dp))
+                            Spacer(modifier = Modifier.height(Espaco.lg))
 
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 if (metaParaEditar != null) {
@@ -309,7 +277,7 @@ fun MetaScreen(
                                 }
 
                                 BotaoPrincipal(
-                                    texto = if (metaParaEditar == null) "Criar Meta" else "Salvar Meta",
+                                    texto = if (metaParaEditar == null) "Criar" else "Salvar",
                                     onClick = {
                                         val valorDouble = novoValorAlvo.replace(",", ".").toDoubleOrNull() ?: 0.0
                                         if (novoNome.isNotBlank() && valorDouble > 0) {
@@ -332,96 +300,42 @@ fun MetaScreen(
             }
         }
 
-        // --- Bottom Sheet "Guardar valor": escolhe a meta, valores rápidos e prévia do progresso ---
+        // --- Folha "Guardar valor": escolhe a meta, valores rápidos e prévia do progresso ---
         if (mostrarSheetGuardarValor) {
             var valorInput by rememberSaveable { mutableStateOf("") }
             val metaAtual = metaParaAdicionarValor
             val valorDigitado = valorInput.replace(",", ".").toDoubleOrNull() ?: 0.0
 
-            ModalBottomSheet(
-                onDismissRequest = { mostrarSheetGuardarValor = false },
-                sheetState = sheetStateAdicionarValor,
-                containerColor = MaterialTheme.colorScheme.surface,
-                dragHandle = { BottomSheetDefaults.DragHandle() },
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                contentWindowInsets = { WindowInsets.statusBars }
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .imePadding()
-                        .padding(bottom = 10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = MaterialTheme.dimens.paddingScreen),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Guardar valor",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(
-                            onClick = { mostrarSheetGuardarValor = false },
-                            modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
+            FolhaApp(onDismiss = { mostrarSheetGuardarValor = false }) {
+                CabecalhoDeFolha(titulo = "Guardar valor", aoFechar = { mostrarSheetGuardarValor = false })
+                Spacer(modifier = Modifier.height(Espaco.md))
+
+                // Seletor de meta (blocos com mini-progresso)
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(metas) { m ->
+                        val prog = if (m.valorAlvo > 0) (m.valorAtual / m.valorAlvo).toFloat().coerceIn(0f, 1f) else 0f
+                        BlocoDeEscolha(
+                            selecionado = m == metaAtual,
+                            onClick = { metaParaAdicionarValorId = m.id },
+                            modifier = Modifier.width(132.dp)
                         ) {
-                            Icon(Icons.Outlined.Close, contentDescription = "Fechar")
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        "PARA QUAL META?",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = MaterialTheme.dimens.paddingScreen)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Seletor de meta (cartões com mini-progresso)
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = MaterialTheme.dimens.paddingScreen),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        items(metas) { m ->
-                            val selecionada = m == metaAtual
-                            val prog = if (m.valorAlvo > 0) (m.valorAtual / m.valorAlvo).toFloat().coerceIn(0f, 1f) else 0f
-                            Column(
-                                modifier = Modifier
-                                    .width(150.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(
-                                        if (selecionada) RoxoMeta.copy(alpha = 0.14f)
-                                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                                    )
-                                    .clickable(role = Role.Button) { metaParaAdicionarValorId = m.id }
-                                    .padding(12.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Outlined.Flag, contentDescription = null, tint = RoxoMeta, modifier = Modifier.size(Tamanho.iconePequeno))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        m.nome,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(10.dp))
+                            Column {
+                                Text(
+                                    m.nome,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
                                 LinearProgressIndicator(
                                     progress = { prog },
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(5.dp)
-                                        .clip(RoundedCornerShape(3.dp)),
+                                        .height(4.dp)
+                                        .clip(RoundedCornerShape(2.dp)),
                                     color = RoxoMeta,
-                                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                                    trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
@@ -434,105 +348,70 @@ fun MetaScreen(
                             }
                         }
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(Espaco.md))
+                CampoValor(valor = valorInput, aoMudar = { valorInput = it })
+                Spacer(modifier = Modifier.height(Espaco.sm))
 
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = MaterialTheme.dimens.paddingScreen)
-                    ) {
+                // Valores rápidos: cada toque soma ao valor digitado
+                AtalhosDeValor(
+                    opcoes = ValoresRapidos.map { "+$it" },
+                    selecionado = -1,
+                    aoSelecionar = { i -> valorInput = valorParaTexto(valorDigitado + ValoresRapidos[i]) }
+                )
+
+                // Prévia: como a meta fica depois do aporte
+                if (metaAtual != null && valorDigitado > 0 && metaAtual.valorAlvo > 0) {
+                    val novoTotal = metaAtual.valorAtual + valorDigitado
+                    val progAntes = (metaAtual.valorAtual / metaAtual.valorAlvo).toFloat().coerceIn(0f, 1f)
+                    val progDepois = (novoTotal / metaAtual.valorAlvo).toFloat().coerceIn(0f, 1f)
+                    val progAnimado by animateFloatAsState(targetValue = progDepois, label = "previaProgresso")
+
+                    Spacer(modifier = Modifier.height(Espaco.lg))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(
-                            "QUANTO VOCÊ QUER GUARDAR?",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            metaAtual.nome,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Valores rápidos: cada toque soma ao valor digitado
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            ValoresRapidos.forEach { rapido ->
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(RoxoMeta.copy(alpha = 0.12f))
-                                        .clickable(role = Role.Button) { valorInput = valorParaTexto(valorDigitado + rapido) }
-                                        .heightIn(min = Tamanho.toque),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        "+$rapido",
-                                        color = RoxoMeta,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        OutlinedTextField(
-                            value = valorInput,
-                            onValueChange = { valorInput = it },
-                            label = { Text("Valor a guardar (R$)") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-
-                        // Prévia: como a meta fica depois do aporte
-                        if (metaAtual != null && valorDigitado > 0 && metaAtual.valorAlvo > 0) {
-                            val novoTotal = metaAtual.valorAtual + valorDigitado
-                            val progAntes = (metaAtual.valorAtual / metaAtual.valorAlvo).toFloat().coerceIn(0f, 1f)
-                            val progDepois = (novoTotal / metaAtual.valorAlvo).toFloat().coerceIn(0f, 1f)
-                            val progAnimado by animateFloatAsState(targetValue = progDepois, label = "previaProgresso")
-
-                            Spacer(modifier = Modifier.height(16.dp))
-                            LinearProgressIndicator(
-                                progress = { progAnimado },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(8.dp)
-                                    .clip(RoundedCornerShape(4.dp)),
-                                color = RoxoMeta,
-                                trackColor = MaterialTheme.colorScheme.surfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = if (novoTotal >= metaAtual.valorAlvo) {
-                                    "Meta alcançada! ${formato.format(novoTotal)} / ${formato.format(metaAtual.valorAlvo)}"
-                                } else {
-                                    "${(progAntes * 100).toInt()}% → ${(progDepois * 100).toInt()}%  ·  ${formato.format(novoTotal)} / ${formato.format(metaAtual.valorAlvo)}"
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = RoxoMeta,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        BotaoPrincipal(
-                            texto = if (valorDigitado > 0) "Guardar ${formato.format(valorDigitado)}" else "Confirmar Aporte",
-                            onClick = {
-                                if (metaAtual != null && valorDigitado > 0) {
-                                    viewModel.adicionarValor(metaAtual, valorDigitado)
-                                    mostrarSheetGuardarValor = false
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            cor = RoxoMeta,
-                            corConteudo = Color.White,
-                            enabled = metaAtual != null && valorDigitado > 0
+                        Text(
+                            text = if (novoTotal >= metaAtual.valorAlvo) "Meta alcançada" else "${(progAntes * 100).toInt()}% → ${(progDepois * 100).toInt()}%",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
                         )
                     }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    LinearProgressIndicator(
+                        progress = { progAnimado },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                        color = RoxoMeta,
+                        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                    )
                 }
+
+                Spacer(modifier = Modifier.height(Espaco.lg))
+
+                BotaoPrincipal(
+                    texto = if (valorDigitado > 0) "Guardar ${formato.format(valorDigitado)}" else "Guardar",
+                    onClick = {
+                        if (metaAtual != null && valorDigitado > 0) {
+                            viewModel.adicionarValor(metaAtual, valorDigitado)
+                            mostrarSheetGuardarValor = false
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    cor = RoxoMeta,
+                    corConteudo = Color.White,
+                    enabled = metaAtual != null && valorDigitado > 0
+                )
+                Spacer(modifier = Modifier.height(Espaco.sm))
             }
         }
     }

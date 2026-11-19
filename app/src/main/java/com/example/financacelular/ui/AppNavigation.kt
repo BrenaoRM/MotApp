@@ -4,6 +4,7 @@ import androidx.compose.runtime.DisposableEffect
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -92,7 +93,7 @@ import com.example.financacelular.ui.theme.Verde
 import com.example.financacelular.ui.theme.dimens
 import kotlinx.coroutines.launch
 
-/** Altura do cabeçalho das abas; as telas das abas a usam como espaço no topo da lista para o cabeçalho subir junto com elas. */
+/** Altura do cabeçalho; as telas com cabeçalho a usam como espaço no topo da lista para ele subir junto com elas. */
 val LocalEspacoCabecalho = compositionLocalOf { 0.dp }
 
 /** Primeiro item das listas das abas: reserva exatamente a altura do cabeçalho que fica sobre a lista. */
@@ -134,6 +135,7 @@ private const val ROTA_INVESTIMENTO = "investimento"
 private const val ROTA_CONFIGURACOES = "configuracoes"
 private const val ROTA_PARCELADOS = "parcelados"
 private const val ROTA_CATEGORIAS = "categorias"
+private val ROTAS_INTERNAS_COM_CABECALHO = setOf(ROTA_CARTAO, ROTA_RECORRENTES, ROTA_PARCELADOS, ROTA_METAS, ROTA_ORCAMENTO)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -193,6 +195,17 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     val listaInicio = rememberLazyListState()
     val listaAnalise = rememberLazyListState()
     val listaAgenda = rememberLazyListState()
+    val listaCartao = rememberLazyListState()
+    val listaRecorrentes = rememberLazyListState()
+    val listaParcelados = rememberLazyListState()
+    val listaMetas = rememberLazyListState()
+    val listaOrcamento = rememberLazyListState()
+    val escopoLista = rememberCoroutineScope()
+    // Abre uma tela interna sempre no topo (a lista fica aqui, então guardaria a rolagem da visita anterior)
+    fun abrirInterna(rota: String, lista: LazyListState) {
+        escopoLista.launch { lista.scrollToItem(0) }
+        navController.navigate(rota)
+    }
 
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -241,13 +254,21 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     val emTelaCategorias = currentDestination?.route == ROTA_CATEGORIAS
     val emTelaConfiguracoes = currentDestination?.route == ROTA_CONFIGURACOES
     val abaAtual = DestinoPrincipal.values().firstOrNull { it.rota == currentDestination?.route }
-    // Última aba exibida: mantém o cabeçalho certo enquanto ele some indo para Configurações etc.
-    var ultimaAba by remember { mutableStateOf(DestinoPrincipal.INICIO) }
-    if (abaAtual != null) ultimaAba = abaAtual
-    val listaDaAba: LazyListState? = when (ultimaAba) {
-        DestinoPrincipal.INICIO -> listaInicio
-        DestinoPrincipal.ANALISE -> listaAnalise
-        DestinoPrincipal.CALENDARIO -> listaAgenda
+    // Telas com o cabeçalho fixo fora do NavHost: as 4 abas e as 5 internas (Cartões, Recorrentes, Parcelados, Metas, Orçamento)
+    val rotaAtual = currentDestination?.route
+    val comCabecalhoFixo = abaAtual != null || rotaAtual in ROTAS_INTERNAS_COM_CABECALHO
+    // Última rota com cabeçalho: mantém o conteúdo certo enquanto ele some indo para Configurações etc.
+    var rotaDoCabecalho by remember { mutableStateOf(DestinoPrincipal.INICIO.rota) }
+    if (comCabecalhoFixo && rotaAtual != null) rotaDoCabecalho = rotaAtual
+    val listaDaAba: LazyListState? = when (rotaDoCabecalho) {
+        DestinoPrincipal.INICIO.rota -> listaInicio
+        DestinoPrincipal.ANALISE.rota -> listaAnalise
+        DestinoPrincipal.CALENDARIO.rota -> listaAgenda
+        ROTA_CARTAO -> listaCartao
+        ROTA_RECORRENTES -> listaRecorrentes
+        ROTA_PARCELADOS -> listaParcelados
+        ROTA_METAS -> listaMetas
+        ROTA_ORCAMENTO -> listaOrcamento
         else -> null // Contas não rola
     }
     val deslocamentoCabecalho = remember { Animatable(0f) }
@@ -485,11 +506,11 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                             estadoLista = listaInicio,
                             aoAbrirExtrato = { navController.navigate(ROTA_EXTRATO) },
                             aoAbrirInvestimento = { navController.navigate(ROTA_INVESTIMENTO) },
-                            aoAbrirCartao = { navController.navigate(ROTA_CARTAO) },
-                            aoAbrirAssinaturas = { navController.navigate(ROTA_RECORRENTES) },
-                            aoAbrirParcelados = { navController.navigate(ROTA_PARCELADOS) },
-                            aoAbrirOrcamento = { navController.navigate(ROTA_ORCAMENTO) },
-                            aoAbrirMetas = { navController.navigate(ROTA_METAS) }
+                            aoAbrirCartao = { abrirInterna(ROTA_CARTAO, listaCartao) },
+                            aoAbrirAssinaturas = { abrirInterna(ROTA_RECORRENTES, listaRecorrentes) },
+                            aoAbrirParcelados = { abrirInterna(ROTA_PARCELADOS, listaParcelados) },
+                            aoAbrirOrcamento = { abrirInterna(ROTA_ORCAMENTO, listaOrcamento) },
+                            aoAbrirMetas = { abrirInterna(ROTA_METAS, listaMetas) }
                         )
                     }
                     composable(DestinoPrincipal.ANALISE.rota) {
@@ -535,7 +556,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         OrcamentoScreen(
                             acionarNovoLimiteExterno = acionarNovoLimiteOrcamento,
                             aoNovoLimiteAcionado = { acionarNovoLimiteOrcamento = false },
-                            aoVoltar = { navController.popBackStack() }
+                            estadoLista = listaOrcamento
                         )
                     }
                     composable(ROTA_METAS) {
@@ -544,11 +565,11 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                             aoMetaAcionada = { acionarNovaMeta = false },
                             acionarGuardarValorExterno = acionarGuardarValorMeta,
                             aoGuardarValorAcionado = { acionarGuardarValorMeta = false },
-                            aoVoltar = { navController.popBackStack() }
+                            estadoLista = listaMetas
                         )
                     }
                     composable(ROTA_RECORRENTES) {
-                        RecorrenteScreen(aoVoltar = { navController.popBackStack() })
+                        RecorrenteScreen(estadoLista = listaRecorrentes)
                     }
                     composable(ROTA_CARTAO) { backStackEntry ->
                         val cartaoViewModel: CartaoViewModel = viewModel(backStackEntry)
@@ -558,7 +579,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         }
                         CartaoScreen(
                             viewModel = cartaoViewModel,
-                            aoVoltar = { navController.popBackStack() }
+                            estadoLista = listaCartao
                         )
                     }
                     composable(ROTA_EXTRATO) {
@@ -577,7 +598,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         )
                     }
                     composable(ROTA_PARCELADOS) {
-                        ParceladosScreen(aoVoltar = { navController.popBackStack() })
+                        ParceladosScreen(estadoLista = listaParcelados)
                     }
                     composable(ROTA_CATEGORIAS) {
                         CategoriasScreen(
@@ -588,9 +609,10 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                     }
                 }
 
-            // Cabeçalho das 4 abas: não troca junto com a transição entre telas e sobe junto com a lista
+            // Cabeçalho das telas com cabeçalho fixo: fica fora do NavHost, então não transita com a tela; o conteúdo troca
+            // com um fade curto e ele desliza até a posição da lista da tela nova e depois acompanha a rolagem dela
             AnimatedVisibility(
-                visible = abaAtual != null,
+                visible = comCabecalhoFixo,
                 enter = fadeIn(tween(TEMPO_ENTRADA, TEMPO_SAIDA, FastOutSlowInEasing)),
                 exit = fadeOut(tween(TEMPO_SAIDA))
             ) {
@@ -608,26 +630,46 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         .padding(horizontal = MaterialTheme.dimens.paddingScreen)
                         .padding(top = 16.dp, bottom = 16.dp)
                 ) {
-                    when (ultimaAba) {
-                        DestinoPrincipal.ANALISE -> CabecalhoPadrao(
-                            titulo = periodoAnalise.tituloCurto(),
-                            subtitulo = periodoAnalise.subtituloCurto(),
-                            aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) },
-                            aoAnterior = { analiseViewModel.periodoAnterior() },
-                            aoSeguinte = { analiseViewModel.periodoSeguinte() },
-                            aoTocarTitulo = { folhaPeriodoAberta = true }
-                        )
-                        DestinoPrincipal.CONTAS -> CabecalhoPadrao(
-                            titulo = "Contas",
-                            aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) }
-                        )
-                        else -> CabecalhoPadrao(
-                            titulo = mesGlobal.nomeDoMes(),
-                            subtitulo = mesGlobal.year.toString(),
-                            aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) },
-                            aoAnterior = { MesGlobal.anterior() },
-                            aoSeguinte = { MesGlobal.seguinte() }
-                        )
+                    val voltar: () -> Unit = { navController.popBackStack() }
+                    Crossfade(targetState = rotaDoCabecalho, animationSpec = tween(TEMPO_SAIDA + 60)) { rota ->
+                        when (rota) {
+                            DestinoPrincipal.ANALISE.rota -> CabecalhoPadrao(
+                                titulo = periodoAnalise.tituloCurto(),
+                                subtitulo = periodoAnalise.subtituloCurto(),
+                                aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) },
+                                aoAnterior = { analiseViewModel.periodoAnterior() },
+                                aoSeguinte = { analiseViewModel.periodoSeguinte() },
+                                aoTocarTitulo = { folhaPeriodoAberta = true }
+                            )
+                            DestinoPrincipal.CONTAS.rota -> CabecalhoPadrao(
+                                titulo = "Contas",
+                                aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) }
+                            )
+                            ROTA_CARTAO -> CabecalhoPadrao(
+                                titulo = mesGlobal.nomeDoMes(),
+                                subtitulo = "Cartões · ${mesGlobal.year}",
+                                aoVoltar = voltar,
+                                aoAnterior = { MesGlobal.anterior() },
+                                aoSeguinte = { MesGlobal.seguinte() }
+                            )
+                            ROTA_ORCAMENTO -> CabecalhoPadrao(
+                                titulo = mesGlobal.nomeDoMes(),
+                                subtitulo = "Orçamento · ${mesGlobal.year}",
+                                aoVoltar = voltar,
+                                aoAnterior = { MesGlobal.anterior() },
+                                aoSeguinte = { MesGlobal.seguinte() }
+                            )
+                            ROTA_RECORRENTES -> CabecalhoPadrao("Recorrentes", aoVoltar = voltar)
+                            ROTA_PARCELADOS -> CabecalhoPadrao("Parcelamentos", aoVoltar = voltar)
+                            ROTA_METAS -> CabecalhoPadrao("Metas", aoVoltar = voltar)
+                            else -> CabecalhoPadrao(
+                                titulo = mesGlobal.nomeDoMes(),
+                                subtitulo = mesGlobal.year.toString(),
+                                aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) },
+                                aoAnterior = { MesGlobal.anterior() },
+                                aoSeguinte = { MesGlobal.seguinte() }
+                            )
+                        }
                     }
                 }
             }

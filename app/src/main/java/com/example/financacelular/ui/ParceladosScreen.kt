@@ -14,17 +14,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -53,7 +53,7 @@ import java.util.Locale
 @Composable
 fun ParceladosScreen(
     viewModel: ParceladosViewModel = viewModel(),
-    aoVoltar: (() -> Unit)? = null
+    estadoLista: LazyListState
 ) {
     val comprasCarregadas by viewModel.comprasAgrupadas.collectAsState()
     val comprasAgrupadas = comprasCarregadas.orEmpty()
@@ -67,17 +67,8 @@ fun ParceladosScreen(
     var confirmandoCancelamento by remember { mutableStateOf(false) }
     val compraDetalhe = compraDetalheChave?.let { chave -> comprasAgrupadas.find { it.chave == chave } }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .padding(horizontal = MaterialTheme.dimens.paddingScreen),
-        contentPadding = PaddingValues(top = 16.dp, bottom = espacoParaBarraFlutuante())
-    ) {
+    ListaDePagina(estadoLista) {
         item {
-            CabecalhoPadrao("Parcelamentos", aoVoltar = aoVoltar)
-            Spacer(modifier = Modifier.height(16.dp))
-
             CartaoHeroDePagina(TealParcelados) {
                 Text(
                     "Restante a pagar",
@@ -240,7 +231,7 @@ private fun DetalheDaCompra(
         if (!quitada) {
             Spacer(modifier = Modifier.height(Espaco.xl))
             BotaoSecundario(
-                texto = "Cancelar ${compra.parcelasRestantes} parcelas restantes",
+                texto = "Cancelar ${compra.parcelasRestantes} parcelas",
                 onClick = aoCancelar,
                 modifier = Modifier.fillMaxWidth(),
                 cor = MaterialTheme.cores.textoGasto

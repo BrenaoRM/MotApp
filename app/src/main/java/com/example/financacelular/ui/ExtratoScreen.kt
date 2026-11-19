@@ -347,10 +347,9 @@ fun ExtratoScreen(
     if (mostrarFiltros) {
         FolhaApp(onDismiss = { mostrarFiltros = false }) {
                 CabecalhoDeFolha(titulo = "Filtros", aoFechar = { mostrarFiltros = false })
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(Espaco.md))
 
-                RotuloFiltro("Tipo de movimentação")
-                SeletorSegmentado(
+                SeletorQuadrado(
                     opcoes = listOf("Todas", "Gastos", "Ganhos"),
                     indiceSelecionado = when (filtroTipo) {
                         TipoTransacao.DESPESA -> 1
@@ -363,25 +362,21 @@ fun ExtratoScreen(
                             2 -> TipoTransacao.RECEITA
                             else -> null
                         }
-                    },
-                    cor = MaterialTheme.colorScheme.primary
+                    }
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
-                RotuloFiltro("Categoria")
+                Spacer(modifier = Modifier.height(Espaco.md))
                 ExposedDropdownMenuBox(
                     expanded = menuCategoriaExpandido,
                     onExpandedChange = { menuCategoriaExpandido = it }
                 ) {
-                    OutlinedTextField(
-                        value = filtroCategoria?.nome ?: "Todas as categorias",
-                        onValueChange = {},
-                        readOnly = true,
-                        shape = RoundedCornerShape(14.dp),
+                    CampoApp(
+                        valor = filtroCategoria?.nome ?: "Todas as categorias",
+                        aoMudar = {},
+                        rotulo = "Categoria",
+                        leitura = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuCategoriaExpandido) },
-                        modifier = Modifier
-                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                            .fillMaxWidth()
+                        modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                     )
                     ExposedDropdownMenu(
                         expanded = menuCategoriaExpandido,
@@ -763,16 +758,6 @@ private fun LinhaTransacao(
 // Componentes de formulário / filtros
 // =====================================================================
 
-@Composable
-private fun RotuloFiltro(texto: String) {
-    Text(
-        texto,
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    Spacer(modifier = Modifier.height(10.dp))
-}
 
 /** Campo somente leitura que abre um seletor de data ao toque. */
 @Composable
@@ -784,32 +769,27 @@ private fun CampoData(
     modifier: Modifier = Modifier,
     placeholder: String? = null
 ) {
-    val interacao = remember { MutableInteractionSource() }
-    LaunchedEffect(interacao) {
-        interacao.interactions.collect {
-            if (it is PressInteraction.Release) aoAbrir()
-        }
+    Box(modifier = modifier) {
+        CampoApp(
+            valor = valor.ifEmpty { placeholder.orEmpty() },
+            aoMudar = {},
+            rotulo = rotulo,
+            leitura = true,
+            trailingIcon = {
+                Icon(
+                    Icons.Outlined.CalendarToday,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(Tamanho.icone)
+                )
+            }
+        )
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable(role = Role.Button, onClickLabel = descricao, onClick = aoAbrir)
+        )
     }
-    OutlinedTextField(
-        value = valor,
-        onValueChange = {},
-        readOnly = true,
-        singleLine = true,
-        label = { Text(rotulo) },
-        placeholder = placeholder?.let { { Text(it) } },
-        shape = RoundedCornerShape(14.dp),
-        textStyle = MaterialTheme.typography.bodyMedium,
-        trailingIcon = {
-            Icon(
-                Icons.Outlined.CalendarToday,
-                contentDescription = descricao,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(Tamanho.icone)
-            )
-        },
-        interactionSource = interacao,
-        modifier = modifier
-    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -885,71 +865,27 @@ private fun BottomSheetEditarTransacao(
             )
           } else {
           Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Editar lançamento",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(corTipo.copy(alpha = 0.14f))
-                            .padding(horizontal = 12.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = if (transacao.tipo == TipoTransacao.DESPESA) "Gasto" else "Ganho",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = corTextoTipo
-                        )
-                    }
-                }
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.size(Tamanho.toque).background(
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        CircleShape
-                    )
-                ) {
-                    Icon(Icons.Outlined.Close, contentDescription = "Fechar")
-                }
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-
-            OutlinedTextField(
-                value = valor,
-                onValueChange = { valor = it },
-                label = { Text("Valor") },
-                prefix = { Text("R$ ", fontWeight = FontWeight.Bold) },
-                textStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
+            CabecalhoDeFolha(
+                titulo = "Editar lançamento",
+                aoFechar = onDismiss,
+                subtitulo = if (transacao.tipo == TipoTransacao.DESPESA) "Gasto" else "Ganho"
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Espaco.md))
+
+            CampoValor(valor = valor, aoMudar = { valor = it })
+            Spacer(modifier = Modifier.height(Espaco.sm))
 
             ExposedDropdownMenuBox(
                 expanded = menuExpandido,
                 onExpandedChange = { menuExpandido = it }
             ) {
-                OutlinedTextField(
-                    value = categoriaSelecionada?.nome ?: "",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Categoria") },
-                    shape = RoundedCornerShape(14.dp),
+                CampoApp(
+                    valor = categoriaSelecionada?.nome ?: "",
+                    aoMudar = {},
+                    rotulo = "Categoria",
+                    leitura = true,
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuExpandido) },
-                    modifier = Modifier
-                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                        .fillMaxWidth()
+                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                 )
                 ExposedDropdownMenu(
                     expanded = menuExpandido,
@@ -966,26 +902,20 @@ private fun BottomSheetEditarTransacao(
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Espaco.sm))
 
-            OutlinedTextField(
-                value = descricao,
-                onValueChange = { descricao = it },
-                label = { Text("Descrição (opcional)") },
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+            CampoApp(valor = descricao, aoMudar = { descricao = it }, rotulo = "Descrição")
+            Spacer(modifier = Modifier.height(Espaco.sm))
 
             CampoData(
                 valor = dataSelecionada.format(formatoData),
-                rotulo = "Data do lançamento",
+                rotulo = "Data",
                 descricao = "Selecionar data",
                 aoAbrir = { mostrarDatePicker = true },
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(Espaco.lg))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),

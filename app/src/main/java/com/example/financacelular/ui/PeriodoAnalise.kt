@@ -125,16 +125,16 @@ fun FolhaPeriodo(
     val atalhos = remember { atalhosDePeriodo() }
     FolhaApp(onDismiss = aoFechar) {
         CabecalhoDeFolha(titulo = "Período", aoFechar = aoFechar)
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(8.dp))
         FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             atalhos.forEach { (nome, valor) ->
                 AtalhoDePeriodo(nome, selecionado = valor == periodo, onClick = { aoEscolher(valor) })
             }
         }
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(14.dp))
         Text(
             "Ou escolha as datas",
             style = MaterialTheme.typography.labelMedium,

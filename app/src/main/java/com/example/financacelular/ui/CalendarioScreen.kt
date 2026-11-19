@@ -610,19 +610,7 @@ fun CalendarioScreen(
         FolhaApp(onDismiss = { mostrarSheetNovoAfazer = false }) {
             CabecalhoDeFolha(titulo = "Adicionar Afazer", aoFechar = { mostrarSheetNovoAfazer = false })
             Spacer(modifier = Modifier.height(16.dp))
-            OutlinedTextField(
-                value = textoNovoAfazer,
-                onValueChange = { textoNovoAfazer = it },
-                label = { Text("Descreva a tarefa...") },
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = RoxoHero,
-                    focusedLabelColor = RoxoHero,
-                    cursorColor = RoxoHero
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
+            CampoApp(valor = textoNovoAfazer, aoMudar = { textoNovoAfazer = it }, rotulo = "Tarefa")
             Spacer(modifier = Modifier.height(16.dp))
 
             // Switch para opção de Sincronização com o Google Agenda
@@ -911,15 +899,7 @@ private fun FolhaEdicaoAgenda(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    OutlinedTextField(
-                        value = titulo,
-                        onValueChange = { titulo = it },
-                        label = { Text("Título") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(14.dp),
-                        colors = coresCampo,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    CampoApp(valor = titulo, aoMudar = { titulo = it }, rotulo = "Título")
 
                     if (evento != null) {
                         Spacer(modifier = Modifier.height(12.dp))

@@ -16,10 +16,14 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -73,8 +77,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -85,7 +91,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -109,18 +114,34 @@ import java.util.Locale
 /** Mostra uma mensagem curta ao usuário (Snackbar); provido pelo AppNavigation. */
 val LocalMensagem = staticCompositionLocalOf<(String) -> Unit> { {} }
 
-/** Sheet padrão do app (anatomia de "Padrões de UI"). Use um por vez. */
+/**
+ * Sheet padrão do app (anatomia de "Padrões de UI"). Use um por vez.
+ * [bloquearFechamento] impede fechar por gesto/toque fora enquanto for true (ex.: download da atualização).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FolhaApp(
     onDismiss: () -> Unit,
+    bloquearFechamento: Boolean = false,
     conteudo: @Composable ColumnScope.() -> Unit
 ) {
+    val bloqueado by rememberUpdatedState(bloquearFechamento)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        sheetState = rememberModalBottomSheetState(
+            skipPartiallyExpanded = true,
+            confirmValueChange = { !bloqueado }
+        ),
         containerColor = MaterialTheme.colorScheme.surface,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
+        dragHandle = {
+            // Alça compacta: a padrão do Material gasta 48dp só nela.
+            Box(
+                modifier = Modifier
+                    .padding(top = 10.dp, bottom = 4.dp)
+                    .size(width = 32.dp, height = 4.dp)
+                    .background(MaterialTheme.colorScheme.outline, CircleShape)
+            )
+        },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         contentWindowInsets = { WindowInsets.statusBars }
     ) {
@@ -147,7 +168,14 @@ fun CabecalhoDeFolha(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(titulo, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(
+                titulo,
+                style = MaterialTheme.typography.titleLarge,
+                fontSize = 19.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
             if (subtitulo != null) {
                 Text(
                     subtitulo,
@@ -157,15 +185,169 @@ fun CabecalhoDeFolha(
             }
         }
         Spacer(modifier = Modifier.width(Espaco.md))
+        // X solto, sem círculo; o offset encosta o ícone na margem como a seta de voltar das telas.
         IconButton(
             onClick = aoFechar,
             modifier = Modifier
                 .size(Tamanho.toque)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
+                .offset(x = 12.dp)
         ) {
-            Icon(Icons.Outlined.Close, contentDescription = "Fechar", modifier = Modifier.size(Tamanho.icone))
+            Icon(
+                Icons.Outlined.Close,
+                contentDescription = "Fechar",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(Tamanho.iconeGrande)
+            )
         }
     }
+}
+
+/** Campo de texto padrão das folhas: preenchido (onSurface 6%), raio 14, sem borda; o rótulo flutua dentro. */
+@Composable
+fun CampoApp(
+    valor: String,
+    aoMudar: (String) -> Unit,
+    rotulo: String,
+    modifier: Modifier = Modifier,
+    keyboardOptions: androidx.compose.foundation.text.KeyboardOptions = androidx.compose.foundation.text.KeyboardOptions.Default,
+    isError: Boolean = false,
+    textoApoio: String? = null,
+    leitura: Boolean = false,
+    habilitado: Boolean = true,
+    trailingIcon: (@Composable () -> Unit)? = null
+) {
+    androidx.compose.material3.TextField(
+        value = valor,
+        onValueChange = aoMudar,
+        label = { Text(rotulo) },
+        singleLine = true,
+        readOnly = leitura,
+        enabled = habilitado,
+        isError = isError,
+        supportingText = textoApoio?.let { { Text(it) } },
+        trailingIcon = trailingIcon,
+        keyboardOptions = keyboardOptions,
+        shape = RoundedCornerShape(14.dp),
+        colors = androidx.compose.material3.TextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+            unfocusedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+            errorContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            errorIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent,
+            cursorColor = RoxoHero
+        ),
+        modifier = modifier.fillMaxWidth()
+    )
+}
+
+/**
+ * Campo de dinheiro em destaque: número grande no centro com cursor violeta.
+ * O texto guardado é o que foi digitado (o chamador converte vírgula em ponto, como antes).
+ */
+@Composable
+fun CampoValor(
+    valor: String,
+    aoMudar: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    legenda: String? = null,
+    destrutivo: Boolean = false
+) {
+    val cor = if (destrutivo) Coral else MaterialTheme.colorScheme.onSurface
+    val mudo = MaterialTheme.colorScheme.onSurfaceVariant
+    val estilo = MaterialTheme.typography.displayMedium.copy(
+        fontSize = 34.sp,
+        fontWeight = FontWeight.ExtraBold,
+        color = cor,
+        textAlign = TextAlign.Center
+    )
+    Column(
+        modifier = modifier.fillMaxWidth().padding(vertical = Espaco.sm),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.Center) {
+            Text(
+                "R$ ",
+                style = estilo.copy(fontSize = 20.sp, color = mudo),
+                modifier = Modifier.padding(bottom = 5.dp)
+            )
+            androidx.compose.foundation.text.BasicTextField(
+                value = valor,
+                onValueChange = aoMudar,
+                singleLine = true,
+                textStyle = estilo,
+                cursorBrush = SolidColor(RoxoHero),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
+                ),
+                modifier = Modifier.width(androidx.compose.foundation.layout.IntrinsicSize.Min).widthIn(min = 72.dp),
+                decorationBox = { campo ->
+                    Box(contentAlignment = Alignment.Center) {
+                        if (valor.isEmpty()) Text("0,00", style = estilo.copy(color = mudo.copy(alpha = 0.5f)))
+                        campo()
+                    }
+                }
+            )
+        }
+        if (legenda != null) {
+            Spacer(Modifier.height(Espaco.xs))
+            Text(legenda, style = MaterialTheme.typography.bodySmall, color = mudo)
+        }
+    }
+}
+
+/** Fileira de atalhos de valor (25% / 50% / +100…): blocos de raio 12; o escolhido ganha violeta a 16%. */
+@Composable
+fun AtalhosDeValor(
+    opcoes: List<String>,
+    selecionado: Int,
+    aoSelecionar: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        opcoes.forEachIndexed { i, texto ->
+            val ativo = i == selecionado
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .minimumInteractiveComponentSize()
+                    .height(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (ativo) RoxoHero.copy(alpha = 0.16f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+                    .clickable(role = Role.Button) { aoSelecionar(i) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    texto,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (ativo) FontWeight.Bold else FontWeight.SemiBold,
+                    color = if (ativo) RoxoHero else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1
+                )
+            }
+        }
+    }
+}
+
+/** Bloco de escolha (raio 14): borda e fundo violeta quando escolhido. Para listas curtas dentro de uma folha. */
+@Composable
+fun BlocoDeEscolha(
+    selecionado: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    conteudo: @Composable () -> Unit
+) {
+    val forma = RoundedCornerShape(14.dp)
+    Box(
+        modifier = modifier
+            .minimumInteractiveComponentSize()
+            .clip(forma)
+            .background(if (selecionado) RoxoHero.copy(alpha = 0.12f) else Color.Transparent)
+            .border(1.dp, if (selecionado) RoxoHero else MaterialTheme.colorScheme.outline, forma)
+            .selectable(selected = selecionado, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 9.dp)
+    ) { conteudo() }
 }
 
 @Composable
@@ -183,7 +365,7 @@ fun BotaoPrincipal(
         onClick = onClick,
         modifier = modifier.height(Tamanho.controle),
         enabled = enabled,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(containerColor = cor, contentColor = conteudo),
         elevation = null
     ) {
@@ -206,7 +388,7 @@ fun BotaoSecundario(
     OutlinedButton(
         onClick = onClick,
         modifier = modifier.height(Tamanho.controle),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = cor)
     ) {
         if (icone != null) {
@@ -236,26 +418,25 @@ fun ConfirmarAcaoConteudo(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.Start
     ) {
         Box(
             modifier = Modifier
-                .size(56.dp)
-                .background(cor.copy(alpha = 0.14f), CircleShape),
+                .size(44.dp)
+                .background(cor.copy(alpha = 0.14f), RoundedCornerShape(14.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icone, contentDescription = null, tint = cor, modifier = Modifier.size(Tamanho.iconeDestaque))
+            Icon(icone, contentDescription = null, tint = cor, modifier = Modifier.size(Tamanho.icone))
         }
 
-        Spacer(modifier = Modifier.height(Espaco.lg))
+        Spacer(modifier = Modifier.height(Espaco.md))
 
-        Text(titulo, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(titulo, style = MaterialTheme.typography.titleLarge, fontSize = 19.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             texto,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         if (resumo != null) {
@@ -627,7 +808,7 @@ fun CabecalhoPadrao(
         if (aoAbrirConfiguracoes != null) {
             BotaoLogoConfiguracoes(onClick = aoAbrirConfiguracoes)
         } else if (aoVoltar != null) {
-            IconeDeCabecalho(Icons.AutoMirrored.Outlined.ArrowBack, "Voltar", Alignment.CenterStart, MaterialTheme.colorScheme.onSurface, aoVoltar)
+            BotaoVoltarCabecalho(onClick = aoVoltar)
         }
         Box(modifier = Modifier.weight(1f)) {
             Column(
@@ -702,6 +883,49 @@ private fun IconeDeCabecalho(
         contentAlignment = Alignment.Center
     ) {
         Icon(icone, contentDescription = descricao, tint = cor, modifier = Modifier.size(Tamanho.iconeGrande))
+    }
+}
+
+/** Seta de voltar no mesmo lugar, tamanho e alinhamento da logo das abas: mesma caixa de 42x40dp e mesmo quadrado de 36dp. */
+@Composable
+private fun BotaoVoltarCabecalho(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .offset(x = -(Tamanho.toque - 42.dp) / 2)
+            .minimumInteractiveComponentSize()
+            .size(width = 42.dp, height = 40.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+    ) {
+        Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+            Icon(
+                Icons.AutoMirrored.Outlined.ArrowBack,
+                contentDescription = "Voltar",
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.size(Tamanho.iconeGrande)
+            )
+        }
+    }
+}
+
+/**
+ * Lista de uma tela interna. O cabeçalho é desenhado por `AppNavigation`, fora do NavHost (igual ao das abas),
+ * e acompanha a rolagem deste [estado]; a lista só reserva o espaço dele com `espacoDoCabecalho()`.
+ */
+@Composable
+fun ListaDePagina(
+    estado: LazyListState,
+    conteudo: LazyListScope.() -> Unit
+) {
+    LazyColumn(
+        state = estado,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = MaterialTheme.dimens.paddingScreen),
+        contentPadding = PaddingValues(bottom = espacoParaBarraFlutuante())
+    ) {
+        espacoDoCabecalho()
+        conteudo()
     }
 }
 
