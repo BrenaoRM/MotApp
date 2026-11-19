@@ -41,6 +41,11 @@ import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
+import com.example.financacelular.ui.theme.Tamanho
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -122,7 +127,9 @@ fun AnaliseScreen(
     val totalReceitas by viewModel.totalReceitasPeriodo.collectAsState()
     val serie by viewModel.serieDoPeriodo.collectAsState()
 
-    val formato = remember { NumberFormat.getCurrencyInstance(LocalePtBr) }
+    val formatoReal = remember { NumberFormat.getCurrencyInstance(LocalePtBr) }
+    val valoresVisiveis = ValoresVisiveis.visivel
+    val formato = ValoresVisiveis.formato(formatoReal)
     val saldo = totalReceitas - totalDespesas
     val saldoPositivo = saldo >= 0
     val nomePeriodo = periodo.rotulo()
@@ -157,7 +164,17 @@ fun AnaliseScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                ValorDoHero(formato.format(saldo))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    ValorDoHero(formato.format(saldo), Modifier.weight(1f, fill = false))
+                    IconButton(onClick = { ValoresVisiveis.alternar() }, modifier = Modifier.size(Tamanho.toque)) {
+                        Icon(
+                            if (valoresVisiveis) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
+                            contentDescription = if (valoresVisiveis) "Ocultar valores" else "Mostrar valores",
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                            modifier = Modifier.size(Tamanho.icone)
+                        )
+                    }
+                }
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier
@@ -169,7 +186,7 @@ fun AnaliseScreen(
                         corMarca = Verde,
                         valorFormatado = formato.format(totalReceitas),
                         pontos = serie.entradas,
-                        visivel = true,
+                        visivel = valoresVisiveis,
                         descricao = "Entradas em $nomePeriodo: ${formato.format(totalReceitas)}",
                         modifier = Modifier.weight(1f).padding(end = 14.dp)
                     )
@@ -184,7 +201,7 @@ fun AnaliseScreen(
                         corMarca = Coral,
                         valorFormatado = formato.format(totalDespesas),
                         pontos = serie.saidas,
-                        visivel = true,
+                        visivel = valoresVisiveis,
                         descricao = "Saídas em $nomePeriodo: ${formato.format(totalDespesas)}",
                         modifier = Modifier.weight(1f).padding(start = 14.dp)
                     )

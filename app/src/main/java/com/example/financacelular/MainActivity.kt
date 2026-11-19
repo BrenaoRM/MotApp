@@ -47,6 +47,8 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
 
+        com.example.financacelular.ui.ValoresVisiveis.iniciar(this)
+
         // Aberto pelo aviso de transação detectada (só na criação, para não repetir ao girar a tela)
         if (savedInstanceState == null) intent.paraDetectada()?.let(PreenchimentoPendente::definir)
 

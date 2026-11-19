@@ -97,7 +97,9 @@ fun DashboardScreen(
 
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
     val saldo = totalReceitas - totalDespesas
-    var saldoVisivel by rememberSaveable { mutableStateOf(true) }
+    val saldoVisivel = ValoresVisiveis.visivel
+    // Categorias e o detalhe delas seguem o mesmo olho do cartão do saldo
+    val formatoCategorias = ValoresVisiveis.formato(formatoMoeda)
 
     // Categorias mostram um tipo por vez; o padrão é Gastos
     var tipoCategorias by rememberSaveable { mutableStateOf(TipoTransacao.DESPESA) }
@@ -201,7 +203,7 @@ fun DashboardScreen(
                                     modifier = Modifier.weight(1f, fill = false)
                                 )
                                 IconButton(
-                                    onClick = { saldoVisivel = !saldoVisivel },
+                                    onClick = { ValoresVisiveis.alternar() },
                                     modifier = Modifier.size(Tamanho.toque)
                                 ) {
                                     Icon(
@@ -331,7 +333,7 @@ fun DashboardScreen(
                                 LinhaCategoriaInicio(
                                     nome = resumo.titulo,
                                     iconeChave = resumo.icone,
-                                    valor = formatoMoeda.format(resumo.total),
+                                    valor = formatoCategorias.format(resumo.total),
                                     fracao = if (totalDoTipo > 0.0) (resumo.total / totalDoTipo).toFloat() else 0f,
                                     cor = paleta[indice % paleta.size],
                                     onClick = { chaveCategoriaDetalhe = "${resumo.categoriaId}-${resumo.tipo}" }
@@ -353,7 +355,7 @@ fun DashboardScreen(
                 )
                 Spacer(modifier = Modifier.height(Espaco.lg))
 
-                ValorDoHero(formatoMoeda.format(resumo.total))
+                ValorDoHero(formatoCategorias.format(resumo.total))
                 if (totalDoTipo > 0.0) {
                     Text(
                         "${(resumo.total / totalDoTipo * 100).toInt()}% " +
@@ -400,7 +402,7 @@ fun DashboardScreen(
                                 }
                                 Spacer(modifier = Modifier.width(Espaco.md))
                                 Text(
-                                    formatoMoeda.format(transacao.valor),
+                                    formatoCategorias.format(transacao.valor),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold
                                 )
