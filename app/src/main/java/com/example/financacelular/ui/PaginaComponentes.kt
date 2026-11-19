@@ -242,9 +242,19 @@ fun CampoApp(
     )
 }
 
+private fun centavosDe(valor: String): Long =
+    valor.replace(",", ".").toDoubleOrNull()?.let { Math.round(it * 100) } ?: 0L
+
+/** 123456 -> "1.234,56" */
+private fun formatarCentavos(centavos: Long): String {
+    val reais = (centavos / 100).toString().reversed().chunked(3).joinToString(".").reversed()
+    return "$reais,${(centavos % 100).toString().padStart(2, '0')}"
+}
+
 /**
  * Campo de dinheiro em destaque: número grande no centro com cursor violeta.
- * O texto guardado é o que foi digitado (o chamador converte vírgula em ponto, como antes).
+ * Os dígitos entram da direita para a esquerda (5 -> 0,05; 50 -> 0,50), como na Nova Transação.
+ * O texto guardado é "1234,56" (sem milhar); o chamador converte vírgula em ponto, como antes.
  */
 @Composable
 fun CampoValor(
@@ -272,14 +282,29 @@ fun CampoValor(
                 style = estilo.copy(fontSize = 20.sp, color = mudo),
                 modifier = Modifier.padding(bottom = 5.dp)
             )
+            val exibido = if (valor.isBlank()) "" else formatarCentavos(centavosDe(valor))
             androidx.compose.foundation.text.BasicTextField(
-                value = valor,
-                onValueChange = aoMudar,
+                value = androidx.compose.ui.text.input.TextFieldValue(
+                    text = exibido,
+                    selection = androidx.compose.ui.text.TextRange(exibido.length)
+                ),
+                onValueChange = { novo ->
+                    val digitos = novo.text.filter { it.isDigit() }.take(9)
+                    val centavos = digitos.toLongOrNull() ?: 0L
+                    // Apagar o último dígito de "0,0x" esvazia o campo em vez de travar em 0,00
+                    aoMudar(
+                        when {
+                            digitos.isEmpty() -> ""
+                            centavos == 0L && novo.text.length < exibido.length -> ""
+                            else -> "%d,%02d".format(java.util.Locale.ROOT, centavos / 100, centavos % 100)
+                        }
+                    )
+                },
                 singleLine = true,
                 textStyle = estilo,
                 cursorBrush = SolidColor(RoxoHero),
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
                 ),
                 modifier = Modifier.width(androidx.compose.foundation.layout.IntrinsicSize.Min).widthIn(min = 72.dp),
                 decorationBox = { campo ->
