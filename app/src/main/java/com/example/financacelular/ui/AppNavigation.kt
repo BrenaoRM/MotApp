@@ -363,14 +363,24 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                 )
                             }
                             ModoBarraInferior.CARTAO -> {
-                                // Ver cartaoViewModelBarra: não usar a entrada atual aqui (pode não ser a do Cartão durante a transição)
+                                // Ver cartaoViewModelBarra: não usar a entrada atual aqui (pode não ser a do Cartão durante a transição).
+                                // A ilha é desenhada já com o botão desabilitado enquanto o ViewModel não chega, para entrar
+                                // com a mesma animação das outras ilhas (e não surgir de repente depois).
                                 val cartaoViewModel = cartaoViewModelBarra
-                                if (cartaoViewModel != null) {
-                                    val faturaPaga by cartaoViewModel.faturaPaga.collectAsState()
-                                    val podePagar by cartaoViewModel.podePagarFatura.collectAsState()
-                                    val naPaginaAdicionar by cartaoViewModel.naPaginaAdicionar.collectAsState()
+                                IlhaDeAcao {
+                                    if (cartaoViewModel == null) {
+                                        BotaoIlha(
+                                            texto = "Pagar Fatura",
+                                            onClick = {},
+                                            modifier = Modifier.weight(1f),
+                                            cor = Verde,
+                                            enabled = false
+                                        )
+                                    } else {
+                                        val faturaPaga by cartaoViewModel.faturaPaga.collectAsState()
+                                        val podePagar by cartaoViewModel.podePagarFatura.collectAsState()
+                                        val naPaginaAdicionar by cartaoViewModel.naPaginaAdicionar.collectAsState()
 
-                                    IlhaDeAcao {
                                         if (naPaginaAdicionar) {
                                             BotaoIlha(
                                                 texto = "Adicionar Cartão",
