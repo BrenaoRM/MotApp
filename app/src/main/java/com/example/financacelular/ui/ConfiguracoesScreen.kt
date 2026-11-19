@@ -5,10 +5,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.provider.Settings
-import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.NotificationsActive
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.runtime.DisposableEffect
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Lifecycle
@@ -19,6 +16,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -35,7 +36,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Category
@@ -62,7 +62,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.TemaPreferencia
 import com.example.financacelular.ui.theme.CorConfiguracoes
 import com.example.financacelular.ui.theme.Tamanho
-import com.example.financacelular.ui.theme.Verde
 import com.example.financacelular.ui.theme.dimens
 
 private data class OpcaoDeTema(
@@ -113,6 +112,7 @@ fun ConfiguracoesScreen(
         if (texto.isNotEmpty() && !texto.endsWith("...")) mensagem(texto)
     }
     var confirmarRestauracao by remember { mutableStateOf(false) }
+    var mostrarBancos by remember { mutableStateOf(false) }
     if (confirmarRestauracao) {
         ConfirmarAcaoSheet(
             titulo = "Restaurar backup?",
@@ -121,6 +121,39 @@ fun ConfiguracoesScreen(
             onConfirmar = { viewModel.restaurarBackupDaNuvem(activity) },
             onDismiss = { confirmarRestauracao = false }
         )
+    }
+
+    if (mostrarBancos) {
+        FolhaApp(onDismiss = { mostrarBancos = false }) {
+            CabecalhoDeFolha("Bancos monitorados", aoFechar = { mostrarBancos = false })
+            Spacer(modifier = Modifier.height(8.dp))
+            BancosMonitorados.todos.forEach { banco ->
+                val ativo = banco.pacote in viewModel.bancosAtivos
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = Tamanho.toque)
+                        .clickable(role = Role.Switch) { viewModel.alternarBanco(banco.pacote, !ativo) },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        banco.nome,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (ativo) {
+                        Icon(
+                            Icons.Outlined.Check,
+                            contentDescription = "Ativo",
+                            tint = CorConfiguracoes,
+                            modifier = Modifier.size(Tamanho.iconeGrande)
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
     }
 
     val authorizationLauncher = rememberLauncherForActivityResult(
@@ -148,33 +181,6 @@ fun ConfiguracoesScreen(
         item {
             CabecalhoPadrao("Configurações", aoVoltar = aoVoltar)
             Spacer(modifier = Modifier.height(16.dp))
-
-            // Cartão do topo: o estado do backup em uma linha, como os cartões das outras páginas
-            CartaoHeroDePagina(CorConfiguracoes) {
-                Text(
-                    "Backup na nuvem",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                ValorDoHero("Google Drive")
-                Spacer(modifier = Modifier.height(10.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier
-                            .size(8.dp)
-                            .background(if (logado) Verde else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), CircleShape)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        if (logado) "Conectado · último backup: ${viewModel.ultimaDataBackup}" else "Desconectado",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
             Spacer(modifier = Modifier.height(24.dp))
         }
 
@@ -206,47 +212,31 @@ fun ConfiguracoesScreen(
         item {
             Text("Detectar transações", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
+            val nomesAtivos = BancosMonitorados.todos.filter { it.pacote in viewModel.bancosAtivos }.map { it.nome }
             CartaoUnicoDeLinhas {
-                if (!acessoLiberado) {
-                    LinhaDePagina(
-                        inicio = { IconeDeLinha(Icons.Outlined.NotificationsActive) },
-                        titulo = "Liberar acesso às notificações",
-                        valor = "",
-                        subtitulo = "Para ler os avisos do seu banco",
-                        fim = {
-                            Icon(
-                                Icons.Outlined.ChevronRight,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(Tamanho.iconeGrande)
-                            )
-                        },
-                        onClick = {
-                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-                        }
-                    )
-                    DivisorDeLinha()
-                }
-                BancosMonitorados.todos.forEachIndexed { indice, banco ->
-                    if (indice > 0) DivisorDeLinha()
-                    val ativo = banco.pacote in viewModel.bancosAtivos
-                    LinhaDePagina(
-                        inicio = { IconeDeLinha(Icons.Outlined.AccountBalance) },
-                        titulo = banco.nome,
-                        valor = "",
-                        fim = {
-                            Switch(
-                                checked = ativo,
-                                onCheckedChange = null,
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = CorConfiguracoes
-                                )
-                            )
-                        },
-                        onClick = { viewModel.alternarBanco(banco.pacote, !ativo) }
-                    )
-                }
+                LinhaDePagina(
+                    inicio = { IconeDeLinha(Icons.Outlined.NotificationsActive) },
+                    titulo = "Bancos monitorados",
+                    valor = "",
+                    subtitulo = when {
+                        !acessoLiberado -> "Toque para liberar o acesso às notificações"
+                        nomesAtivos.isEmpty() -> "Nenhum banco"
+                        nomesAtivos.size <= 2 -> nomesAtivos.joinToString(", ")
+                        else -> nomesAtivos.take(2).joinToString(", ") + " +${nomesAtivos.size - 2}"
+                    },
+                    fim = {
+                        Icon(
+                            Icons.Outlined.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(Tamanho.iconeGrande)
+                        )
+                    },
+                    onClick = {
+                        if (acessoLiberado) mostrarBancos = true
+                        else context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                    }
+                )
             }
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -285,7 +275,7 @@ fun ConfiguracoesScreen(
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                if (logado) "Conta: ${viewModel.emailUtilizador}" else "Proteja os seus dados na nuvem",
+                                if (logado) "Último backup: ${viewModel.ultimaDataBackup}" else "Desconectado",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
