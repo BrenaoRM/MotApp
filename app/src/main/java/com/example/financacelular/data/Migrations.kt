@@ -54,6 +54,13 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
     }
 }
 
+/** 11 -> 12: forma de pagamento da recorrência (débito ou crédito); as existentes continuam no crédito. */
+val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE despesas_recorrentes ADD COLUMN formaPagamento TEXT NOT NULL DEFAULT 'CARTAO_CREDITO'")
+    }
+}
+
 /** 10 -> 11: ícone escolhido para a categoria (null = ícone sugerido pelo nome). */
 val MIGRATION_10_11 = object : Migration(10, 11) {
     override fun migrate(db: SupportSQLiteDatabase) {

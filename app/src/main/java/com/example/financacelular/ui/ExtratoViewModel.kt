@@ -86,7 +86,8 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
 
         // Projeta assinaturas/recorrentes do mês atual que ainda não foram lançadas
         val recorrentesPrevistas = recorrentes.mapNotNull { recorrente ->
-            val ehReceita = recorrente.tipo == TipoTransacao.RECEITA
+            // Receita e despesa no débito não têm cartão nem fatura
+            val ehReceita = recorrente.semCartao
             val diaSeguro = minOf(recorrente.diaDoMes, hoje.lengthOfMonth())
             val dataPrevista = LocalDate.of(hoje.year, hoje.monthValue, diaSeguro)
 

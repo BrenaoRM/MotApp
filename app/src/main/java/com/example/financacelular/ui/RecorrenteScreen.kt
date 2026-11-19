@@ -42,6 +42,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.DespesaRecorrente
+import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.ui.theme.Espaco
 import com.example.financacelular.ui.theme.LilasRecorrente
@@ -80,6 +81,7 @@ fun RecorrenteScreen(
     // Assinaturas antigas sem cartão gravado são cobradas no primeiro cartão (mesma regra do app)
     fun nomeDoCartao(item: DespesaRecorrente): String? {
         if (item.tipo == TipoTransacao.RECEITA) return null
+        if (item.formaPagamento == FormaPagamento.DEBITO) return "Débito"
         return (cartoes.find { it.id == item.cartaoId } ?: cartoes.firstOrNull())?.nome
     }
 
@@ -269,7 +271,9 @@ private fun DetalheDaRecorrencia(
             if (ehReceita) "Total já recebido (estimado)" else "Total já pago (estimado)",
             formatoMoeda.format(item.valor * mesesCobrados)
         )
-        if (cartaoNome != null) LinhaDeDetalhe("Cartão", cartaoNome)
+        if (cartaoNome != null) {
+            LinhaDeDetalhe(if (item.formaPagamento == FormaPagamento.DEBITO) "Pagamento" else "Cartão", cartaoNome)
+        }
 
         Spacer(modifier = Modifier.height(Espaco.xl))
         BotaoSecundario(

@@ -111,10 +111,8 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
 
     fun onFormaPagamentoChange(novaForma: FormaPagamento) {
         formaPagamento = novaForma
-        if (novaForma != FormaPagamento.CARTAO_CREDITO) {
-            ehRecorrente = false
-            ehParcelado = false
-        }
+        // Só o crédito parcela; a recorrência vale no débito também
+        if (novaForma != FormaPagamento.CARTAO_CREDITO) ehParcelado = false
     }
 
     fun onParceladoChange(parcelado: Boolean) {
@@ -139,7 +137,10 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
     ) {
         if (salvando) return
         val valorNumerico = valor.replace(".", "").replace(',', '.').toDoubleOrNull() ?: 0.0
-        if (valorNumerico <= 0.0) return
+        if (valorNumerico <= 0.0) {
+            aoErro("Informe o valor.")
+            return
+        }
         if (parcelasInvalidas) return
 
         val ehCredito = formaPagamento == FormaPagamento.CARTAO_CREDITO
@@ -168,7 +169,7 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
                     nomeCategoriaFinal = nomeTratado
                 }
                 if (catId == null) {
-                    salvando = false
+                    aoErro("Escolha uma categoria.")
                     return@launch
                 }
                 val fallbackTipo = if (tipo == TipoTransacao.RECEITA) "Ganho" else "Gasto"
@@ -194,7 +195,8 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
                         diaDoMes = data.dayOfMonth,
                         cartaoId = cartaoIdAsLong,
                         tipo = tipo,
-                        dataInicio = dataFaturaAjustada
+                        dataInicio = dataFaturaAjustada,
+                        formaPagamento = formaPagamento
                     )
                 } else if (formaPagamento == FormaPagamento.CARTAO_CREDITO && ehParcelado) {
                     val totalParcelasInt = numeroParcelas.toIntOrNull() ?: 1

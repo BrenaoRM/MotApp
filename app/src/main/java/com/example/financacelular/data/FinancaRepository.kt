@@ -243,12 +243,14 @@ class FinancaRepository(private val database: AppDatabase) {
         diaDoMes: Int,
         cartaoId: Long?,
         tipo: TipoTransacao,
-        dataInicio: LocalDate = LocalDate.now()
+        dataInicio: LocalDate = LocalDate.now(),
+        formaPagamento: FormaPagamento = FormaPagamento.CARTAO_CREDITO
     ) {
-        val isReceita = tipo == TipoTransacao.RECEITA
-        require(isReceita || cartaoId != null) { "Assinatura no cartão exige um cartão selecionado" }
-        val formaPag = if (isReceita) FormaPagamento.DEBITO else FormaPagamento.CARTAO_CREDITO
-        val cId = if (isReceita) null else cartaoId
+        // Receita e despesa no débito entram direto no saldo; só a despesa no crédito vai para uma fatura
+        val semCartao = tipo == TipoTransacao.RECEITA || formaPagamento == FormaPagamento.DEBITO
+        require(semCartao || cartaoId != null) { "Assinatura no cartão exige um cartão selecionado" }
+        val formaPag = if (semCartao) FormaPagamento.DEBITO else FormaPagamento.CARTAO_CREDITO
+        val cId = if (semCartao) null else cartaoId
 
         database.withTransaction {
             val recorrente = DespesaRecorrente(
@@ -258,7 +260,8 @@ class FinancaRepository(private val database: AppDatabase) {
                 diaDoMes = diaDoMes,
                 tipo = tipo,
                 dataCriacao = dataInicio,
-                cartaoId = cId
+                cartaoId = cId,
+                formaPagamento = formaPag
             )
             val idGerado = despesaRecorrenteDao.inserir(recorrente)
 
@@ -289,14 +292,14 @@ class FinancaRepository(private val database: AppDatabase) {
                 val inicio = maxOf(agora, mesDaUltima?.plusMonths(1) ?: agora.plusMonths(1))
                 if (inicio.isAfter(limite)) continue
 
-                val ehReceita = recorrente.tipo == TipoTransacao.RECEITA
+                val semCartao = recorrente.semCartao
                 // Cartão da própria assinatura; se não houver, o da última cobrança; por fim o primeiro cartão.
                 // Sem nenhum cartão, não gera cobrança (ficaria órfã, fora de qualquer fatura).
-                val cartaoDaAssinatura = if (ehReceita) null
+                val cartaoDaAssinatura = if (semCartao) null
                 else (recorrente.cartaoId ?: ultima?.cartaoId ?: primeiroCartaoId ?: continue)
                 gerarMeses(
                     recorrente = recorrente,
-                    formaPagamento = if (ehReceita) FormaPagamento.DEBITO else FormaPagamento.CARTAO_CREDITO,
+                    formaPagamento = if (semCartao) FormaPagamento.DEBITO else FormaPagamento.CARTAO_CREDITO,
                     cartaoId = cartaoDaAssinatura,
                     de = inicio,
                     ate = limite

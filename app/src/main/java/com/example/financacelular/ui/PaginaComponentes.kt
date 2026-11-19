@@ -84,6 +84,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.res.painterResource
@@ -262,7 +264,8 @@ fun CampoValor(
     aoMudar: (String) -> Unit,
     modifier: Modifier = Modifier,
     legenda: String? = null,
-    destrutivo: Boolean = false
+    destrutivo: Boolean = false,
+    foco: FocusRequester? = null
 ) {
     val cor = if (destrutivo) Coral else MaterialTheme.colorScheme.onSurface
     val mudo = MaterialTheme.colorScheme.onSurfaceVariant
@@ -306,7 +309,10 @@ fun CampoValor(
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                     keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
                 ),
-                modifier = Modifier.width(androidx.compose.foundation.layout.IntrinsicSize.Min).widthIn(min = 72.dp),
+                modifier = Modifier
+                    .width(androidx.compose.foundation.layout.IntrinsicSize.Min)
+                    .widthIn(min = 72.dp)
+                    .then(if (foco != null) Modifier.focusRequester(foco) else Modifier),
                 decorationBox = { campo ->
                     Box(contentAlignment = Alignment.Center) {
                         if (valor.isEmpty()) Text("0,00", style = estilo.copy(color = mudo.copy(alpha = 0.5f)))

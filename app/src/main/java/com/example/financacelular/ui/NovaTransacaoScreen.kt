@@ -3,11 +3,9 @@ package com.example.financacelular.ui
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +17,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -30,31 +27,24 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -63,7 +53,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import com.example.financacelular.deteccao.PreenchimentoPendente
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -74,8 +63,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -84,166 +71,193 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.financacelular.data.Categoria
 import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.TipoTransacao
+import com.example.financacelular.deteccao.PreenchimentoPendente
 import com.example.financacelular.ui.theme.Coral
+import com.example.financacelular.ui.theme.RoxoHero
 import com.example.financacelular.ui.theme.Tamanho
 import com.example.financacelular.ui.theme.Verde
 import com.example.financacelular.ui.theme.cores
 import com.example.financacelular.ui.theme.dimens
+import java.text.Normalizer
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
-private fun formatarValorMoeda(entrada: String): String {
-    val digitos = entrada.filter { it.isDigit() }
-    if (digitos.isEmpty()) return ""
-    val digitosLimitados = digitos.take(9)
-    val valorLong = digitosLimitados.toLongOrNull() ?: 0L
-    val centavos = (valorLong % 100).toString().padStart(2, '0')
-    val reaisStr = (valorLong / 100).toString()
+/** Quantas categorias aparecem na grade da tela; o resto fica em "Todas". */
+private const val CATEGORIAS_NA_GRADE = 7
+private const val COLUNAS_DA_GRADE = 4
 
-    val reaisFormatado = buildString {
-        for ((indice, caractere) in reaisStr.withIndex()) {
-            val posicaoDaDireita = reaisStr.length - indice
-            append(caractere)
-            if (posicaoDaDireita > 1 && posicaoDaDireita % 3 == 1) {
-                append('.')
-            }
-        }
-    }
-    return "$reaisFormatado,$centavos"
-}
+private fun semAcentoMinusculo(texto: String): String =
+    Normalizer.normalize(texto, Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "").lowercase()
 
+/** Cartão padrão do app: fundo `surface`, borda de 1dp e cantos de 20dp. */
 @Composable
 private fun SecaoCard(
     modifier: Modifier = Modifier,
     conteudo: @Composable ColumnScope.() -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             content = conteudo
         )
     }
 }
 
+/** Gasto/Ganho: o único lugar com cor da tela (coral e verde). Blocos de raio 12, como o SeletorQuadrado. */
 @Composable
-private fun IconeEmCirculo(icone: ImageVector, cor: Color, tamanho: Dp = 40.dp) {
+private fun SeletorGastoGanho(
+    ehGasto: Boolean,
+    aoSelecionar: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+            .padding(4.dp)
+            .selectableGroup(),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        OpcaoGastoGanho("Gasto", ehGasto, Coral, MaterialTheme.cores.textoGasto, Modifier.weight(1f)) { aoSelecionar(true) }
+        OpcaoGastoGanho("Ganho", !ehGasto, Verde, MaterialTheme.cores.textoGanho, Modifier.weight(1f)) { aoSelecionar(false) }
+    }
+}
+
+@Composable
+private fun OpcaoGastoGanho(
+    texto: String,
+    ativo: Boolean,
+    corFundo: Color,
+    corTexto: Color,
+    modifier: Modifier,
+    aoClicar: () -> Unit
+) {
+    val fundo by animateColorAsState(
+        targetValue = if (ativo) corFundo.copy(alpha = 0.16f) else Color.Transparent,
+        animationSpec = tween(200),
+        label = "fundoGastoGanho"
+    )
+    val borda by animateColorAsState(
+        targetValue = if (ativo) corFundo else Color.Transparent,
+        animationSpec = tween(200),
+        label = "bordaGastoGanho"
+    )
+    val forma = RoundedCornerShape(10.dp)
     Box(
-        modifier = Modifier
-            .size(tamanho)
-            .background(cor.copy(alpha = 0.14f), CircleShape),
+        modifier = modifier
+            .height(Tamanho.toque - 4.dp)
+            .clip(forma)
+            .background(fundo)
+            .border(1.dp, borda, forma)
+            .selectable(selected = ativo, role = Role.Tab, onClick = aoClicar),
         contentAlignment = Alignment.Center
     ) {
-        Icon(
-            imageVector = icone,
-            contentDescription = null,
-            tint = cor,
-            modifier = Modifier.size(tamanho * 0.5f)
+        Text(
+            text = texto,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = if (ativo) FontWeight.Bold else FontWeight.SemiBold,
+            color = if (ativo) corTexto else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
-/** Chip de categoria (só fundo, sem borda). Toque longo abre a exclusão quando [aoTocarLongo] existe. */
-@OptIn(ExperimentalFoundationApi::class)
+/** Ladrilho da grade de categorias: ícone em cima, nome embaixo, 76dp de altura. */
 @Composable
-private fun ChipCategoria(
+private fun LadrilhoDeEscolha(
     texto: String,
     icone: ImageVector,
     selecionado: Boolean,
-    cor: Color,
     aoClicar: () -> Unit,
-    role: Role = Role.RadioButton,
-    aoTocarLongo: (() -> Unit)? = null
+    modifier: Modifier = Modifier
 ) {
-    val fundo by animateColorAsState(
-        targetValue = if (selecionado) cor.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-        animationSpec = tween(200),
-        label = "fundoChipCategoria"
-    )
-    Row(
-        modifier = Modifier
-            .heightIn(min = Tamanho.toque)
-            .clip(RoundedCornerShape(50))
-            .background(fundo)
-            .semantics { selected = selecionado }
-            .combinedClickable(
-                role = role,
-                onLongClickLabel = if (aoTocarLongo != null) "Excluir categoria $texto" else null,
-                onLongClick = aoTocarLongo,
-                onClick = aoClicar
-            )
-            .padding(horizontal = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
+    BlocoDeEscolha(
+        selecionado = selecionado,
+        onClick = aoClicar,
+        modifier = modifier.height(76.dp)
     ) {
-        Icon(imageVector = icone, contentDescription = null, tint = cor, modifier = Modifier.size(Tamanho.icone))
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = texto,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = if (selecionado) FontWeight.Bold else FontWeight.Medium,
-            color = if (selecionado) cor else MaterialTheme.colorScheme.onSurface,
-            maxLines = 1
-        )
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icone,
+                contentDescription = null,
+                tint = if (selecionado) RoxoHero else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(Tamanho.iconeGrande)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = texto,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (selecionado) FontWeight.Bold else FontWeight.Medium,
+                color = if (selecionado) RoxoHero else MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
+/** Linha de escolha com ícone e texto lado a lado (forma de pagamento, cartão). */
 @Composable
-private fun OpcaoPagamento(
-    modifier: Modifier,
-    icone: ImageVector,
-    titulo: String,
+private fun OpcaoComIcone(
+    texto: String,
+    icone: ImageVector?,
     selecionado: Boolean,
-    cor: Color,
-    aoClicar: () -> Unit
+    aoClicar: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val corFundo by animateColorAsState(
-        targetValue = if (selecionado) cor.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-        animationSpec = tween(200),
-        label = "fundoPagamento"
-    )
-    val corConteudo = if (selecionado) cor else MaterialTheme.colorScheme.onSurfaceVariant
-    Row(
-        modifier = modifier
-            .height(Tamanho.toque)
-            .clip(RoundedCornerShape(14.dp))
-            .background(corFundo)
-            .selectable(selected = selecionado, role = Role.RadioButton, onClick = aoClicar),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(imageVector = icone, contentDescription = null, tint = corConteudo, modifier = Modifier.size(Tamanho.icone))
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = titulo,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = if (selecionado) FontWeight.Bold else FontWeight.Medium,
-            color = corConteudo
-        )
+    BlocoDeEscolha(selecionado = selecionado, onClick = aoClicar, modifier = modifier) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (icone != null) {
+                Icon(
+                    imageVector = icone,
+                    contentDescription = null,
+                    tint = if (selecionado) RoxoHero else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(Tamanho.icone)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            Text(
+                text = texto,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (selecionado) FontWeight.Bold else FontWeight.Medium,
+                color = if (selecionado) RoxoHero else MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
 @Composable
 private fun LinhaSwitch(
     icone: ImageVector,
-    cor: Color,
     titulo: String,
     subtitulo: String,
     marcado: Boolean,
@@ -252,13 +266,18 @@ private fun LinhaSwitch(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
             .toggleable(value = marcado, role = Role.Switch, onValueChange = aoMudar)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconeEmCirculo(icone = icone, cor = cor, tamanho = 34.dp)
+        Icon(
+            imageVector = icone,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(Tamanho.icone)
+        )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(titulo, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
@@ -273,38 +292,149 @@ private fun LinhaSwitch(
             onCheckedChange = null,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = cor
+                checkedTrackColor = RoxoHero
             )
         )
     }
 }
 
+/** Linha da lista "Todas as categorias": ícone, nome, check quando escolhida e lápis para editar. */
 @Composable
-private fun PilulaData(texto: String, selecionada: Boolean, cor: Color, aoClicar: () -> Unit) {
-    val fundo by animateColorAsState(
-        targetValue = if (selecionada) cor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-        animationSpec = tween(200),
-        label = "fundoPilulaData"
-    )
-    Box(
+private fun LinhaDaCategoria(
+    categoria: Categoria,
+    selecionada: Boolean,
+    aoEscolher: () -> Unit,
+    aoEditar: () -> Unit
+) {
+    Row(
         modifier = Modifier
-            .heightIn(min = Tamanho.toque)
-            .clip(RoundedCornerShape(50))
-            .background(fundo)
-            .selectable(selected = selecionada, role = Role.RadioButton, onClick = aoClicar)
-            .padding(horizontal = 12.dp),
-        contentAlignment = Alignment.Center
+            .fillMaxWidth()
+            .semantics { selected = selecionada },
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = texto,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = if (selecionada) FontWeight.Bold else FontWeight.Medium,
-            color = if (selecionada) cor else MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .height(Tamanho.toque + 4.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .clickable(role = Role.RadioButton, onClickLabel = "Escolher ${categoria.nome}", onClick = aoEscolher),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(
+                        if (selecionada) RoxoHero.copy(alpha = 0.14f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f),
+                        RoundedCornerShape(12.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = iconeParaCategoria(categoria.nome, categoria.icone),
+                    contentDescription = null,
+                    tint = if (selecionada) RoxoHero else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(Tamanho.icone)
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = categoria.nome,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = if (selecionada) FontWeight.Bold else FontWeight.Medium,
+                color = if (selecionada) RoxoHero else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (selecionada) {
+                Icon(
+                    Icons.Outlined.Check,
+                    contentDescription = "Escolhida",
+                    tint = RoxoHero,
+                    modifier = Modifier.size(Tamanho.icone)
+                )
+            }
+        }
+        IconButton(onClick = aoEditar, modifier = Modifier.size(Tamanho.toque)) {
+            Icon(
+                Icons.Outlined.Edit,
+                contentDescription = "Editar ${categoria.nome}",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(Tamanho.icone)
+            )
+        }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+/** Lista completa de categorias do tipo, com busca. Escolher fecha o sheet. */
+@Composable
+private fun FolhaTodasCategorias(
+    categorias: List<Categoria>,
+    selecionadaId: Long?,
+    aoEscolher: (Categoria) -> Unit,
+    aoEditar: (Categoria) -> Unit,
+    aoCriar: () -> Unit,
+    aoFechar: () -> Unit
+) {
+    var busca by rememberSaveable { mutableStateOf("") }
+    val termo = semAcentoMinusculo(busca.trim())
+    val filtradas = if (termo.isEmpty()) categorias else categorias.filter { semAcentoMinusculo(it.nome).contains(termo) }
+
+    FolhaApp(onDismiss = aoFechar) {
+        CabecalhoDeFolha(titulo = "Categoria", aoFechar = aoFechar)
+        Spacer(modifier = Modifier.height(12.dp))
+        CampoApp(
+            valor = busca,
+            aoMudar = { busca = it },
+            rotulo = "Buscar categoria",
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        filtradas.forEach { categoria ->
+            LinhaDaCategoria(
+                categoria = categoria,
+                selecionada = categoria.id == selecionadaId,
+                aoEscolher = { aoEscolher(categoria) },
+                aoEditar = { aoEditar(categoria) }
+            )
+        }
+        if (filtradas.isEmpty()) {
+            Text(
+                "Nenhuma categoria com esse nome.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 16.dp)
+            )
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(Tamanho.toque + 4.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .clickable(role = Role.Button, onClick = aoCriar),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(RoxoHero.copy(alpha = 0.14f), RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Outlined.Add, contentDescription = null, tint = RoxoHero, modifier = Modifier.size(Tamanho.icone))
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                "Criar categoria",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = RoxoHero
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun NovaTransacaoScreen(
     viewModel: NovaTransacaoViewModel = viewModel(),
@@ -340,54 +470,58 @@ fun NovaTransacaoScreen(
 
     val categorias by viewModel.categorias.collectAsState()
     val listaCartoes by viewModel.listaCartoes.collectAsState()
-
-    var categoriaParaEditarId by rememberSaveable { mutableStateOf<Long?>(null) }
     val categoriasViewModel: CategoriasViewModel = viewModel()
     val itensCategoria by categoriasViewModel.itens.collectAsState()
-    var cartaoMenuExpandido by rememberSaveable { mutableStateOf(false) }
-    var mostrarDatePicker by rememberSaveable { mutableStateOf(false) }
-    var textoCategoria by rememberSaveable { mutableStateOf("") }
-    var iconeNovaCategoria by rememberSaveable { mutableStateOf<String?>(null) }
-    var criandoCategoria by rememberSaveable { mutableStateOf(false) }
 
-    // Seleciona o primeiro cartão por defeito se nenhum estiver selecionado
+    // Um sheet por vez: nenhum, lista completa, editar (id) ou criar categoria
+    var mostrarTodas by rememberSaveable { mutableStateOf(false) }
+    var categoriaParaEditarId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var criandoCategoria by rememberSaveable { mutableStateOf(false) }
+    // Nome da categoria recém-criada: quando ela chegar na lista, fica escolhida
+    var escolherPorNome by rememberSaveable { mutableStateOf<String?>(null) }
+    var mostrarDatePicker by rememberSaveable { mutableStateOf(false) }
+
     LaunchedEffect(listaCartoes) {
         if (viewModel.cartaoIdSelecionado == null && listaCartoes.isNotEmpty()) {
             viewModel.onCartaoSelecionado(listaCartoes.first().id)
         }
     }
+    LaunchedEffect(categorias, escolherPorNome) {
+        val nome = escolherPorNome ?: return@LaunchedEffect
+        categorias.find { it.tipo == viewModel.tipo && it.nome.equals(nome, ignoreCase = true) }?.let {
+            viewModel.onCategoriaChange(it)
+            escolherPorNome = null
+        }
+    }
 
-    val categoriasFiltradas = categorias.filter { it.tipo == viewModel.tipo }
-    val cartaoAtualNome = listaCartoes.find { it.id == viewModel.cartaoIdSelecionado }?.nome ?: "Selecionar cartão"
+    val ehGasto = viewModel.tipo == TipoTransacao.DESPESA
+    val ehCredito = ehGasto && viewModel.formaPagamento == FormaPagamento.CARTAO_CREDITO
+    val categoriasDoTipo = categorias.filter { it.tipo == viewModel.tipo }.sortedBy { it.nome.lowercase() }
+
+    // Grade: as mais usadas (sem a "Fatura", que é do sistema); a escolhida sempre aparece
+    val usoPorCategoria = itensCategoria.orEmpty().associate { it.categoria.id to it.lancamentos }
+    val naGrade = remember(categoriasDoTipo, usoPorCategoria, viewModel.categoriaSelecionada) {
+        val ranking = categoriasDoTipo
+            .filterNot { it.nome.equals("Fatura", ignoreCase = true) }
+            .sortedWith(compareByDescending<Categoria> { usoPorCategoria[it.id] ?: 0 }.thenBy { it.nome.lowercase() })
+            .take(CATEGORIAS_NA_GRADE)
+        val escolhida = viewModel.categoriaSelecionada
+        if (escolhida == null || ranking.any { it.id == escolhida.id } || categoriasDoTipo.none { it.id == escolhida.id }) {
+            ranking
+        } else {
+            ranking.take(CATEGORIAS_NA_GRADE - 1) + escolhida
+        }
+    }
 
     val mensagem = LocalMensagem.current
     val hapticFeedback = LocalHapticFeedback.current
-    val corTema by animateColorAsState(
-        targetValue = if (viewModel.tipo == TipoTransacao.DESPESA) Coral else Verde,
-        animationSpec = tween(300),
-        label = "corTemaTransacao"
-    )
-    // Verde/Coral como texto vêm do tema (contraste); corTema fica para preenchimentos.
-    val corTextoTema by animateColorAsState(
-        targetValue = if (viewModel.tipo == TipoTransacao.DESPESA) MaterialTheme.cores.textoGasto else MaterialTheme.cores.textoGanho,
-        animationSpec = tween(300),
-        label = "corTextoTemaTransacao"
-    )
-
-    val coresCampo = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = corTema,
-        focusedLabelColor = corTextoTema,
-        cursorColor = corTema,
-        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
-    )
-    val formaCampo = RoundedCornerShape(14.dp)
 
     val hoje = remember { LocalDate.now() }
     val ontem = remember { hoje.minusDays(1) }
     val scrollState = rememberScrollState()
+    val formatoData = remember { DateTimeFormatter.ofPattern("dd/MM/yyyy") }
 
     val focoValor = remember { FocusRequester() }
-    val focoNovaCategoria = remember { FocusRequester() }
     val teclado = LocalSoftwareKeyboardController.current
     LaunchedEffect(Unit) {
         focoValor.requestFocus()
@@ -399,17 +533,6 @@ fun NovaTransacaoScreen(
         color = MaterialTheme.colorScheme.background
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(320.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(corTema.copy(alpha = 0.18f), Color.Transparent)
-                        )
-                    )
-            )
-
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -420,41 +543,25 @@ fun NovaTransacaoScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = MaterialTheme.dimens.paddingScreen)
-                        .padding(top = 8.dp, bottom = 10.dp),
+                        .padding(top = 4.dp, bottom = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
-                        onClick = aoFechar,
-                        modifier = Modifier
-                            .size(Tamanho.toque)
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), CircleShape)
-                    ) {
-                        Icon(Icons.Outlined.Close, contentDescription = "Fechar", modifier = Modifier.size(Tamanho.icone))
+                    // X solto, sem círculo (como nos sheets)
+                    IconButton(onClick = aoFechar, modifier = Modifier.size(Tamanho.toque)) {
+                        Icon(
+                            Icons.Outlined.Close,
+                            contentDescription = "Fechar",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(Tamanho.iconeGrande)
+                        )
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Nova Transação",
+                        text = "Nova transação",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                 }
-
-                SeletorSegmentado(
-                    opcoes = listOf("Gasto", "Ganho"),
-                    indiceSelecionado = if (viewModel.tipo == TipoTransacao.RECEITA) 1 else 0,
-                    aoSelecionar = { indice ->
-                        val novoTipo = if (indice == 1) TipoTransacao.RECEITA else TipoTransacao.DESPESA
-                        if (viewModel.tipo != novoTipo) {
-                            viewModel.definirTipoInicial(novoTipo)
-                            textoCategoria = ""
-                            iconeNovaCategoria = null
-                            criandoCategoria = false
-                            viewModel.onCategoriaChange(null)
-                        }
-                    },
-                    cor = corTema,
-                    modifier = Modifier.padding(horizontal = MaterialTheme.dimens.paddingScreen)
-                )
 
                 Column(
                     modifier = Modifier
@@ -462,328 +569,215 @@ fun NovaTransacaoScreen(
                         .weight(1f)
                         .verticalScroll(scrollState)
                         .padding(horizontal = MaterialTheme.dimens.paddingScreen)
-                        .padding(top = 12.dp, bottom = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                        .padding(top = 8.dp, bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(28.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(corTema.copy(alpha = 0.20f), corTema.copy(alpha = 0.06f))
-                                )
-                            )
-                            .padding(start = 18.dp, end = 8.dp, top = 12.dp, bottom = 2.dp)
-                    ) {
-                        Column {
-                            Text(
-                                text = if (viewModel.tipo == TipoTransacao.DESPESA) "QUANTO VOCÊ GASTOU?" else "QUANTO VOCÊ RECEBEU?",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = corTextoTema
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-
-                            val valorExibido = if (viewModel.valor.isEmpty()) "0,00" else viewModel.valor
-                            val corTexto = if (viewModel.valor.isEmpty()) {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                            } else {
-                                corTextoTema
-                            }
-
-                            var textFieldValue by remember(valorExibido) {
-                                mutableStateOf(
-                                    TextFieldValue(
-                                        text = valorExibido,
-                                        selection = TextRange(valorExibido.length)
-                                    )
-                                )
-                            }
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "R$",
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = corTextoTema
-                                )
-                                OutlinedTextField(
-                                    value = textFieldValue,
-                                    onValueChange = { novoTfv ->
-                                        val valorFormatado = formatarValorMoeda(novoTfv.text)
-                                        viewModel.onValorChange(valorFormatado)
-                                        val textoFinal = if (valorFormatado.isEmpty()) "0,00" else valorFormatado
-                                        textFieldValue = TextFieldValue(
-                                            text = textoFinal,
-                                            selection = TextRange(textoFinal.length)
-                                        )
-                                    },
-                                    textStyle = MaterialTheme.typography.displayMedium.copy(
-                                        textAlign = TextAlign.Start,
-                                        fontWeight = FontWeight.Bold,
-                                        color = corTexto
-                                    ),
-                                    keyboardOptions = KeyboardOptions(
-                                        keyboardType = KeyboardType.Number,
-                                        imeAction = ImeAction.Done
-                                    ),
-                                    singleLine = true,
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = Color.Transparent,
-                                        unfocusedBorderColor = Color.Transparent,
-                                        cursorColor = corTema
-                                    ),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .focusRequester(focoValor)
-                                )
+                    SeletorGastoGanho(
+                        ehGasto = ehGasto,
+                        aoSelecionar = { gasto ->
+                            val novoTipo = if (gasto) TipoTransacao.DESPESA else TipoTransacao.RECEITA
+                            if (viewModel.tipo != novoTipo) {
+                                viewModel.definirTipoInicial(novoTipo)
+                                viewModel.onCategoriaChange(null)
+                                escolherPorNome = null
                             }
                         }
-                    }
+                    )
 
-                    SecaoCard {
-                        Text("Categoria", style = MaterialTheme.typography.titleMedium)
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            categoriasFiltradas.forEach { categoria ->
-                                ChipCategoria(
-                                    texto = categoria.nome,
-                                    icone = iconeParaCategoria(categoria.nome, categoria.icone),
-                                    selecionado = viewModel.categoriaSelecionada?.id == categoria.id,
-                                    cor = corTextoTema,
-                                    aoClicar = {
-                                        viewModel.onCategoriaChange(categoria)
-                                        textoCategoria = ""
-                                        iconeNovaCategoria = null
-                                        criandoCategoria = false
-                                    },
-                                    aoTocarLongo = { categoriaParaEditarId = categoria.id }
-                                )
-                            }
-                            ChipCategoria(
-                                texto = "Nova",
-                                icone = Icons.Outlined.Add,
-                                selecionado = criandoCategoria,
-                                cor = corTextoTema,
-                                role = Role.Button,
-                                aoClicar = {
-                                    criandoCategoria = true
-                                    viewModel.onCategoriaChange(null)
-                                }
-                            )
-                        }
-                        AnimatedVisibility(visible = criandoCategoria) {
-                            LaunchedEffect(Unit) { focoNovaCategoria.requestFocus() }
-                            val existeExata = categoriasFiltradas.any { it.nome.equals(textoCategoria.trim(), ignoreCase = true) }
-                            Column {
-                                OutlinedTextField(
-                                    value = textoCategoria,
-                                    onValueChange = { texto ->
-                                        textoCategoria = texto
-                                        // Nome igual ao de uma categoria existente usa ela em vez de criar outra
-                                        viewModel.onCategoriaChange(
-                                            categoriasFiltradas.find { it.nome.equals(texto.trim(), ignoreCase = true) }
-                                        )
-                                    },
-                                    label = { Text("Nome da nova categoria") },
-                                    supportingText = {
-                                        if (textoCategoria.isNotBlank() && !existeExata) {
-                                            Text("Será salva como nova: \"${textoCategoria.trim()}\"")
-                                        }
-                                    },
-                                    leadingIcon = {
-                                        Icon(Icons.Outlined.Category, contentDescription = null, tint = corTextoTema)
-                                    },
-                                    singleLine = true,
-                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                                    shape = formaCampo,
-                                    colors = coresCampo,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .focusRequester(focoNovaCategoria)
-                                )
-                                if (textoCategoria.isNotBlank() && !existeExata) {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    SeletorDeIconeCategoria(
-                                        selecionada = iconeNovaCategoria,
-                                        aoSelecionar = { iconeNovaCategoria = it },
-                                        cor = corTextoTema
-                                    )
-                                }
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(Tamanho.toque)
-                                    .clip(formaCampo)
-                                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f), formaCampo)
-                                    .clickable(onClickLabel = "Selecionar data", role = Role.Button) { mostrarDatePicker = true }
-                                    .padding(horizontal = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Outlined.CalendarMonth,
-                                    contentDescription = "Selecionar data",
-                                    tint = corTextoTema,
-                                    modifier = Modifier.size(Tamanho.icone)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    viewModel.data.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 1
-                                )
-                            }
-                            PilulaData("Hoje", viewModel.data == hoje, corTextoTema) { viewModel.onDataChange(hoje) }
-                            PilulaData("Ontem", viewModel.data == ontem, corTextoTema) { viewModel.onDataChange(ontem) }
-                        }
-
-                        OutlinedTextField(
-                            value = viewModel.descricao,
-                            onValueChange = viewModel::onDescricaoChange,
-                            label = { Text(if (viewModel.ehRecorrente || viewModel.ehParcelado) "Nome (Ex: Salário, Netflix) *" else "Descrição (opcional)") },
-                            leadingIcon = {
-                                Icon(Icons.Outlined.Edit, contentDescription = null, tint = corTextoTema)
-                            },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                            shape = formaCampo,
-                            colors = coresCampo,
-                            modifier = Modifier.fillMaxWidth()
+                    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = if (ehGasto) "Quanto você gastou?" else "Quanto você recebeu?",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        CampoValor(
+                            valor = viewModel.valor,
+                            aoMudar = viewModel::onValorChange,
+                            foco = focoValor
                         )
                     }
 
                     SecaoCard {
-                        if (viewModel.tipo == TipoTransacao.DESPESA) {
-                            Text("Forma de pagamento", style = MaterialTheme.typography.titleMedium)
-                            Row(
+                        Text("Categoria", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        val ladrilhos = naGrade.size + 1
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            (0 until ladrilhos).chunked(COLUNAS_DA_GRADE).forEach { linha ->
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                    linha.forEach { posicao ->
+                                        if (posicao < naGrade.size) {
+                                            val categoria = naGrade[posicao]
+                                            LadrilhoDeEscolha(
+                                                texto = categoria.nome,
+                                                icone = iconeParaCategoria(categoria.nome, categoria.icone),
+                                                selecionado = viewModel.categoriaSelecionada?.id == categoria.id,
+                                                aoClicar = { viewModel.onCategoriaChange(categoria) },
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        } else {
+                                            LadrilhoDeEscolha(
+                                                texto = "Todas",
+                                                icone = Icons.Outlined.MoreHoriz,
+                                                selecionado = false,
+                                                aoClicar = { mostrarTodas = true },
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
+                                    }
+                                    repeat(COLUNAS_DA_GRADE - linha.size) { Spacer(modifier = Modifier.weight(1f)) }
+                                }
+                            }
+                        }
+                    }
+
+                    // Data (campo + atalhos) e descrição
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(modifier = Modifier.weight(1.3f)) {
+                            CampoApp(
+                                valor = viewModel.data.format(formatoData),
+                                aoMudar = {},
+                                rotulo = "Data",
+                                leitura = true,
+                                trailingIcon = {
+                                    Icon(
+                                        Icons.Outlined.CalendarToday,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(Tamanho.icone)
+                                    )
+                                }
+                            )
+                            Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .selectableGroup(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    .matchParentSize()
+                                    .clickable(role = Role.Button, onClickLabel = "Escolher a data") { mostrarDatePicker = true }
+                            )
+                        }
+                        AtalhosDeValor(
+                            opcoes = listOf("Hoje", "Ontem"),
+                            selecionado = when (viewModel.data) {
+                                hoje -> 0
+                                ontem -> 1
+                                else -> -1
+                            },
+                            aoSelecionar = { viewModel.onDataChange(if (it == 0) hoje else ontem) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    CampoApp(
+                        valor = viewModel.descricao,
+                        aoMudar = viewModel::onDescricaoChange,
+                        rotulo = if (viewModel.ehRecorrente || viewModel.ehParcelado) "Nome (ex.: Salário, Netflix)" else "Descrição (opcional)",
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
+                    )
+
+                    if (ehGasto) {
+                        SecaoCard {
+                            Text("Forma de pagamento", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Row(
+                                modifier = Modifier.fillMaxWidth().selectableGroup(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                OpcaoPagamento(
-                                    modifier = Modifier.weight(1f),
+                                OpcaoComIcone(
+                                    texto = "Débito",
                                     icone = Icons.Outlined.AccountBalance,
-                                    titulo = "Débito",
                                     selecionado = viewModel.formaPagamento == FormaPagamento.DEBITO,
-                                    cor = corTextoTema,
-                                    aoClicar = { viewModel.onFormaPagamentoChange(FormaPagamento.DEBITO) }
+                                    aoClicar = { viewModel.onFormaPagamentoChange(FormaPagamento.DEBITO) },
+                                    modifier = Modifier.weight(1f)
                                 )
-                                OpcaoPagamento(
-                                    modifier = Modifier.weight(1f),
+                                OpcaoComIcone(
+                                    texto = "Crédito",
                                     icone = Icons.Outlined.CreditCard,
-                                    titulo = "Crédito",
                                     selecionado = viewModel.formaPagamento == FormaPagamento.CARTAO_CREDITO,
-                                    cor = corTextoTema,
-                                    aoClicar = { viewModel.onFormaPagamentoChange(FormaPagamento.CARTAO_CREDITO) }
+                                    aoClicar = { viewModel.onFormaPagamentoChange(FormaPagamento.CARTAO_CREDITO) },
+                                    modifier = Modifier.weight(1f)
                                 )
                             }
 
-                            // SELETOR DE CARTÃO QUANDO FOR CRÉDITO
-                            AnimatedVisibility(visible = viewModel.formaPagamento == FormaPagamento.CARTAO_CREDITO) {
-                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    ExposedDropdownMenuBox(
-                                        expanded = cartaoMenuExpandido,
-                                        onExpandedChange = { cartaoMenuExpandido = it }
-                                    ) {
-                                        OutlinedTextField(
-                                            value = cartaoAtualNome,
-                                            onValueChange = {},
-                                            readOnly = true,
-                                            label = { Text("Cartão de Crédito") },
-                                            leadingIcon = {
-                                                Icon(Icons.Outlined.CreditCard, contentDescription = null, tint = corTextoTema)
-                                            },
-                                            trailingIcon = {
-                                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = cartaoMenuExpandido)
-                                            },
-                                            shape = formaCampo,
-                                            colors = coresCampo,
-                                            modifier = Modifier
-                                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                                                .fillMaxWidth()
+                            AnimatedVisibility(visible = ehCredito) {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    if (listaCartoes.isEmpty()) {
+                                        Text(
+                                            "Nenhum cartão cadastrado. Cadastre um em Cartões para lançar no crédito.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
-                                        ExposedDropdownMenu(
-                                            expanded = cartaoMenuExpandido,
-                                            onDismissRequest = { cartaoMenuExpandido = false }
+                                    } else {
+                                        Text(
+                                            "Cartão",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        FlowRow(
+                                            modifier = Modifier.fillMaxWidth().selectableGroup(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            if (listaCartoes.isEmpty()) {
-                                                DropdownMenuItem(
-                                                    text = { Text("Nenhum cartão cadastrado") },
-                                                    onClick = { cartaoMenuExpandido = false }
+                                            listaCartoes.forEach { cartao ->
+                                                OpcaoComIcone(
+                                                    texto = cartao.nome,
+                                                    icone = null,
+                                                    selecionado = viewModel.cartaoIdSelecionado == cartao.id,
+                                                    aoClicar = { viewModel.onCartaoSelecionado(cartao.id) }
                                                 )
-                                            } else {
-                                                listaCartoes.forEach { cartao ->
-                                                    DropdownMenuItem(
-                                                        text = { Text(cartao.nome) },
-                                                        onClick = {
-                                                            viewModel.onCartaoSelecionado(cartao.id)
-                                                            cartaoMenuExpandido = false
-                                                        }
-                                                    )
-                                                }
                                             }
                                         }
                                     }
-
                                     LinhaSwitch(
                                         icone = Icons.Outlined.CreditCard,
-                                        cor = corTema,
-                                        titulo = "Compra Parcelada?",
+                                        titulo = "Compra parcelada",
                                         subtitulo = "Dividir em várias vezes",
                                         marcado = viewModel.ehParcelado,
                                         aoMudar = viewModel::onParceladoChange
                                     )
                                     AnimatedVisibility(visible = viewModel.ehParcelado) {
-                                        OutlinedTextField(
-                                            value = viewModel.numeroParcelas,
-                                            onValueChange = viewModel::onNumeroParcelasChange,
-                                            label = { Text("Número de Parcelas (ex: 10)") },
+                                        CampoApp(
+                                            valor = viewModel.numeroParcelas,
+                                            aoMudar = viewModel::onNumeroParcelasChange,
+                                            rotulo = "Número de parcelas (2 a 60)",
                                             isError = viewModel.parcelasInvalidas,
-                                            supportingText = {
-                                                if (viewModel.parcelasInvalidas) Text("Use entre 2 e 60 parcelas")
-                                            },
+                                            textoApoio = if (viewModel.parcelasInvalidas) "Use entre 2 e 60 parcelas" else null,
                                             keyboardOptions = KeyboardOptions(
                                                 keyboardType = KeyboardType.Number,
                                                 imeAction = ImeAction.Done
-                                            ),
-                                            shape = formaCampo,
-                                            colors = coresCampo,
-                                            modifier = Modifier.fillMaxWidth()
+                                            )
                                         )
                                     }
-                                    LinhaSwitch(
-                                        icone = Icons.Outlined.Repeat,
-                                        cor = corTema,
-                                        titulo = "Repetir todo mês (Assinatura)",
-                                        subtitulo = "Cobrança recorrente no cartão",
-                                        marcado = viewModel.ehRecorrente,
-                                        aoMudar = viewModel::onRecorrenteChange
-                                    )
                                 }
                             }
-                        } else {
-                            LinhaSwitch(
-                                icone = Icons.Outlined.Repeat,
-                                cor = corTema,
-                                titulo = "Ganho recorrente?",
-                                subtitulo = "Repetir todo mês (ex: Salário)",
-                                marcado = viewModel.ehRecorrente,
-                                aoMudar = viewModel::onRecorrenteChange
+                        }
+                    }
+
+                    // Recorrência: vale para ganho, débito e crédito
+                    val diaDoMes = viewModel.data.dayOfMonth
+                    val cartaoNome = listaCartoes.find { it.id == viewModel.cartaoIdSelecionado }?.nome
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        LinhaSwitch(
+                            icone = Icons.Outlined.Repeat,
+                            titulo = "Repetir todo mês",
+                            subtitulo = when {
+                                !ehGasto -> "Ex.: salário"
+                                ehCredito -> "Assinatura no cartão"
+                                else -> "Débito automático"
+                            },
+                            marcado = viewModel.ehRecorrente,
+                            aoMudar = viewModel::onRecorrenteChange
+                        )
+                        AnimatedVisibility(visible = viewModel.ehRecorrente) {
+                            Text(
+                                text = when {
+                                    !ehGasto -> "Todo dia $diaDoMes, entra no saldo."
+                                    ehCredito && cartaoNome != null -> "Todo dia $diaDoMes, entra na fatura do $cartaoNome."
+                                    ehCredito -> "Todo dia $diaDoMes, entra na fatura do cartão."
+                                    else -> "Todo dia $diaDoMes, sai do saldo."
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 4.dp)
                             )
                         }
                     }
@@ -796,12 +790,20 @@ fun NovaTransacaoScreen(
                         .padding(horizontal = MaterialTheme.dimens.paddingScreen)
                         .padding(top = 6.dp, bottom = 10.dp)
                 ) {
+                    val valorTexto = viewModel.valor.takeIf { it.isNotBlank() }
+                        ?.replace(".", "")?.replace(',', '.')?.toDoubleOrNull()
+                        ?.takeIf { it > 0.0 }
+                        ?.let { "R$ " + "%,.2f".format(java.util.Locale.forLanguageTag("pt-BR"), it) }
+                    val textoBotao = when {
+                        valorTexto == null -> if (viewModel.ehRecorrente) "Salvar recorrência" else "Salvar"
+                        viewModel.ehRecorrente -> "Salvar recorrência de $valorTexto"
+                        else -> "Salvar $valorTexto"
+                    }
                     BotaoPrincipal(
-                        texto = "Salvar Transação",
+                        texto = textoBotao,
                         onClick = {
                             viewModel.salvar(
-                                nomeCategoriaDigitada = textoCategoria,
-                                iconeNovaCategoria = iconeNovaCategoria,
+                                nomeCategoriaDigitada = "",
                                 aoErro = { erro -> mensagem(erro) }
                             ) {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -810,11 +812,32 @@ fun NovaTransacaoScreen(
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        cor = corTema,
-                        corConteudo = Color.White,
+                        cor = RoxoHero,
+                        corConteudo = Color.White
                     )
                 }
             }
+        }
+
+        // Sheets: um por vez
+        if (mostrarTodas && categoriaParaEditarId == null && !criandoCategoria) {
+            FolhaTodasCategorias(
+                categorias = categoriasDoTipo,
+                selecionadaId = viewModel.categoriaSelecionada?.id,
+                aoEscolher = {
+                    viewModel.onCategoriaChange(it)
+                    mostrarTodas = false
+                },
+                aoEditar = {
+                    mostrarTodas = false
+                    categoriaParaEditarId = it.id
+                },
+                aoCriar = {
+                    mostrarTodas = false
+                    criandoCategoria = true
+                },
+                aoFechar = { mostrarTodas = false }
+            )
         }
 
         itensCategoria?.find { it.categoria.id == categoriaParaEditarId }?.let { item ->
@@ -838,7 +861,24 @@ fun NovaTransacaoScreen(
                     mensagem("Categoria excluída.")
                 },
                 aoFechar = { categoriaParaEditarId = null },
-                cor = corTema
+                cor = RoxoHero
+            )
+        }
+
+        if (criandoCategoria) {
+            FolhaEditarCategoria(
+                item = null,
+                tipoNova = viewModel.tipo,
+                nomesDoTipo = categoriasDoTipo.map { it.nome },
+                aoSalvar = { nome, icone ->
+                    categoriasViewModel.salvar(null, nome, viewModel.tipo, icone)
+                    escolherPorNome = nome.trim()
+                    criandoCategoria = false
+                    mensagem("Categoria criada.")
+                },
+                aoExcluir = {},
+                aoFechar = { criandoCategoria = false },
+                cor = RoxoHero
             )
         }
 
