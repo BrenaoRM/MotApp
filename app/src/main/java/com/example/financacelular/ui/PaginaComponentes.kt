@@ -286,6 +286,14 @@ fun CampoValor(
                 modifier = Modifier.padding(bottom = 5.dp)
             )
             val exibido = if (valor.isBlank()) "" else formatarCentavos(centavosDe(valor))
+            // Largura medida direto do texto: IntrinsicSize.Min atrasava um quadro ao crescer,
+            // cortando o dígito novo e deixando o cursor fora do lugar.
+            val medidor = androidx.compose.ui.text.rememberTextMeasurer()
+            val larguraTexto = with(androidx.compose.ui.platform.LocalDensity.current) {
+                medidor.measure(exibido, estilo, maxLines = 1).size.width.toDp()
+            }
+            // Vazio: "0,00" esmaecido fica fora do campo e o cursor logo depois, onde o 1º dígito entra.
+            if (exibido.isEmpty()) Text("0,00", style = estilo.copy(color = mudo.copy(alpha = 0.5f)))
             androidx.compose.foundation.text.BasicTextField(
                 value = androidx.compose.ui.text.input.TextFieldValue(
                     text = exibido,
@@ -310,12 +318,10 @@ fun CampoValor(
                     keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
                 ),
                 modifier = Modifier
-                    .width(androidx.compose.foundation.layout.IntrinsicSize.Min)
-                    .widthIn(min = 72.dp)
+                    .width(if (exibido.isEmpty()) 4.dp else larguraTexto + 4.dp)
                     .then(if (foco != null) Modifier.focusRequester(foco) else Modifier),
                 decorationBox = { campo ->
                     Box(contentAlignment = Alignment.Center) {
-                        if (valor.isEmpty()) Text("0,00", style = estilo.copy(color = mudo.copy(alpha = 0.5f)))
                         campo()
                     }
                 }
