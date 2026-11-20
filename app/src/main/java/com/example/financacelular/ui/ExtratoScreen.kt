@@ -37,8 +37,6 @@ import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.SearchOff
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -50,8 +48,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -87,10 +83,8 @@ import com.example.financacelular.ui.theme.Verde
 import com.example.financacelular.ui.theme.cores
 import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
-import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
@@ -792,34 +786,6 @@ private fun CampoData(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SeletorData(
-    inicial: LocalDate,
-    aoConfirmar: (LocalDate) -> Unit,
-    aoFechar: () -> Unit
-) {
-    val estado = rememberDatePickerState(
-        initialSelectedDateMillis = inicial.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli()
-    )
-    DatePickerDialog(
-        onDismissRequest = aoFechar,
-        confirmButton = {
-            TextButton(onClick = {
-                estado.selectedDateMillis?.let { millis ->
-                    aoConfirmar(Instant.ofEpochMilli(millis).atZone(ZoneId.of("UTC")).toLocalDate())
-                }
-                aoFechar()
-            }) { Text("Confirmar", fontWeight = FontWeight.Bold) }
-        },
-        dismissButton = {
-            TextButton(onClick = aoFechar) { Text("Cancelar") }
-        }
-    ) {
-        DatePicker(state = estado)
-    }
-}
-
 // =====================================================================
 // Edição de lançamento
 // =====================================================================
@@ -864,6 +830,12 @@ private fun BottomSheetEditarTransacao(
                 onCancelar = { confirmando = false }
             )
           } else {
+          TrocaPorData(
+              escolhendo = mostrarDatePicker,
+              data = dataSelecionada,
+              aoEscolher = { dataSelecionada = it },
+              aoVoltar = { mostrarDatePicker = false }
+          ) {
           Column(modifier = Modifier.fillMaxWidth()) {
             CabecalhoDeFolha(
                 titulo = "Editar lançamento",
@@ -954,14 +926,7 @@ private fun BottomSheetEditarTransacao(
             Spacer(modifier = Modifier.height(Espaco.lg))
           }
           }
+          }
         }
-    }
-
-    if (mostrarDatePicker) {
-        SeletorData(
-            inicial = dataSelecionada,
-            aoConfirmar = { dataSelecionada = it },
-            aoFechar = { mostrarDatePicker = false }
-        )
     }
 }

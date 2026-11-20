@@ -53,9 +53,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDefaults
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -69,7 +66,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TimePickerDefaults
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -117,7 +113,6 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.YearMonth
 import java.time.ZoneId
-import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
@@ -250,6 +245,7 @@ fun CalendarioScreen(
     var horaFimNovo by remember { mutableStateOf(LocalTime.of(10, 0)) }
     // Data do novo item: começa no dia selecionado e pode ser trocada no seletor
     var dataNovo by remember(dataSelecionada, mostrarSheetNovoAfazer) { mutableStateOf(dataSelecionada) }
+    var escolhendoDataNovo by remember(mostrarSheetNovoAfazer) { mutableStateOf(false) }
 
     // Item aberto para edição (a confirmação de exclusão acontece dentro da própria folha)
     var itemEmEdicao by remember { mutableStateOf<ItemAgenda?>(null) }
@@ -607,8 +603,15 @@ fun CalendarioScreen(
 
     // ---------------- SHEET: NOVO AFAZER ----------------
     if (mostrarSheetNovoAfazer) {
-        FolhaApp(onDismiss = { mostrarSheetNovoAfazer = false }) {
-            CabecalhoDeFolha(titulo = "Adicionar Afazer", aoFechar = { mostrarSheetNovoAfazer = false })
+        FolhaApp(onDismiss = { mostrarSheetNovoAfazer = false; escolhendoDataNovo = false }) {
+          TrocaPorData(
+            escolhendo = escolhendoDataNovo,
+            data = dataNovo,
+            aoEscolher = { dataNovo = it },
+            aoVoltar = { escolhendoDataNovo = false }
+          ) {
+          Column(Modifier.fillMaxWidth()) {
+            CabecalhoDeFolha(titulo = "Adicionar Afazer", aoFechar = { mostrarSheetNovoAfazer = false; escolhendoDataNovo = false })
             Spacer(modifier = Modifier.height(16.dp))
             CampoApp(valor = textoNovoAfazer, aoMudar = { textoNovoAfazer = it }, rotulo = "Tarefa")
             Spacer(modifier = Modifier.height(16.dp))
@@ -686,7 +689,7 @@ fun CalendarioScreen(
                 horaFim = horaFimNovo,
                 diaInteiro = diaInteiroNovo,
                 mostrarHorario = sincronizarGoogle,
-                onData = { dataNovo = it },
+                aoEscolherData = { escolhendoDataNovo = true },
                 onHorario = { inicio, fim -> horaNovo = inicio; horaFimNovo = fim }
             )
 
@@ -726,6 +729,8 @@ fun CalendarioScreen(
                 enabled = textoNovoAfazer.isNotBlank() &&
                         !(sincronizarGoogle && !diaInteiroNovo && horaFimNovo == horaNovo)
             )
+          }
+          }
         }
     }
 }
@@ -854,6 +859,7 @@ private fun FolhaEdicaoAgenda(
     }
     var diaInteiro by remember(item) { mutableStateOf(evento?.diaInteiro ?: false) }
     var confirmandoExclusao by remember(item) { mutableStateOf(false) }
+    var escolhendoData by remember(item) { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
 
     val coresCampo = OutlinedTextFieldDefaults.colors(
@@ -892,6 +898,12 @@ private fun FolhaEdicaoAgenda(
                     }
                 )
             } else {
+              TrocaPorData(
+                escolhendo = escolhendoData,
+                data = data,
+                aoEscolher = { data = it },
+                aoVoltar = { escolhendoData = false }
+              ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     CabecalhoDeFolha(
                         titulo = if (evento != null) "Editar evento" else "Editar afazer",
@@ -944,7 +956,7 @@ private fun FolhaEdicaoAgenda(
                         horaFim = horaFim,
                         diaInteiro = diaInteiro,
                         mostrarHorario = evento != null,
-                        onData = { data = it },
+                        aoEscolherData = { escolhendoData = true },
                         onHorario = { inicio, fim -> hora = inicio; horaFim = fim }
                     )
 
@@ -985,12 +997,13 @@ private fun FolhaEdicaoAgenda(
                         )
                     }
                 }
+              }
             }
         }
     }
 }
 
-private enum class DialogoSeletor { DATA, INICIO, FIM }
+private enum class DialogoSeletor { INICIO, FIM }
 
 /**
  * Cartão para escolher data e horário: uma linha com a data e dois blocos grandes (Início e Fim),
@@ -1004,7 +1017,7 @@ private fun SeletorDataHora(
     horaFim: LocalTime,
     diaInteiro: Boolean,
     mostrarHorario: Boolean,
-    onData: (LocalDate) -> Unit,
+    aoEscolherData: () -> Unit,
     onHorario: (inicio: LocalTime, fim: LocalTime) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1028,7 +1041,7 @@ private fun SeletorDataHora(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
                     .heightIn(min = Tamanho.toque)
-                    .clickable(role = Role.Button) { dialogo = DialogoSeletor.DATA },
+                    .clickable(role = Role.Button, onClick = aoEscolherData),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
@@ -1118,11 +1131,6 @@ private fun SeletorDataHora(
     }
 
     when (dialogo) {
-        DialogoSeletor.DATA -> DialogoData(
-            inicial = data,
-            onConfirmar = { onData(it); dialogo = null },
-            onDismiss = { dialogo = null }
-        )
         DialogoSeletor.INICIO -> DialogoHora(
             titulo = "Horário de início",
             inicial = hora,
@@ -1261,54 +1269,6 @@ private fun DialogoHora(
                 }
             }
         }
-    }
-}
-
-/** Calendário do Material 3 (o seletor devolve a data em UTC, por isso a conversão). */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DialogoData(
-    inicial: LocalDate,
-    onConfirmar: (LocalDate) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val estado = rememberDatePickerState(
-        initialSelectedDateMillis = inicial.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
-    )
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(28.dp),
-        tonalElevation = 0.dp,
-        confirmButton = {
-            Button(
-                onClick = {
-                    estado.selectedDateMillis?.let {
-                        onConfirmar(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate())
-                    } ?: onDismiss()
-                },
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = RoxoHero, contentColor = Color.White)
-            ) { Text("OK", fontWeight = FontWeight.Bold) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    ) {
-        DatePicker(
-            state = estado,
-            colors = DatePickerDefaults.colors(
-                containerColor = MaterialTheme.colorScheme.surface,
-                selectedDayContainerColor = RoxoHero,
-                selectedDayContentColor = Color.White,
-                todayDateBorderColor = RoxoHero,
-                todayContentColor = RoxoHero,
-                selectedYearContainerColor = RoxoHero,
-                selectedYearContentColor = Color.White,
-                currentYearContentColor = RoxoHero
-            )
-        )
     }
 }
 

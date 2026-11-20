@@ -306,6 +306,7 @@ fun MetaScreen(
             val metaAtual = metaParaAdicionarValor
             val valorDigitado = valorInput.replace(",", ".").toDoubleOrNull() ?: 0.0
 
+            val focoGuardar = rememberFocoValorAutomatico()
             FolhaApp(onDismiss = { mostrarSheetGuardarValor = false }) {
                 CabecalhoDeFolha(titulo = "Guardar valor", aoFechar = { mostrarSheetGuardarValor = false })
                 Spacer(modifier = Modifier.height(Espaco.md))
@@ -351,7 +352,7 @@ fun MetaScreen(
                 }
 
                 Spacer(modifier = Modifier.height(Espaco.md))
-                CampoValor(valor = valorInput, aoMudar = { valorInput = it })
+                CampoValor(valor = valorInput, aoMudar = { valorInput = it }, foco = focoGuardar)
                 Spacer(modifier = Modifier.height(Espaco.sm))
 
                 // Valores rápidos: cada toque soma ao valor digitado

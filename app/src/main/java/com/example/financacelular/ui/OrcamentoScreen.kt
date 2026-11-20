@@ -268,6 +268,7 @@ fun OrcamentoScreen(
 
         if (mostrarSheet) {
             val item = categoriaEmEdicao
+            val focoLimite = rememberFocoValorAutomatico()
             FolhaApp(onDismiss = { mostrarSheet = false }) {
                 CabecalhoDeFolha(
                     titulo = if (modoNovoLimite) "Limite de gastos" else item?.categoria?.nome.orEmpty(),
@@ -305,7 +306,7 @@ fun OrcamentoScreen(
                     }
                 }
                 Spacer(modifier = Modifier.height(Espaco.md))
-                CampoValor(valor = valorInput, aoMudar = { valorInput = it }, legenda = "Zero remove o limite")
+                CampoValor(valor = valorInput, aoMudar = { valorInput = it }, legenda = "Zero remove o limite", foco = focoLimite)
                 Spacer(modifier = Modifier.height(Espaco.lg))
                 BotaoPrincipal(
                     texto = "Definir limite",

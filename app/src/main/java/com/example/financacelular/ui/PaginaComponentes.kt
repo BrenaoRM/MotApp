@@ -275,9 +275,24 @@ fun CampoValor(
         color = cor,
         textAlign = TextAlign.Center
     )
+    // A área toda do campo (não só o número) foca e abre o teclado ao tocar
+    val focoUsado = foco ?: remember { FocusRequester() }
+    val teclado = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     Column(
-        modifier = modifier.fillMaxWidth().padding(vertical = Espaco.sm),
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 88.dp)
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null,
+                onClickLabel = "Digitar o valor"
+            ) {
+                focoUsado.requestFocus()
+                teclado?.show()
+            }
+            .padding(vertical = Espaco.sm),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.Center) {
             Text(
@@ -319,7 +334,7 @@ fun CampoValor(
                 ),
                 modifier = Modifier
                     .width(if (exibido.isEmpty()) 4.dp else larguraTexto + 4.dp)
-                    .then(if (foco != null) Modifier.focusRequester(foco) else Modifier),
+                    .focusRequester(focoUsado),
                 decorationBox = { campo ->
                     Box(contentAlignment = Alignment.Center) {
                         campo()
@@ -332,6 +347,24 @@ fun CampoValor(
             Text(legenda, style = MaterialTheme.typography.bodySmall, color = mudo)
         }
     }
+}
+
+/**
+ * Foco do [CampoValor] de um sheet que pede o valor primeiro: abre o teclado sozinho ao entrar (uma vez só).
+ * Chamar dentro do `if` que mostra o sheet, antes do [FolhaApp]; passar o resultado em `foco`.
+ */
+@Composable
+fun rememberFocoValorAutomatico(): FocusRequester {
+    val foco = remember { FocusRequester() }
+    val teclado = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(250) // espera o sheet subir
+        runCatching {
+            foco.requestFocus()
+            teclado?.show()
+        }
+    }
+    return foco
 }
 
 /** Fileira de atalhos de valor (25% / 50% / +100…): blocos de raio 12; o escolhido ganha violeta a 16%. */

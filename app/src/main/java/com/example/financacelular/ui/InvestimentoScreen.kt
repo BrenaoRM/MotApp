@@ -63,8 +63,6 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -75,8 +73,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -99,9 +95,7 @@ import com.example.financacelular.ui.theme.Tamanho
 import com.example.financacelular.ui.theme.cores
 import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
-import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -465,6 +459,7 @@ fun InvestimentoScreen(
             val fracoes = listOf(0.25, 0.50, 0.75, 1.0)
             val valorDigitado = valorResgateInput.replace(",", ".").toDoubleOrNull() ?: 0.0
 
+            val focoResgate = rememberFocoValorAutomatico()
             FolhaApp(onDismiss = { mostrarSheetResgate = false }) {
                 CabecalhoDeFolha(
                     titulo = "Resgatar",
@@ -475,7 +470,8 @@ fun InvestimentoScreen(
                 CampoValor(
                     valor = valorResgateInput,
                     aoMudar = { valorResgateInput = it; atalhoResgate = -1 },
-                    destrutivo = true
+                    destrutivo = true,
+                    foco = focoResgate
                 )
                 Spacer(modifier = Modifier.height(Espaco.md))
                 AtalhosDeValor(
@@ -512,8 +508,16 @@ fun InvestimentoScreen(
             var outraCategoria by remember {
                 mutableStateOf(novaCategoria.isNotBlank() && categoriasSugestoes.none { it.equals(novaCategoria, ignoreCase = true) })
             }
-            FolhaApp(onDismiss = { mostrarSheetNovoAporte = false }) {
-                CabecalhoDeFolha(titulo = "Novo aporte", aoFechar = { mostrarSheetNovoAporte = false })
+            val focoValor = rememberFocoValorAutomatico()
+            FolhaApp(onDismiss = { mostrarSheetNovoAporte = false; mostrarDatePicker = false }) {
+              TrocaPorData(
+                escolhendo = mostrarDatePicker,
+                data = dataSelecionada,
+                aoEscolher = { dataSelecionada = it },
+                aoVoltar = { mostrarDatePicker = false }
+              ) {
+              Column(Modifier.fillMaxWidth()) {
+                CabecalhoDeFolha(titulo = "Novo aporte", aoFechar = { mostrarSheetNovoAporte = false; mostrarDatePicker = false })
                 Spacer(modifier = Modifier.height(Espaco.md))
                 CampoApp(valor = novoNome, aoMudar = { novoNome = it }, rotulo = "Ativo")
                 Spacer(modifier = Modifier.height(Espaco.md))
@@ -541,7 +545,7 @@ fun InvestimentoScreen(
                     CampoApp(valor = novaCategoria, aoMudar = { novaCategoria = it }, rotulo = "Categoria")
                 }
                 Spacer(modifier = Modifier.height(Espaco.sm))
-                CampoValor(valor = novoValor, aoMudar = { novoValor = it })
+                CampoValor(valor = novoValor, aoMudar = { novoValor = it }, foco = focoValor)
                 Spacer(modifier = Modifier.height(Espaco.sm))
                 Box {
                     CampoApp(
@@ -580,28 +584,8 @@ fun InvestimentoScreen(
                     corConteudo = Color.White,
                 )
                 Spacer(modifier = Modifier.height(Espaco.sm))
-            }
-        }
-
-        if (mostrarDatePicker) {
-            val datePickerState = rememberDatePickerState(
-                initialSelectedDateMillis = dataSelecionada.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
-            )
-            DatePickerDialog(
-                onDismissRequest = { mostrarDatePicker = false },
-                confirmButton = {
-                    TextButton(onClick = {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            dataSelecionada = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
-                        }
-                        mostrarDatePicker = false
-                    }) { Text("Confirmar", fontWeight = FontWeight.Bold) }
-                },
-                dismissButton = {
-                    TextButton(onClick = { mostrarDatePicker = false }) { Text("Cancelar") }
-                }
-            ) {
-                DatePicker(state = datePickerState)
+              }
+              }
             }
         }
     }

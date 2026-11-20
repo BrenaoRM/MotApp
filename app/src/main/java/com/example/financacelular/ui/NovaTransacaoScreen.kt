@@ -40,8 +40,6 @@ import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Repeat
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -49,8 +47,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -89,9 +85,7 @@ import com.example.financacelular.ui.theme.Verde
 import com.example.financacelular.ui.theme.cores
 import com.example.financacelular.ui.theme.dimens
 import java.text.Normalizer
-import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 /** Quantas categorias aparecem na grade da tela; o resto fica em "Todas". */
@@ -480,6 +474,16 @@ fun NovaTransacaoScreen(
     // Nome da categoria recém-criada: quando ela chegar na lista, fica escolhida
     var escolherPorNome by rememberSaveable { mutableStateOf<String?>(null) }
     var mostrarDatePicker by rememberSaveable { mutableStateOf(false) }
+    // Abrir a data com o teclado aberto: espera o teclado fechar antes de subir o calendário
+    var pedindoData by remember { mutableStateOf(false) }
+    val fecharTeclado = rememberFecharTeclado()
+    LaunchedEffect(pedindoData) {
+        if (pedindoData) {
+            fecharTeclado()
+            mostrarDatePicker = true
+            pedindoData = false
+        }
+    }
 
     LaunchedEffect(listaCartoes) {
         if (viewModel.cartaoIdSelecionado == null && listaCartoes.isNotEmpty()) {
@@ -653,7 +657,7 @@ fun NovaTransacaoScreen(
                             Box(
                                 modifier = Modifier
                                     .matchParentSize()
-                                    .clickable(role = Role.Button, onClickLabel = "Escolher a data") { mostrarDatePicker = true }
+                                    .clickable(role = Role.Button, onClickLabel = "Escolher a data") { pedindoData = true }
                             )
                         }
                         AtalhosDeValor(
@@ -883,31 +887,11 @@ fun NovaTransacaoScreen(
         }
 
         if (mostrarDatePicker) {
-            val datePickerState = rememberDatePickerState(
-                initialSelectedDateMillis = viewModel.data
-                    .atStartOfDay(ZoneOffset.UTC)
-                    .toInstant()
-                    .toEpochMilli()
+            FolhaData(
+                data = viewModel.data,
+                aoEscolher = { viewModel.onDataChange(it) },
+                aoFechar = { mostrarDatePicker = false }
             )
-            DatePickerDialog(
-                onDismissRequest = { mostrarDatePicker = false },
-                confirmButton = {
-                    TextButton(onClick = {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            val novaData = Instant.ofEpochMilli(millis)
-                                .atZone(ZoneOffset.UTC)
-                                .toLocalDate()
-                            viewModel.onDataChange(novaData)
-                        }
-                        mostrarDatePicker = false
-                    }) { Text("OK") }
-                },
-                dismissButton = {
-                    TextButton(onClick = { mostrarDatePicker = false }) { Text("Cancelar") }
-                }
-            ) {
-                DatePicker(state = datePickerState)
-            }
         }
     }
 }

@@ -1,11 +1,21 @@
 package com.example.financacelular.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -25,7 +35,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -33,6 +45,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -41,6 +56,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.financacelular.ui.theme.RoxoHero
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -171,15 +188,23 @@ private fun AtalhoDePeriodo(texto: String, selecionado: Boolean, onClick: () -> 
 
 /** Calendário de intervalo com ‹ mês ›. Primeiro toque = início, segundo = fim; um toque antes do início recomeça. Confirmar aplica (só o início = um único dia). */
 @Composable
-private fun CalendarioDeIntervalo(mesInicial: YearMonth, aoEscolher: (Periodo) -> Unit) {
+private fun CalendarioDeIntervalo(
+    mesInicial: YearMonth,
+    aoEscolher: (Periodo) -> Unit,
+    /** Modo data única: um toque escolhe o dia (já vem marcado [selecionado]) e Confirmar devolve esse dia. */
+    unico: Boolean = false,
+    selecionado: LocalDate? = null
+) {
     var mes by remember { mutableStateOf(mesInicial) }
-    var inicio by remember { mutableStateOf<LocalDate?>(null) }
+    var inicio by remember { mutableStateOf(selecionado) }
     var fim by remember { mutableStateOf<LocalDate?>(null) }
     val hoje = remember { LocalDate.now() }
 
     fun tocar(dia: LocalDate) {
         val i = inicio
-        if (i == null || fim != null || dia.isBefore(i)) {
+        if (unico) {
+            inicio = dia
+        } else if (i == null || fim != null || dia.isBefore(i)) {
             inicio = dia
             fim = null
         } else {
@@ -267,4 +292,90 @@ private fun CalendarioDeIntervalo(mesInicial: YearMonth, aoEscolher: (Periodo) -
         enabled = inicio != null,
         modifier = Modifier.fillMaxWidth()
     )
+}
+
+/** Conteúdo "Data" (calendário de um dia só), para usar dentro de um sheet já aberto trocando o conteúdo. Escolher chama [aoEscolher]; o X chama [aoVoltar]. */
+@Composable
+fun ConteudoData(
+    data: LocalDate,
+    aoEscolher: (LocalDate) -> Unit,
+    aoVoltar: () -> Unit,
+    titulo: String = "Data"
+) {
+    Column(Modifier.fillMaxWidth()) {
+        CabecalhoDeFolha(titulo = titulo, aoFechar = aoVoltar)
+        Spacer(Modifier.height(8.dp))
+        CalendarioDeIntervalo(
+            mesInicial = YearMonth.from(data),
+            aoEscolher = { aoEscolher(it.inicio) },
+            unico = true,
+            selecionado = data
+        )
+    }
+}
+
+/** Sheet de data para telas sem sheet pai. Dentro de um sheet, use [TrocaPorData]. */
+@Composable
+fun FolhaData(
+    data: LocalDate,
+    aoEscolher: (LocalDate) -> Unit,
+    aoFechar: () -> Unit
+) {
+    FolhaApp(onDismiss = aoFechar) {
+        ConteudoData(data = data, aoEscolher = { aoEscolher(it); aoFechar() }, aoVoltar = aoFechar)
+    }
+}
+
+/**
+ * Devolve uma função que tira o foco e fecha o teclado e **espera o teclado terminar de recolher** (no máximo 300 ms),
+ * para que o calendário só entre depois, com a altura da folha já estável (sem "pular" com o `imePadding`).
+ * Se o teclado já estava fechado, só tira o foco e volta na hora.
+ */
+@Composable
+fun rememberFecharTeclado(): suspend () -> Unit {
+    val foco = LocalFocusManager.current
+    val teclado = LocalSoftwareKeyboardController.current
+    val ime = WindowInsets.ime
+    val densidade = LocalDensity.current
+    return remember(foco, teclado, ime, densidade) {
+        {
+            val aberto = ime.getBottom(densidade) > 0
+            foco.clearFocus(force = true)
+            if (aberto) {
+                teclado?.hide()
+                withTimeoutOrNull(300) { snapshotFlow { ime.getBottom(densidade) }.first { it == 0 } }
+            }
+        }
+    }
+}
+
+/**
+ * Dentro de um sheet: troca o formulário pelo calendário de data (só fade, sem animar a altura) e volta ao escolher ou fechar.
+ * Se o teclado estiver aberto, o formulário fica parado até ele fechar e só então o calendário entra.
+ */
+@Composable
+fun TrocaPorData(
+    escolhendo: Boolean,
+    data: LocalDate,
+    aoEscolher: (LocalDate) -> Unit,
+    aoVoltar: () -> Unit,
+    formulario: @Composable () -> Unit
+) {
+    val fecharTeclado = rememberFecharTeclado()
+    var mostrando by remember { mutableStateOf(false) }
+    LaunchedEffect(escolhendo) {
+        if (escolhendo) fecharTeclado()
+        mostrando = escolhendo
+    }
+    AnimatedContent(
+        targetState = mostrando,
+        transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(100)) using SizeTransform(clip = false) { _, _ -> snap() } },
+        label = "trocaPorData"
+    ) { emData ->
+        if (emData) {
+            ConteudoData(data = data, aoEscolher = { aoEscolher(it); aoVoltar() }, aoVoltar = aoVoltar)
+        } else {
+            formulario()
+        }
+    }
 }
