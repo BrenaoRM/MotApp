@@ -1,6 +1,7 @@
 package com.example.financacelular.deteccao
 
 import android.app.Notification
+import android.content.ComponentName
 import android.content.Context
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -48,6 +49,11 @@ class NotificacaoListener : NotificationListenerService() {
                 }
             }
         }
+    }
+
+    // O sistema pode desconectar o serviço (economia de bateria): pede para ser ligado de novo
+    override fun onListenerDisconnected() {
+        requestRebind(ComponentName(this, NotificacaoListener::class.java))
     }
 
     override fun onDestroy() {

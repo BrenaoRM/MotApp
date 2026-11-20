@@ -1,7 +1,11 @@
 package com.example.financacelular
 
 import android.Manifest
+import android.content.ComponentName
 import android.content.Intent
+import android.service.notification.NotificationListenerService
+import androidx.core.app.NotificationManagerCompat
+import com.example.financacelular.deteccao.NotificacaoListener
 import android.content.pm.PackageManager
 import com.example.financacelular.deteccao.PreenchimentoPendente
 import com.example.financacelular.deteccao.paraDetectada
@@ -53,6 +57,11 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) intent.paraDetectada()?.let(PreenchimentoPendente::definir)
 
         pedirPermissaoDeNotificacaoSeNecessario()
+
+        // Se o sistema deixou o leitor de notificações desligado, religa ao abrir o app
+        if (NotificationManagerCompat.getEnabledListenerPackages(this).contains(packageName)) {
+            NotificationListenerService.requestRebind(ComponentName(this, NotificacaoListener::class.java))
+        }
 
         // Agendar verificação diária de fatura
         val workRequest = PeriodicWorkRequestBuilder<LembreteFaturaWorker>(1, TimeUnit.DAYS).build()

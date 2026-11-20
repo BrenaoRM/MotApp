@@ -59,6 +59,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import android.annotation.SuppressLint
+import android.net.Uri
+import android.os.PowerManager
 import com.example.financacelular.data.TemaPreferencia
 import com.example.financacelular.ui.theme.CorConfiguracoes
 import com.example.financacelular.ui.theme.Tamanho
@@ -77,6 +80,18 @@ private val OpcoesDeTema = listOf(
 
 private fun acessoAsNotificacoesLiberado(context: Context): Boolean =
     NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+
+/** Sem a economia de bateria o sistema não derruba o leitor de notificações. Um toque num diálogo do sistema. */
+@SuppressLint("BatteryLife")
+private fun pedirExcecaoDeBateria(context: Context) {
+    val energia = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+    if (energia.isIgnoringBatteryOptimizations(context.packageName)) return
+    runCatching {
+        context.startActivity(
+            Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${context.packageName}"))
+        )
+    }
+}
 
 private tailrec fun Context.encontrarActivity(): Activity = when (this) {
     is Activity -> this
@@ -132,7 +147,10 @@ fun ConfiguracoesScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = Tamanho.toque)
-                        .clickable(role = Role.Switch) { viewModel.alternarBanco(banco.pacote, !ativo) },
+                        .clickable(role = Role.Switch) {
+                            viewModel.alternarBanco(banco.pacote, !ativo)
+                            if (!ativo) pedirExcecaoDeBateria(context)
+                        },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
