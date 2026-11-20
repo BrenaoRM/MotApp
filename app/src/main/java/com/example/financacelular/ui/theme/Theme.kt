@@ -38,11 +38,9 @@ val MaterialTheme.cores: CoresApp
 @Composable
 fun FinanceAPPTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    amoled: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
-        darkTheme && amoled -> EsquemaAmoled
         darkTheme -> EsquemaEscuro
         else -> EsquemaClaro
     }

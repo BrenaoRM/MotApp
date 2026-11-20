@@ -93,7 +93,8 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
 
         val temaSalvo = prefs.getString("tema", TemaPreferencia.SISTEMA.name)
         temaAtual = try {
-            TemaPreferencia.valueOf(temaSalvo ?: TemaPreferencia.SISTEMA.name)
+            // O antigo AMOLED virou o Escuro
+            TemaPreferencia.valueOf(if (temaSalvo == "AMOLED") TemaPreferencia.ESCURO.name else temaSalvo ?: TemaPreferencia.SISTEMA.name)
         } catch (_: Exception) {
             TemaPreferencia.SISTEMA
         }

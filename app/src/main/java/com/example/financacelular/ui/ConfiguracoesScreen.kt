@@ -72,8 +72,7 @@ private data class OpcaoDeTema(
 private val OpcoesDeTema = listOf(
     OpcaoDeTema(TemaPreferencia.SISTEMA, "Sistema"),
     OpcaoDeTema(TemaPreferencia.CLARO, "Claro"),
-    OpcaoDeTema(TemaPreferencia.ESCURO, "Escuro"),
-    OpcaoDeTema(TemaPreferencia.AMOLED, "AMOLED")
+    OpcaoDeTema(TemaPreferencia.ESCURO, "Escuro")
 )
 
 private fun acessoAsNotificacoesLiberado(context: Context): Boolean =

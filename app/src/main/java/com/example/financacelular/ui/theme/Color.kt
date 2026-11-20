@@ -13,9 +13,6 @@ val TextoEscuro = Color(0xFF1E1F1C)
 // 4.8:1 sobre o bege e 5.4:1 sobre o branco (antes 3.07:1 / 3.47:1)
 val TextoSecundario = Color(0xFF6B6A63)
 
-val FundoEscuro = Color(0xFF16171A)
-val CartaoEscuro = Color(0xFF212226)
-val BordaEscura = Color(0xFF2E2F33)
 val TextoClaro = Color(0xFFF2F1EC)
 val TextoSecundarioEscuro = Color(0xFF9B9A94)
 
@@ -82,33 +79,17 @@ val EsquemaClaro = lightColorScheme(
     outline = BordaClara
 )
 
-// Tema AMOLED: preto puro no fundo, cartões quase pretos, bordas finas.
-val FundoAmoled = Color(0xFF000000)
-val CartaoAmoled = Color(0xFF0D0D0F)
-val BordaAmoled = Color(0xFF1F1F23)
+// Tema escuro (antigo AMOLED): preto puro no fundo, cartões quase pretos, bordas finas.
+val FundoEscuro = Color(0xFF000000)
+val CartaoEscuro = Color(0xFF0D0D0F)
+val BordaEscura = Color(0xFF1F1F23)
 
 // Acento violeta (como na referência); verde/coral ficam só para ganho/gasto.
-val EsquemaAmoled = darkColorScheme(
+val EsquemaEscuro = darkColorScheme(
     primary = RoxoHero,
     onPrimary = Color.White,
     secondary = RoxoHero,
     onSecondary = Color.White,
-    tertiary = CoralContrasteEscuro,
-    onTertiary = Color.Black,
-    background = FundoAmoled,
-    onBackground = TextoClaro,
-    surface = CartaoAmoled,
-    onSurface = TextoClaro,
-    surfaceVariant = CartaoAmoled,
-    onSurfaceVariant = TextoSecundarioEscuro,
-    outline = BordaAmoled
-)
-
-val EsquemaEscuro = darkColorScheme(
-    primary = VerdeContrasteEscuro,
-    onPrimary = Color.Black,
-    secondary = VerdeContrasteEscuro,
-    onSecondary = Color.Black,
     tertiary = CoralContrasteEscuro,
     onTertiary = Color.Black,
     background = FundoEscuro,

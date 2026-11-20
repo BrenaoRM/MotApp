@@ -62,7 +62,7 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
- * Minigráfico de área para uma série acumulada (tema AMOLED).
+ * Minigráfico de área para uma série acumulada (tema escuro).
  * Lista vazia ou sem valor positivo desenha só um traço neutro na base.
  */
 @Composable
