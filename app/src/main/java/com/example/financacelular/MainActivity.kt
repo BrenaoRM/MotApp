@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit
 import androidx.lifecycle.lifecycleScope
 import com.example.financacelular.data.AppDatabase
 import com.example.financacelular.data.FinancaRepository
+import com.example.financacelular.data.RestauroBanco
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -48,6 +49,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Restauro de backup pendente: o Room abre (ou o banco anterior volta) antes de qualquer tela usar o banco
+        RestauroBanco.concluirPendente(applicationContext)
 
         enableEdgeToEdge()
 

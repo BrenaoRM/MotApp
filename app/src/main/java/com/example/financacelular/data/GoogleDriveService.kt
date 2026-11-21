@@ -30,8 +30,8 @@ object GoogleDriveService {
         connection.readTimeout = 15_000
 
         if (connection.responseCode != HttpURLConnection.HTTP_OK) {
-            Log.e(TAG, "Erro HTTP ao procurar ficheiro no Drive: ${connection.responseCode}")
-            return null
+            // Erro de rede/permissão não é "sem backup": quem chama trata a exceção como falha.
+            throw java.io.IOException("Erro HTTP ao procurar ficheiro no Drive: ${connection.responseCode}")
         }
 
         val corpo = connection.inputStream.bufferedReader().use { it.readText() }
@@ -107,16 +107,40 @@ object GoogleDriveService {
         }
     }
 
-    suspend fun restaurarBackup(tokenAcesso: String, ficheiroDestino: File): Boolean = withContext(Dispatchers.IO) {
+    /** E-mail do dono do token (Drive `about`), para conferir que o token é da conta pedida. Null se não der para saber. */
+    suspend fun emailDoToken(tokenAcesso: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val url = URL("https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)")
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.setRequestProperty("Authorization", "Bearer $tokenAcesso")
+            connection.connectTimeout = 15_000
+            connection.readTimeout = 15_000
+            if (connection.responseCode != HttpURLConnection.HTTP_OK) return@withContext null
+            val corpo = connection.inputStream.bufferedReader().use { it.readText() }
+            JSONObject(corpo).optJSONObject("user")?.optString("emailAddress")?.takeIf { it.isNotBlank() }
+        } catch (e: Exception) {
+            Log.e(TAG, "Não foi possível consultar o dono do token", e)
+            null
+        }
+    }
+
+    enum class ResultadoDownload { BAIXADO, SEM_BACKUP, ERRO }
+
+    suspend fun restaurarBackup(tokenAcesso: String, ficheiroDestino: File): Boolean =
+        baixarBackup(tokenAcesso, ficheiroDestino) == ResultadoDownload.BAIXADO
+
+    /** Como [restaurarBackup], mas separa "a conta não tem backup" de "deu erro". */
+    suspend fun baixarBackup(tokenAcesso: String, ficheiroDestino: File): ResultadoDownload = withContext(Dispatchers.IO) {
         try {
             if (tokenAcesso.isBlank()) {
                 Log.e(TAG, "Token de acesso vazio ou inválido para restauro.")
-                return@withContext false
+                return@withContext ResultadoDownload.ERRO
             }
             val fileId = procurarIdBackupExistente(tokenAcesso)
             if (fileId == null) {
                 Log.w(TAG, "Ficheiro '$NOME_BACKUP' não encontrado no Google Drive.")
-                return@withContext false
+                return@withContext ResultadoDownload.SEM_BACKUP
             }
 
             val downloadUrl = URL("https://www.googleapis.com/drive/v3/files/$fileId?alt=media")
@@ -132,14 +156,14 @@ object GoogleDriveService {
                         input.copyTo(output)
                     }
                 }
-                true
+                ResultadoDownload.BAIXADO
             } else {
                 Log.e(TAG, "Erro HTTP ao descarregar do Drive: ${downloadConnection.responseCode}")
-                false
+                ResultadoDownload.ERRO
             }
         } catch (e: Exception) {
             Log.e(TAG, "Exceção durante o restauro", e)
-            false
+            ResultadoDownload.ERRO
         }
     }
 }

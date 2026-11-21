@@ -367,16 +367,29 @@ class FinancaRepository(private val database: AppDatabase) {
         @Volatile
         private var INSTANCE: FinancaRepository? = null
 
+        /** Banco em que INSTANCE foi criada: um repositório sobre um banco já fechado não pode ser reaproveitado. */
+        @Volatile
+        private var BANCO: AppDatabase? = null
+
         fun getInstance(database: AppDatabase): FinancaRepository {
-            return INSTANCE ?: synchronized(this) {
-                val instance = FinancaRepository(database)
-                INSTANCE = instance
-                instance
+            val atual = INSTANCE
+            if (atual != null && BANCO === database) return atual
+            return synchronized(this) {
+                val existente = INSTANCE
+                if (existente != null && BANCO === database) {
+                    existente
+                } else {
+                    FinancaRepository(database).also {
+                        INSTANCE = it
+                        BANCO = database
+                    }
+                }
             }
         }
 
         fun destruirInstancia() {
             INSTANCE = null
+            BANCO = null
         }
     }
 }

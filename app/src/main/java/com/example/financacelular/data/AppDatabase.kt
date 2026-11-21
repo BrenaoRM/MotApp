@@ -71,10 +71,21 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         fun destruirInstancia() {
-            if (INSTANCE?.isOpen == true) {
+            synchronized(this) {
+                // Sem checar isOpen: uma abertura que falhou deixa isOpen falso mas o Room ainda precisa fechar
                 INSTANCE?.close()
+                INSTANCE = null
             }
-            INSTANCE = null
+        }
+
+        /**
+         * Fecha o banco e roda [bloco] segurando a mesma trava de [getInstance]: ninguém recria o banco
+         * (nem um repositório sobre ele) enquanto o arquivo é trocado; quem chamar espera e recebe o novo.
+         */
+        fun <T> comBancoFechado(bloco: () -> T): T = synchronized(this) {
+            FinancaRepository.destruirInstancia()
+            destruirInstancia()
+            bloco()
         }
     }
 }

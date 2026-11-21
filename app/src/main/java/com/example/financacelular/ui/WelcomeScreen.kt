@@ -51,8 +51,13 @@ fun WelcomeScreen(
     }
 
     LaunchedEffect(viewModel.pedidoAutorizacaoDrive) {
-        viewModel.pedidoAutorizacaoDrive?.let { launcher.launch(it) }
+        viewModel.pedidoAutorizacaoDrive?.let {
+            launcher.launch(it)
+            viewModel.limparPedidoAutorizacao()
+        }
     }
+
+    EscolhaBackupSheet(viewModel)
 
     LaunchedEffect(viewModel.completouBoasVindas) {
         if (viewModel.completouBoasVindas) {

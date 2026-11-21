@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -40,6 +41,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -126,7 +128,19 @@ fun ConfiguracoesScreen(
         if (texto.isNotEmpty() && !texto.endsWith("...")) mensagem(texto)
     }
     var confirmarRestauracao by remember { mutableStateOf(false) }
+    var confirmarDesconexao by remember { mutableStateOf(false) }
     var mostrarBancos by remember { mutableStateOf(false) }
+    if (confirmarDesconexao) {
+        ConfirmarAcaoSheet(
+            titulo = "Desconectar o Google Drive?",
+            texto = "Seus dados continuam neste aparelho e o backup fica no seu Drive. O app para de enviar backups e perde a permissão dessa conta.",
+            textoConfirmar = "Desconectar",
+            onConfirmar = { viewModel.desconectarGoogle() },
+            onDismiss = { confirmarDesconexao = false },
+            icone = Icons.Outlined.CloudOff
+        )
+    }
+    EscolhaBackupSheet(viewModel)
     if (confirmarRestauracao) {
         ConfirmarAcaoSheet(
             titulo = "Restaurar backup?",
@@ -292,12 +306,21 @@ fun ConfiguracoesScreen(
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                if (logado) "Último backup: ${viewModel.ultimaDataBackup}" else "Desconectado",
+                                if (logado) viewModel.emailUtilizador else "Desconectado",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
+                            if (logado) {
+                                Text(
+                                    "Último backup: ${viewModel.ultimaDataBackup}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
 
@@ -326,6 +349,19 @@ fun ConfiguracoesScreen(
                             modifier = Modifier.fillMaxWidth(),
                             cor = CorConfiguracoes,
                         )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            BotaoSecundario(
+                                texto = "Trocar de conta",
+                                onClick = { viewModel.sincronizarOuEntrarGoogle(activity) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            BotaoSecundario(
+                                texto = "Desconectar",
+                                onClick = { confirmarDesconexao = true },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
 
                     if (viewModel.statusBackupMessage.isNotEmpty()) {
@@ -339,6 +375,54 @@ fun ConfiguracoesScreen(
                 }
             }
         }
+    }
+}
+
+/**
+ * Conta nova que já tem backup enquanto este aparelho tem dados: o usuário escolhe qual vale.
+ * Fechar o sheet cancela e nada muda. Usado nas Configurações e na tela de boas-vindas.
+ */
+@Composable
+fun EscolhaBackupSheet(viewModel: ConfiguracoesViewModel) {
+    val escolha = viewModel.escolhaBackup ?: return
+    FolhaApp(onDismiss = viewModel::cancelarEscolhaBackup) {
+        CabecalhoDeFolha(
+            "Qual backup manter?",
+            aoFechar = viewModel::cancelarEscolhaBackup,
+            subtitulo = escolha.conta
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            "Essa conta já tem um backup e este aparelho já tem dados.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        BotaoPrincipal(
+            texto = "Manter os dados do aparelho",
+            onClick = viewModel::manterDadosDoAparelho,
+            modifier = Modifier.fillMaxWidth(),
+            cor = CorConfiguracoes,
+            corConteudo = Color.White
+        )
+        Text(
+            "O backup da conta é substituído.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 6.dp, bottom = 12.dp)
+        )
+        BotaoSecundario(
+            texto = "Restaurar o backup da conta",
+            onClick = viewModel::restaurarBackupDaContaNova,
+            modifier = Modifier.fillMaxWidth(),
+            cor = CorConfiguracoes
+        )
+        Text(
+            "Os dados deste aparelho são substituídos.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 6.dp, bottom = 16.dp)
+        )
     }
 }
 

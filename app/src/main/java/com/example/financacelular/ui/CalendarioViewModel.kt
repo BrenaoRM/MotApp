@@ -180,10 +180,8 @@ class CalendarioViewModel(application: Application) : AndroidViewModel(applicati
      * sem conta conectada, nada é lido.
      */
     private fun contaConectada(): String? =
-        getApplication<Application>()
-            .getSharedPreferences("financacelular_prefs", Context.MODE_PRIVATE)
-            .getString("email_utilizador", null)
-            ?.takeIf { it.isNotBlank() }
+        com.example.financacelular.data.ContaDrive.email(getApplication())
+            .takeIf { it.isNotBlank() }
 
     private var jobEventos: Job? = null
     private var jobDias: Job? = null
