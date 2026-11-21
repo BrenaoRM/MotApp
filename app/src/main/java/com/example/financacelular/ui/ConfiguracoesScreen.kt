@@ -5,8 +5,8 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.provider.Settings
-import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.runtime.DisposableEffect
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Lifecycle
@@ -19,7 +19,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
@@ -117,6 +116,7 @@ internal tailrec fun Context.encontrarActivity(): Activity = when (this) {
 fun ConfiguracoesScreen(
     viewModel: ConfiguracoesViewModel = viewModel(),
     aoAbrirCategorias: () -> Unit = {},
+    aoAbrirPermissoes: () -> Unit = {},
     aoVoltar: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -125,12 +125,10 @@ fun ConfiguracoesScreen(
 
     // O acesso às notificações é uma liberação do Android: reavaliada ao voltar da tela do sistema
     var acessoLiberado by remember { mutableStateOf(acessoAsNotificacoesLiberado(context)) }
-    var popupLiberado by remember { mutableStateOf(popupSobreOutrosAppsLiberado(context)) }
     DisposableEffect(activity) {
         val observador = LifecycleEventObserver { _, evento ->
             if (evento == Lifecycle.Event.ON_RESUME) {
                 acessoLiberado = acessoAsNotificacoesLiberado(context)
-                popupLiberado = popupSobreOutrosAppsLiberado(context)
             }
         }
         val ciclo = (activity as? LifecycleOwner)?.lifecycle
@@ -217,6 +215,21 @@ fun ConfiguracoesScreen(
                     },
                     onClick = aoAbrirCategorias
                 )
+                DivisorDeLinha()
+                LinhaDePagina(
+                    inicio = { IconeDeLinha(Icons.Outlined.Shield) },
+                    titulo = "Permissões",
+                    valor = "",
+                    fim = {
+                        Icon(
+                            Icons.Outlined.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(Tamanho.iconeGrande)
+                        )
+                    },
+                    onClick = aoAbrirPermissoes
+                )
             }
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -249,22 +262,6 @@ fun ConfiguracoesScreen(
                         if (acessoLiberado) mostrarBancos = true
                         else abrirAcessoAsNotificacoes(context)
                     }
-                )
-                DivisorDeLinha()
-                LinhaDePagina(
-                    inicio = { IconeDeLinha(Icons.Outlined.Layers) },
-                    titulo = "Popup sobre outros apps",
-                    valor = "",
-                    subtitulo = if (popupLiberado) "Ativo" else "Toque para liberar \"Exibir sobre outros apps\"",
-                    fim = {
-                        Icon(
-                            if (popupLiberado) Icons.Outlined.Check else Icons.Outlined.ChevronRight,
-                            contentDescription = null,
-                            tint = if (popupLiberado) CorConfiguracoes else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(Tamanho.iconeGrande)
-                        )
-                    },
-                    onClick = { if (!popupLiberado) abrirPopupSobreOutrosApps(context) }
                 )
             }
             Spacer(modifier = Modifier.height(24.dp))
@@ -426,7 +423,7 @@ fun EscolhaBackupSheet(viewModel: ConfiguracoesViewModel) {
 
 /** Ícone neutro de 44dp no início de uma linha (o mesmo de Categorias), sem cor de destaque. */
 @Composable
-private fun IconeDeLinha(icone: androidx.compose.ui.graphics.vector.ImageVector) {
+internal fun IconeDeLinha(icone: androidx.compose.ui.graphics.vector.ImageVector) {
     Box(
         modifier = Modifier
             .size(44.dp)

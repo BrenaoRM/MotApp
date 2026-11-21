@@ -135,6 +135,7 @@ private const val ROTA_INVESTIMENTO = "investimento"
 private const val ROTA_CONFIGURACOES = "configuracoes"
 private const val ROTA_PARCELADOS = "parcelados"
 private const val ROTA_CATEGORIAS = "categorias"
+private const val ROTA_PERMISSOES = "permissoes"
 private val ROTAS_INTERNAS_COM_CABECALHO = setOf(ROTA_CARTAO, ROTA_RECORRENTES, ROTA_PARCELADOS, ROTA_METAS, ROTA_ORCAMENTO)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -261,7 +262,8 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     val emTelaRecorrentes = currentDestination?.route == ROTA_RECORRENTES
     val emTelaOrcamento = currentDestination?.route == ROTA_ORCAMENTO
     val emTelaCategorias = currentDestination?.route == ROTA_CATEGORIAS
-    val emTelaConfiguracoes = currentDestination?.route == ROTA_CONFIGURACOES
+    val emTelaConfiguracoes = currentDestination?.route == ROTA_CONFIGURACOES ||
+        currentDestination?.route == ROTA_PERMISSOES
     val abaAtual = DestinoPrincipal.values().firstOrNull { it.rota == currentDestination?.route }
     // Telas com o cabeçalho fixo fora do NavHost: as 4 abas e as 5 internas (Cartões, Recorrentes, Parcelados, Metas, Orçamento)
     val rotaAtual = currentDestination?.route
@@ -556,8 +558,12 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         ConfiguracoesScreen(
                             viewModel = configuracoesViewModel,
                             aoAbrirCategorias = { navController.navigate(ROTA_CATEGORIAS) },
+                            aoAbrirPermissoes = { navController.navigate(ROTA_PERMISSOES) },
                             aoVoltar = { navController.popBackStack() }
                         )
+                    }
+                    composable(ROTA_PERMISSOES) {
+                        PermissoesScreen(aoVoltar = { navController.popBackStack() })
                     }
                     composable(
                         route = ROTA_NOVA_TRANSACAO,

@@ -253,6 +253,7 @@ fun CalendarioScreen(
     val launcherPermissaoCalendario = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { resultado ->
+        Permissao.CALENDARIO.marcarPedida(context)
         val leitura = resultado[Manifest.permission.READ_CALENDAR] == true
         val escrita = resultado[Manifest.permission.WRITE_CALENDAR] == true
         if (leitura) {

@@ -88,6 +88,8 @@ fun abrirAcessoAsNotificacoes(context: android.content.Context) {
 @Composable
 fun FolhaBancosMonitorados(viewModel: ConfiguracoesViewModel, aoFechar: () -> Unit) {
     val context = LocalContext.current
+    // Ao ligar o primeiro banco, pede os avisos (se faltar) e só depois a exceção de bateria
+    val pedirAvisos = rememberPedirPermissao(Permissao.NOTIFICACOES) { pedirExcecaoDeBateria(context) }
     FolhaApp(onDismiss = aoFechar) {
         CabecalhoDeFolha("Bancos monitorados", aoFechar = aoFechar)
         Spacer(modifier = Modifier.height(8.dp))
@@ -99,7 +101,7 @@ fun FolhaBancosMonitorados(viewModel: ConfiguracoesViewModel, aoFechar: () -> Un
                     .heightIn(min = Tamanho.toque)
                     .clickable(role = Role.Switch) {
                         viewModel.alternarBanco(banco.pacote, !ativo)
-                        if (!ativo) pedirExcecaoDeBateria(context)
+                        if (!ativo) pedirAvisos()
                     },
                 verticalAlignment = Alignment.CenterVertically
             ) {

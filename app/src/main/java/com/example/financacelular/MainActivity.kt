@@ -1,25 +1,20 @@
 package com.example.financacelular
 
-import android.Manifest
 import android.content.ComponentName
 import android.content.Intent
 import android.service.notification.NotificationListenerService
 import androidx.core.app.NotificationManagerCompat
 import com.example.financacelular.deteccao.NotificacaoListener
-import android.content.pm.PackageManager
 import com.example.financacelular.deteccao.PreenchimentoPendente
 import com.example.financacelular.deteccao.paraDetectada
-import android.os.Build
 import android.os.Bundle
 import android.graphics.Color
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.DisposableEffect
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -42,11 +37,6 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
-    // Precisa ser registrado antes de a Activity chegar ao estado STARTED
-    private val pedidoPermissaoNotificacao = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { /* Sem ação: se negar, o lembrete simplesmente não é exibido */ }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Restauro de backup pendente: o Room abre (ou o banco anterior volta) antes de qualquer tela usar o banco
@@ -58,8 +48,6 @@ class MainActivity : ComponentActivity() {
 
         // Aberto pelo aviso de transação detectada (só na criação, para não repetir ao girar a tela)
         if (savedInstanceState == null) intent.paraDetectada()?.let(PreenchimentoPendente::definir)
-
-        pedirPermissaoDeNotificacaoSeNecessario()
 
         // Se o sistema deixou o leitor de notificações desligado, religa ao abrir o app
         if (NotificationManagerCompat.getEnabledListenerPackages(this).contains(packageName)) {
@@ -127,20 +115,6 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         intent.paraDetectada()?.let(PreenchimentoPendente::definir)
-    }
-
-    /** No Android 13+ (API 33) a permissão de notificação precisa ser pedida em runtime. */
-    private fun pedirPermissaoDeNotificacaoSeNecessario() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
-
-        val jaConcedida = ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.POST_NOTIFICATIONS
-        ) == PackageManager.PERMISSION_GRANTED
-
-        if (!jaConcedida) {
-            pedidoPermissaoNotificacao.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
     }
 
     private fun calcularDelayAte2h(): Long {
