@@ -72,6 +72,9 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
     var salvando by mutableStateOf(false)
         private set
 
+    // Nome original do estabelecimento vindo da notificação; nunca aparece na tela (a descrição pode ser renomeada)
+    private var estabelecimentoDetectado: String? = null
+
     fun definirTipoInicial(novoTipo: TipoTransacao) {
         tipo = novoTipo
         if (novoTipo == TipoTransacao.RECEITA) {
@@ -82,11 +85,22 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
 
     /** Preenche o que veio da notificação do banco; categoria e cartão ficam para a pessoa escolher. */
     fun aplicarDetectada(detectada: TransacaoDetectada) {
+        estabelecimentoDetectado = detectada.descricao
         definirTipoInicial(detectada.tipo)
         valor = detectada.valorParaCampo()
         descricao = detectada.descricao.orEmpty()
         data = LocalDate.now()
         if (detectada.tipo == TipoTransacao.DESPESA) onFormaPagamentoChange(detectada.formaPagamento)
+        sugerirCategoria(detectada)
+    }
+
+    /** Pré-seleciona a categoria usada da última vez neste estabelecimento, se a pessoa ainda não escolheu. */
+    private fun sugerirCategoria(detectada: TransacaoDetectada) {
+        val nome = detectada.descricao ?: return
+        viewModelScope.launch {
+            val sugerida = repository.sugerirCategoria(nome, detectada.tipo) ?: return@launch
+            if (categoriaSelecionada == null && tipo == detectada.tipo) categoriaSelecionada = sugerida
+        }
     }
 
     fun onValorChange(novoValor: String) {
@@ -227,6 +241,7 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
                     )
                     repository.salvarTransacao(transacao)
                 }
+                estabelecimentoDetectado?.let { repository.lembrarCategoria(it, tipo, catId) }
                 aoSalvarComSucesso()
             } finally {
                 salvando = false

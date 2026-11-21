@@ -80,12 +80,12 @@ private val OpcoesDeTema = listOf(
     OpcaoDeTema(TemaPreferencia.ESCURO, "Escuro")
 )
 
-private fun acessoAsNotificacoesLiberado(context: Context): Boolean =
+internal fun acessoAsNotificacoesLiberado(context: Context): Boolean =
     NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
 
 /** Sem a economia de bateria o sistema não derruba o leitor de notificações. Um toque num diálogo do sistema. */
 @SuppressLint("BatteryLife")
-private fun pedirExcecaoDeBateria(context: Context) {
+internal fun pedirExcecaoDeBateria(context: Context) {
     val energia = context.getSystemService(Context.POWER_SERVICE) as PowerManager
     if (energia.isIgnoringBatteryOptimizations(context.packageName)) return
     runCatching {
@@ -95,7 +95,7 @@ private fun pedirExcecaoDeBateria(context: Context) {
     }
 }
 
-private tailrec fun Context.encontrarActivity(): Activity = when (this) {
+internal tailrec fun Context.encontrarActivity(): Activity = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.encontrarActivity()
     else -> throw IllegalStateException("Nenhuma Activity encontrada no contexto")
@@ -151,41 +151,7 @@ fun ConfiguracoesScreen(
         )
     }
 
-    if (mostrarBancos) {
-        FolhaApp(onDismiss = { mostrarBancos = false }) {
-            CabecalhoDeFolha("Bancos monitorados", aoFechar = { mostrarBancos = false })
-            Spacer(modifier = Modifier.height(8.dp))
-            BancosMonitorados.todos.forEach { banco ->
-                val ativo = banco.pacote in viewModel.bancosAtivos
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = Tamanho.toque)
-                        .clickable(role = Role.Switch) {
-                            viewModel.alternarBanco(banco.pacote, !ativo)
-                            if (!ativo) pedirExcecaoDeBateria(context)
-                        },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        banco.nome,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.weight(1f)
-                    )
-                    if (ativo) {
-                        Icon(
-                            Icons.Outlined.Check,
-                            contentDescription = "Ativo",
-                            tint = CorConfiguracoes,
-                            modifier = Modifier.size(Tamanho.iconeGrande)
-                        )
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-    }
+    if (mostrarBancos) FolhaBancosMonitorados(viewModel) { mostrarBancos = false }
 
     val authorizationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
@@ -265,7 +231,7 @@ fun ConfiguracoesScreen(
                     },
                     onClick = {
                         if (acessoLiberado) mostrarBancos = true
-                        else context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                        else abrirAcessoAsNotificacoes(context)
                     }
                 )
             }

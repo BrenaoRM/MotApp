@@ -85,6 +85,24 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         bancosAtivos = BancosMonitorados.ativados(prefs)
     }
 
+    /** O cartão "Detectar gastos" do Início foi dispensado, ou a detecção foi tratada no onboarding. */
+    var dicaDeteccaoDispensada: Boolean by mutableStateOf(prefs.getBoolean("dica_deteccao_dispensada", false))
+        private set
+
+    /** Passo de onboarding da detecção, mostrado uma vez logo depois das boas-vindas (não é salvo: no restart vale o cartão). */
+    var mostrarPassoDeteccao: Boolean by mutableStateOf(false)
+        private set
+
+    fun dispensarDicaDeteccao() {
+        prefs.edit { putBoolean("dica_deteccao_dispensada", true) }
+        dicaDeteccaoDispensada = true
+    }
+
+    fun concluirPassoDeteccao() {
+        dispensarDicaDeteccao()
+        mostrarPassoDeteccao = false
+    }
+
     private var acaoPendente: AcaoPendenteDrive? = null
     /** Conta para a qual o consentimento do Drive foi pedido (ainda não gravada como conectada). */
     private var contaPendente: String? = null
@@ -134,6 +152,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun marcarBoasVindasComoConcluida() {
+        if (!completouBoasVindas && !dicaDeteccaoDispensada) mostrarPassoDeteccao = true
         prefs.edit { putBoolean("completou_boas_vindas", true) }
         completouBoasVindas = true
     }
@@ -167,11 +186,11 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
 
                 tratarResultadoLogin(result, onResult)
             } catch (_: androidx.credentials.exceptions.GetCredentialCancellationException) {
-                statusBackupMessage = "Login cancelado pelo utilizador."
+                statusBackupMessage = "Login cancelado pelo usuário."
                 onResult(false, null)
             } catch (e: androidx.credentials.exceptions.NoCredentialException) {
                 e.printStackTrace()
-                statusBackupMessage = "Nenhuma conta Google encontrada. Adicione uma conta nas Definições do telemóvel."
+                statusBackupMessage = "Nenhuma conta Google encontrada. Adicione uma conta nas Configurações do celular."
                 onResult(false, null)
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -220,7 +239,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun realizarBackupNaNuvem(activity: Activity) = comTrava {
-        statusBackupMessage = "A preparar o backup local..."
+        statusBackupMessage = "Preparando o backup local..."
         val context = getApplication<Application>()
         val ficheiroBackup = BackupManager.exportarBaseDeDadosParaFicheiro(context)
 
@@ -253,7 +272,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
             }
             viewModelScope.launch {
                 try {
-                    statusBackupMessage = "A verificar o Google Drive..."
+                    statusBackupMessage = "Verificando o Google Drive..."
                     val accessToken = obterAccessTokenDrive(activity, AcaoPendenteDrive.SINCRONIZAR, conta) ?: return@launch
                     executarFluxoInteligenteDrive(accessToken, conta)
                 } finally {
@@ -268,7 +287,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
      * temporário e, se este aparelho também tem dados, quem decide é o usuário (EscolhaBackup).
      */
     private suspend fun executarFluxoInteligenteDrive(accessToken: String, conta: String) {
-        statusBackupMessage = "A procurar backup na nuvem..."
+        statusBackupMessage = "Procurando backup na nuvem..."
         val context = getApplication<Application>()
         val temporario = File.createTempFile("backup_nuvem_", ".db", context.cacheDir)
 
@@ -349,7 +368,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
      */
     private suspend fun aplicarBackupDaNuvem(conta: String, baixado: File) {
         val context = getApplication<Application>()
-        statusBackupMessage = "Backup encontrado! A restaurar dados..."
+        statusBackupMessage = "Backup encontrado! Restaurando dados..."
 
         when (withContext(Dispatchers.IO) { RestauroBanco.restaurar(context, baixado) }) {
             RestauroBanco.Resultado.INVALIDO -> {
@@ -629,7 +648,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
     }
 
     private suspend fun continuarBackupComToken(accessToken: String, ficheiroBackup: File) {
-        statusBackupMessage = "A enviar para o Google Drive..."
+        statusBackupMessage = "Enviando para o Google Drive..."
         val sucesso = try {
             GoogleDriveService.uploadBackup(accessToken, ficheiroBackup)
         } finally {
@@ -640,12 +659,12 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
             marcarBoasVindasComoConcluida()
             statusBackupMessage = "Backup enviado com sucesso!"
         } else {
-            statusBackupMessage = "Erro ao enviar o ficheiro para a nuvem."
+            statusBackupMessage = "Erro ao enviar o arquivo para a nuvem."
         }
     }
 
     private suspend fun continuarRestauroComToken(accessToken: String) {
-        statusBackupMessage = "A descarregar backup da nuvem..."
+        statusBackupMessage = "Baixando backup da nuvem..."
         val context = getApplication<Application>()
         // Baixa para um temporário: o banco local só é trocado depois de validar o arquivo
         val temporario = File.createTempFile("backup_nuvem_", ".db", context.cacheDir)

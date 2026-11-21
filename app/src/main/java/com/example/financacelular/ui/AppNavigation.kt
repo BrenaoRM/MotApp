@@ -173,7 +173,16 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
         return
     }
 
+    if (configuracoesViewModel.mostrarPassoDeteccao) {
+        PassoDeteccaoScreen(configuracoesViewModel)
+        return
+    }
+
     var isFabExpanded by rememberSaveable { mutableStateOf(false) }
+    val contextoApp = LocalContext.current
+    val acessoNotificacoes = rememberAcessoNotificacoes()
+    var mostrarBancosDeteccao by remember { mutableStateOf(false) }
+    if (mostrarBancosDeteccao) FolhaBancosMonitorados(configuracoesViewModel) { mostrarBancosDeteccao = false }
     var acionarNovoInvestimento by rememberSaveable { mutableStateOf(false) }
     var acionarNovaAgenda by rememberSaveable { mutableStateOf(false) }
     var acionarNovaMeta by rememberSaveable { mutableStateOf(false) }
@@ -520,7 +529,14 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                             aoAbrirAssinaturas = { abrirInterna(ROTA_RECORRENTES, listaRecorrentes) },
                             aoAbrirParcelados = { abrirInterna(ROTA_PARCELADOS, listaParcelados) },
                             aoAbrirOrcamento = { abrirInterna(ROTA_ORCAMENTO, listaOrcamento) },
-                            aoAbrirMetas = { abrirInterna(ROTA_METAS, listaMetas) }
+                            aoAbrirMetas = { abrirInterna(ROTA_METAS, listaMetas) },
+                            mostrarDicaDeteccao = !configuracoesViewModel.dicaDeteccaoDispensada &&
+                                (!acessoNotificacoes || configuracoesViewModel.bancosAtivos.isEmpty()),
+                            aoLigarDeteccao = {
+                                if (acessoNotificacoes) mostrarBancosDeteccao = true
+                                else abrirAcessoAsNotificacoes(contextoApp)
+                            },
+                            aoDispensarDeteccao = { configuracoesViewModel.dispensarDicaDeteccao() }
                         )
                     }
                     composable(DestinoPrincipal.ANALISE.rota) {

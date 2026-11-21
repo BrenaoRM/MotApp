@@ -146,7 +146,15 @@ fun CategoriasScreen(
                 editandoId = null
                 mensagem("Categoria excluída.")
             },
-            aoFechar = { editandoId = null }
+            aoFechar = { editandoId = null },
+            destinos = itens.map { it.categoria }.filter {
+                it.tipo == item.categoria.tipo && it.id != item.categoria.id && !it.nome.equals("Fatura", ignoreCase = true)
+            },
+            aoMoverEExcluir = { destino ->
+                viewModel.moverEExcluir(item.categoria, destino)
+                editandoId = null
+                mensagem("Lançamentos movidos para ${destino.nome}.")
+            }
         )
     }
 

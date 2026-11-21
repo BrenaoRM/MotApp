@@ -20,6 +20,9 @@ interface DespesaRecorrenteDao {
     @Query("DELETE FROM despesas_recorrentes WHERE categoriaId = :categoriaId")
     suspend fun excluirPorCategoria(categoriaId: Long)
 
+    @Query("UPDATE despesas_recorrentes SET categoriaId = :para WHERE categoriaId = :de")
+    suspend fun moverPorCategoria(de: Long, para: Long)
+
     /** Apaga todas as assinaturas cobradas em um cartão (usado ao excluir o cartão). */
     @Query("DELETE FROM despesas_recorrentes WHERE cartaoId = :cartaoId")
     suspend fun excluirDoCartao(cartaoId: Long)

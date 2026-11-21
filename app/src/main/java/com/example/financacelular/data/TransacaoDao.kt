@@ -52,6 +52,9 @@ interface TransacaoDao {
     @Query("DELETE FROM transacoes WHERE categoriaId = :categoriaId")
     suspend fun excluirPorCategoria(categoriaId: Long)
 
+    @Query("UPDATE transacoes SET categoriaId = :para WHERE categoriaId = :de")
+    suspend fun moverPorCategoria(de: Long, para: Long)
+
     // ---- Recorrentes / assinaturas ----
 
     /** Última cobrança já gerada para uma assinatura (a de mês mais recente). */

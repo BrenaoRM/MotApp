@@ -35,6 +35,7 @@ class FinancaRepository(private val database: AppDatabase) {
     private val investimentoDao = database.investimentoDao()
     private val afazerDao = database.afazerDao()
     private val cartaoDao = database.cartaoDao()
+    private val estabelecimentoDao = database.estabelecimentoCategoriaDao()
 
     // ------------------------------------------------------------------
     // Cartões
@@ -341,7 +342,34 @@ class FinancaRepository(private val database: AppDatabase) {
     suspend fun excluirCategoriaComDados(categoria: Categoria) = database.withTransaction {
         dao.excluirPorCategoria(categoria.id)
         despesaRecorrenteDao.excluirPorCategoria(categoria.id)
+        estabelecimentoDao.excluirPorCategoria(categoria.id)
         categoriaDao.excluir(categoria)
+    }
+
+    /**
+     * Passa os lançamentos, as recorrências e a categoria lembrada por estabelecimento para [destino] e só então
+     * exclui [categoria]. O limite de orçamento da categoria excluída é descartado (cascata); o do destino fica.
+     * Tudo numa transação.
+     */
+    suspend fun moverEExcluirCategoria(categoria: Categoria, destino: Categoria) = database.withTransaction {
+        dao.moverPorCategoria(categoria.id, destino.id)
+        despesaRecorrenteDao.moverPorCategoria(categoria.id, destino.id)
+        estabelecimentoDao.moverPorCategoria(categoria.id, destino.id)
+        categoriaDao.excluir(categoria)
+    }
+
+    /** Categoria usada da última vez para este estabelecimento detectado (null se nunca vista ou já excluída). */
+    suspend fun sugerirCategoria(estabelecimento: String, tipo: TipoTransacao): Categoria? {
+        val chave = chaveDoEstabelecimento(estabelecimento)
+        if (chave.isEmpty()) return null
+        val id = estabelecimentoDao.buscarCategoria(chave, tipo) ?: return null
+        return categoriaDao.listarTodasSync().firstOrNull { it.id == id && it.tipo == tipo }
+    }
+
+    /** Guarda, sem mostrar a ninguém, a categoria escolhida para o estabelecimento detectado. */
+    suspend fun lembrarCategoria(estabelecimento: String, tipo: TipoTransacao, categoriaId: Long) {
+        val chave = chaveDoEstabelecimento(estabelecimento)
+        if (chave.isNotEmpty()) estabelecimentoDao.definir(EstabelecimentoCategoria(chave, tipo, categoriaId))
     }
 
     fun listarMetas(): Flow<List<Meta>> = metaDao.listarTodas()

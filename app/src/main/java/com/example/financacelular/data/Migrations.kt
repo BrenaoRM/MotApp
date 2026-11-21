@@ -67,3 +67,13 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
         db.execSQL("ALTER TABLE categorias ADD COLUMN icone TEXT")
     }
 }
+
+/** 12 -> 13: categoria lembrada por estabelecimento detectado (tabela nova, nada existente muda). */
+val MIGRATION_12_13 = object : Migration(12, 13) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `estabelecimento_categoria` (`chave` TEXT NOT NULL, " +
+                "`tipo` TEXT NOT NULL, `categoriaId` INTEGER NOT NULL, PRIMARY KEY(`chave`, `tipo`))"
+        )
+    }
+}

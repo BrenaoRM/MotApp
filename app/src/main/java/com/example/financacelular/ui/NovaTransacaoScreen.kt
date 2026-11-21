@@ -438,7 +438,8 @@ fun NovaTransacaoScreen(
     aoSalvar: () -> Unit = {},
     aoFechar: () -> Unit = {}
 ) {
-    remember(tipoInicial) { viewModel.definirTipoInicial(tipoInicial) }
+    // Declarado antes dos outros efeitos: eles rodam em ordem, então o tipo inicial vale antes da detecção
+    LaunchedEffect(tipoInicial) { viewModel.definirTipoInicial(tipoInicial) }
 
     LaunchedEffect(tipoInicial, isParceladoInicial, isRecorrenteInicial) {
         if (isParceladoInicial) {
@@ -865,7 +866,16 @@ fun NovaTransacaoScreen(
                     mensagem("Categoria excluída.")
                 },
                 aoFechar = { categoriaParaEditarId = null },
-                cor = RoxoHero
+                cor = RoxoHero,
+                destinos = itensCategoria.orEmpty().map { it.categoria }.filter {
+                    it.tipo == item.categoria.tipo && it.id != item.categoria.id && !it.nome.equals("Fatura", ignoreCase = true)
+                },
+                aoMoverEExcluir = { destino ->
+                    if (viewModel.categoriaSelecionada?.id == item.categoria.id) viewModel.onCategoriaChange(destino)
+                    categoriasViewModel.moverEExcluir(item.categoria, destino)
+                    categoriaParaEditarId = null
+                    mensagem("Lançamentos movidos para ${destino.nome}.")
+                }
             )
         }
 

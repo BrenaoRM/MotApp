@@ -7,6 +7,12 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
+import com.example.financacelular.data.Categoria
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -61,7 +67,10 @@ fun FolhaEditarCategoria(
     aoSalvar: (nome: String, icone: String?) -> Unit,
     aoExcluir: () -> Unit,
     aoFechar: () -> Unit,
-    cor: Color = RoxoHero
+    cor: Color = RoxoHero,
+    /** Outras categorias do mesmo tipo; com [item] em uso e ao menos uma, a exclusão oferece "Mover para". */
+    destinos: List<Categoria> = emptyList(),
+    aoMoverEExcluir: (Categoria) -> Unit = {}
 ) {
     val categoria = item?.categoria
     val tipo = categoria?.tipo ?: tipoNova
@@ -69,6 +78,7 @@ fun FolhaEditarCategoria(
     var nome by rememberSaveable(categoria?.id) { mutableStateOf(categoria?.nome ?: "") }
     var icone by rememberSaveable(categoria?.id) { mutableStateOf(categoria?.icone) }
     var confirmando by rememberSaveable(categoria?.id) { mutableStateOf(false) }
+    var destinoId by rememberSaveable(categoria?.id) { mutableStateOf<Long?>(null) }
 
     val nomeTratado = nome.trim()
     val repetido = nomeTratado.isNotEmpty() && nomesDoTipo.any {
@@ -81,7 +91,16 @@ fun FolhaEditarCategoria(
             transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) using SizeTransform() },
             label = "confirmarExclusaoCategoria"
         ) { pedindoConfirmacao ->
-            if (pedindoConfirmacao && item != null) {
+            if (pedindoConfirmacao && item != null && item.emUso && destinos.isNotEmpty()) {
+                ConfirmarMoverCategoria(
+                    item = item,
+                    destinos = destinos,
+                    destinoId = destinoId,
+                    aoEscolher = { destinoId = it },
+                    aoMover = { destino -> aoMoverEExcluir(destino) },
+                    aoExcluirTudo = aoExcluir
+                )
+            } else if (pedindoConfirmacao && item != null) {
                 val partes = buildList {
                     if (item.lancamentos > 0) add(if (item.lancamentos == 1) "1 lançamento" else "${item.lancamentos} lançamentos")
                     if (item.recorrencias > 0) add(if (item.recorrencias == 1) "1 recorrência" else "${item.recorrencias} recorrências")
@@ -198,6 +217,94 @@ fun FolhaEditarCategoria(
                 }
             }
         }
+    }
+}
+
+/** Exclusão de categoria em uso: mover os lançamentos para outra do mesmo tipo (mantém o histórico) ou apagar tudo. */
+@Composable
+private fun ConfirmarMoverCategoria(
+    item: ItemCategoria,
+    destinos: List<Categoria>,
+    destinoId: Long?,
+    aoEscolher: (Long) -> Unit,
+    aoMover: (Categoria) -> Unit,
+    aoExcluirTudo: () -> Unit
+) {
+    val partes = buildList {
+        if (item.lancamentos > 0) add(if (item.lancamentos == 1) "1 lançamento" else "${item.lancamentos} lançamentos")
+        if (item.recorrencias > 0) add(if (item.recorrencias == 1) "1 recorrência" else "${item.recorrencias} recorrências")
+    }.joinToString(" e ")
+    val escolhido = destinos.firstOrNull { it.id == destinoId }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text("Excluir \"${item.categoria.nome}\"?", style = MaterialTheme.typography.titleLarge, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            "$partes usam esta categoria. Mova para outra para manter o histórico. " +
+                "O limite de orçamento dela será descartado.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(Espaco.lg))
+        Text(
+            "Mover para",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(Espaco.sm))
+        Column(
+            modifier = Modifier.heightIn(max = 220.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(Espaco.sm)
+        ) {
+            destinos.chunked(3).forEach { linha ->
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Espaco.sm)) {
+                    linha.forEach { destino ->
+                        BlocoDeEscolha(
+                            selecionado = destino.id == destinoId,
+                            onClick = { aoEscolher(destino.id) },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    iconeParaCategoria(destino.nome, destino.icone),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(Tamanho.icone)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    destino.nome,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                    repeat(3 - linha.size) { Spacer(modifier = Modifier.weight(1f)) }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(Espaco.xl))
+        BotaoPrincipal(
+            texto = "Mover e excluir",
+            onClick = { escolhido?.let(aoMover) },
+            modifier = Modifier.fillMaxWidth(),
+            cor = RoxoHero,
+            corConteudo = Color.White,
+            enabled = escolhido != null
+        )
+        Spacer(modifier = Modifier.height(Espaco.md))
+        BotaoSecundario(
+            texto = "Excluir tudo",
+            onClick = aoExcluirTudo,
+            modifier = Modifier.fillMaxWidth(),
+            cor = MaterialTheme.cores.textoGasto
+        )
+        Spacer(modifier = Modifier.height(Espaco.sm))
     }
 }
 

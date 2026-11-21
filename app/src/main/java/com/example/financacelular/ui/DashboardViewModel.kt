@@ -1,7 +1,6 @@
 package com.example.financacelular.ui
 
 import android.app.Application
-import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.financacelular.data.AppDatabase
@@ -48,10 +47,6 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
     private var alertaJaExibidoNestaSessao = false
     private val _triggerVerificacao = MutableStateFlow(0)
-
-    val nomeUtilizador: String
-        get() = getApplication<Application>().getSharedPreferences("financacelular_prefs", Context.MODE_PRIVATE)
-            .getString("nome_utilizador", "Usuário") ?: "Usuário"
 
     // Alerta se QUALQUER cartão tem fatura em aberto (com valor) vencendo em até 2 dias
     val alertaFaturaPendente: StateFlow<Boolean> = combine(

@@ -41,6 +41,10 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      # Testes e lint antes de publicar: um teste quebrado ou erro de lint barra a release
+      - name: Testes unitários e lint
+        run: ./gradlew testDebugUnitTest lintDebug
+
       # --- NOVO: RESTAURA A KEYSTORE OFICIAL DOS SECRETS ---
       - name: Restaurar Keystore de Produção
         run: |

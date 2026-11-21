@@ -86,6 +86,9 @@ fun DashboardScreen(
     aoAbrirParcelados: () -> Unit = {},
     aoAbrirOrcamento: () -> Unit = {},
     aoAbrirMetas: () -> Unit = {},
+    mostrarDicaDeteccao: Boolean = false,
+    aoLigarDeteccao: () -> Unit = {},
+    aoDispensarDeteccao: () -> Unit = {},
     estadoLista: LazyListState = rememberLazyListState()
 ) {
     val totalDespesas by viewModel.totalDespesas.collectAsState()
@@ -248,6 +251,11 @@ fun DashboardScreen(
                             )
                         }
                     }
+                }
+
+                if (mostrarDicaDeteccao) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    CartaoDicaDeteccao(aoLigar = aoLigarDeteccao, aoDispensar = aoDispensarDeteccao)
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))

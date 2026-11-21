@@ -57,4 +57,10 @@ class CategoriasViewModel(application: Application) : AndroidViewModel(applicati
     fun excluir(categoria: Categoria) {
         viewModelScope.launch { repository.excluirCategoriaComDados(categoria) }
     }
+
+    /** Move os lançamentos e as recorrências para [destino] (mesmo tipo) e exclui a categoria. */
+    fun moverEExcluir(categoria: Categoria, destino: Categoria) {
+        if (destino.id == categoria.id || destino.tipo != categoria.tipo) return
+        viewModelScope.launch { repository.moverEExcluirCategoria(categoria, destino) }
+    }
 }

@@ -19,9 +19,10 @@ import kotlinx.coroutines.launch
         DespesaRecorrente::class,
         InvestimentoEntity::class,
         AfazerEntity::class,
-        CartaoEntity::class
+        CartaoEntity::class,
+        EstabelecimentoCategoria::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -34,6 +35,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun investimentoDao(): InvestimentoDao
     abstract fun afazerDao(): AfazerDao
     abstract fun cartaoDao(): CartaoDao
+    abstract fun estabelecimentoCategoriaDao(): EstabelecimentoCategoriaDao
 
     companion object {
         const val NOME_ARQUIVO_BANCO = "financa_celular.db"
@@ -48,7 +50,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     NOME_ARQUIVO_BANCO
                 )
-                    .addMigrations(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
+                    .addMigrations(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
                     .addCallback(object : Callback() {
                         override fun onCreate(db: SupportSQLiteDatabase) {
                             super.onCreate(db)

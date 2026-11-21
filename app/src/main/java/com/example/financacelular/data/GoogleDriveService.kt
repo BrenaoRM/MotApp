@@ -31,7 +31,7 @@ object GoogleDriveService {
 
         if (connection.responseCode != HttpURLConnection.HTTP_OK) {
             // Erro de rede/permissão não é "sem backup": quem chama trata a exceção como falha.
-            throw java.io.IOException("Erro HTTP ao procurar ficheiro no Drive: ${connection.responseCode}")
+            throw java.io.IOException("Erro HTTP ao buscar o arquivo no Drive: ${connection.responseCode}")
         }
 
         val corpo = connection.inputStream.bufferedReader().use { it.readText() }
@@ -127,10 +127,7 @@ object GoogleDriveService {
 
     enum class ResultadoDownload { BAIXADO, SEM_BACKUP, ERRO }
 
-    suspend fun restaurarBackup(tokenAcesso: String, ficheiroDestino: File): Boolean =
-        baixarBackup(tokenAcesso, ficheiroDestino) == ResultadoDownload.BAIXADO
-
-    /** Como [restaurarBackup], mas separa "a conta não tem backup" de "deu erro". */
+    /** Baixa o backup do Drive; separa "a conta não tem backup" de "deu erro". */
     suspend fun baixarBackup(tokenAcesso: String, ficheiroDestino: File): ResultadoDownload = withContext(Dispatchers.IO) {
         try {
             if (tokenAcesso.isBlank()) {
@@ -139,7 +136,7 @@ object GoogleDriveService {
             }
             val fileId = procurarIdBackupExistente(tokenAcesso)
             if (fileId == null) {
-                Log.w(TAG, "Ficheiro '$NOME_BACKUP' não encontrado no Google Drive.")
+                Log.w(TAG, "Arquivo '$NOME_BACKUP' não encontrado no Google Drive.")
                 return@withContext ResultadoDownload.SEM_BACKUP
             }
 
@@ -158,7 +155,7 @@ object GoogleDriveService {
                 }
                 ResultadoDownload.BAIXADO
             } else {
-                Log.e(TAG, "Erro HTTP ao descarregar do Drive: ${downloadConnection.responseCode}")
+                Log.e(TAG, "Erro HTTP ao baixar do Drive: ${downloadConnection.responseCode}")
                 ResultadoDownload.ERRO
             }
         } catch (e: Exception) {
