@@ -44,9 +44,18 @@ fun Intent.paraDetectada(): TransacaoDetectada? {
     return extrasParaDetectada(pacote.keySet().associateWith { pacote.get(it) })
 }
 
-/** Avisa que uma transação foi detectada. Tocar na notificação abre Nova Transação já preenchida. */
-@SuppressLint("MissingPermission") // a permissão é verificada logo abaixo; o lint não enxerga
+/**
+ * Avisa que uma transação foi detectada: com "Exibir sobre outros apps" liberado aparece o popup;
+ * sem a liberação, a notificação de sempre.
+ */
 fun avisarTransacao(context: Context, detectada: TransacaoDetectada, nomeBanco: String) {
+    if (PopupDeTransacao.mostrar(context, detectada, nomeBanco)) return
+    notificarTransacao(context, detectada, nomeBanco)
+}
+
+/** Notificação da transação detectada. Tocar nela abre Nova Transação já preenchida. */
+@SuppressLint("MissingPermission") // a permissão é verificada logo abaixo; o lint não enxerga
+fun notificarTransacao(context: Context, detectada: TransacaoDetectada, nomeBanco: String) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
         ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
         != PackageManager.PERMISSION_GRANTED

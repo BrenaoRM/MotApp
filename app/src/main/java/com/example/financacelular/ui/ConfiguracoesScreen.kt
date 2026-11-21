@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.provider.Settings
+import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.runtime.DisposableEffect
 import androidx.core.app.NotificationManagerCompat
@@ -83,6 +84,17 @@ private val OpcoesDeTema = listOf(
 internal fun acessoAsNotificacoesLiberado(context: Context): Boolean =
     NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
 
+/** "Exibir sobre outros apps": liberação do Android que deixa o popup de transação aparecer por cima de outros apps. */
+internal fun popupSobreOutrosAppsLiberado(context: Context): Boolean = Settings.canDrawOverlays(context)
+
+internal fun abrirPopupSobreOutrosApps(context: Context) {
+    runCatching {
+        context.startActivity(
+            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
+        )
+    }
+}
+
 /** Sem a economia de bateria o sistema não derruba o leitor de notificações. Um toque num diálogo do sistema. */
 @SuppressLint("BatteryLife")
 internal fun pedirExcecaoDeBateria(context: Context) {
@@ -113,9 +125,13 @@ fun ConfiguracoesScreen(
 
     // O acesso às notificações é uma liberação do Android: reavaliada ao voltar da tela do sistema
     var acessoLiberado by remember { mutableStateOf(acessoAsNotificacoesLiberado(context)) }
+    var popupLiberado by remember { mutableStateOf(popupSobreOutrosAppsLiberado(context)) }
     DisposableEffect(activity) {
         val observador = LifecycleEventObserver { _, evento ->
-            if (evento == Lifecycle.Event.ON_RESUME) acessoLiberado = acessoAsNotificacoesLiberado(context)
+            if (evento == Lifecycle.Event.ON_RESUME) {
+                acessoLiberado = acessoAsNotificacoesLiberado(context)
+                popupLiberado = popupSobreOutrosAppsLiberado(context)
+            }
         }
         val ciclo = (activity as? LifecycleOwner)?.lifecycle
         ciclo?.addObserver(observador)
@@ -233,6 +249,22 @@ fun ConfiguracoesScreen(
                         if (acessoLiberado) mostrarBancos = true
                         else abrirAcessoAsNotificacoes(context)
                     }
+                )
+                DivisorDeLinha()
+                LinhaDePagina(
+                    inicio = { IconeDeLinha(Icons.Outlined.Layers) },
+                    titulo = "Popup sobre outros apps",
+                    valor = "",
+                    subtitulo = if (popupLiberado) "Ativo" else "Toque para liberar \"Exibir sobre outros apps\"",
+                    fim = {
+                        Icon(
+                            if (popupLiberado) Icons.Outlined.Check else Icons.Outlined.ChevronRight,
+                            contentDescription = null,
+                            tint = if (popupLiberado) CorConfiguracoes else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(Tamanho.iconeGrande)
+                        )
+                    },
+                    onClick = { if (!popupLiberado) abrirPopupSobreOutrosApps(context) }
                 )
             }
             Spacer(modifier = Modifier.height(24.dp))
