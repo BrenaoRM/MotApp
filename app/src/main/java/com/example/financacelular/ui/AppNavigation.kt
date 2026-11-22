@@ -385,11 +385,11 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                                 onClick = {
                                                     if (!faturaPaga) {
                                                         cartaoViewModel.pagarFatura {
-                                                            mensagem("Fatura paga e descontada do saldo!")
+                                                            mensagem("Fatura paga")
                                                         }
                                                     } else {
                                                         cartaoViewModel.cancelarPagamentoFatura {
-                                                            mensagem("Pagamento cancelado com sucesso.")
+                                                            mensagem("Pagamento cancelado")
                                                         }
                                                     }
                                                 },

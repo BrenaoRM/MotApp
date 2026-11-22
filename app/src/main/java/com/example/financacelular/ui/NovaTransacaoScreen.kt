@@ -811,7 +811,7 @@ fun NovaTransacaoScreen(
                                 aoErro = { texto -> mensagem(texto, erro = true) }
                             ) {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                mensagem("Transação salva com sucesso!")
+                                mensagem("Transação salva")
                                 aoSalvar()
                             }
                         },
@@ -856,13 +856,13 @@ fun NovaTransacaoScreen(
                         viewModel.onCategoriaChange(item.categoria.copy(nome = nome, icone = icone))
                     }
                     categoriaParaEditarId = null
-                    mensagem("Categoria salva.")
+                    mensagem("Categoria salva")
                 },
                 aoExcluir = {
                     if (viewModel.categoriaSelecionada?.id == item.categoria.id) viewModel.onCategoriaChange(null)
                     categoriasViewModel.excluir(item.categoria)
                     categoriaParaEditarId = null
-                    mensagem("Categoria excluída.")
+                    mensagem("Categoria excluída")
                 },
                 aoFechar = { categoriaParaEditarId = null },
                 cor = RoxoHero,
@@ -873,7 +873,7 @@ fun NovaTransacaoScreen(
                     if (viewModel.categoriaSelecionada?.id == item.categoria.id) viewModel.onCategoriaChange(destino)
                     categoriasViewModel.moverEExcluir(item.categoria, destino)
                     categoriaParaEditarId = null
-                    mensagem("Lançamentos movidos para ${destino.nome}.")
+                    mensagem("Lançamentos movidos para ${destino.nome}")
                 }
             )
         }
@@ -887,7 +887,7 @@ fun NovaTransacaoScreen(
                     categoriasViewModel.salvar(null, nome, viewModel.tipo, icone)
                     escolherPorNome = nome.trim()
                     criandoCategoria = false
-                    mensagem("Categoria criada.")
+                    mensagem("Categoria criada")
                 },
                 aoExcluir = {},
                 aoFechar = { criandoCategoria = false },

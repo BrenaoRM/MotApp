@@ -313,7 +313,7 @@ fun InvestimentoScreen(
                             textoConfirmar = "Excluir",
                             onConfirmar = {
                                 pendente.confirmar()
-                                mensagem("Aporte removido!")
+                                mensagem("Aporte removido")
                                 aporteParaExcluir = null
                             },
                             onCancelar = { aporteParaExcluir = null },
@@ -473,11 +473,11 @@ fun InvestimentoScreen(
                     onClick = {
                         if (valorDigitado > 0) {
                             if (emCentavos(valorDigitado) > emCentavos(valorTotalAtivo)) {
-                                mensagem("Valor superior ao saldo do ativo!")
+                                mensagem("Valor maior que o saldo", erro = true)
                             } else {
                                 viewModel.resgatarDoAtivo(ativo.aportes, valorDigitado)
                                 mostrarSheetResgate = false
-                                mensagem("Resgate efetuado com sucesso!")
+                                mensagem("Resgate feito")
                             }
                         }
                     },
@@ -561,7 +561,7 @@ fun InvestimentoScreen(
                                 dataAporte = dataSelecionada
                             )
                             mostrarSheetNovoAporte = false
-                            mensagem("Aporte guardado com sucesso!")
+                            mensagem("Aporte guardado")
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),

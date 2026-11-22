@@ -303,7 +303,7 @@ fun CartaoScreen(
                                 viewModel.excluirCartao(cartao) {
                                     cartaoParaEditarId = null
                                     fecharConfig()
-                                    mensagem("Cartão excluído.")
+                                    mensagem("Cartão excluído")
                                 }
                             }
                         },
@@ -360,10 +360,10 @@ fun CartaoScreen(
                                         diaVencimento = vencimentoInt
                                     ) {
                                         fecharConfig()
-                                        mensagem("Cartão salvo com sucesso!")
+                                        mensagem("Cartão salvo")
                                     }
                                 } else {
-                                    mensagem("Preencha todos os campos corretamente (dias de 1 a 31).")
+                                    mensagem("Dias devem ser de 1 a 31", erro = true)
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),

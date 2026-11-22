@@ -139,12 +139,12 @@ fun CategoriasScreen(
             aoSalvar = { nome, icone ->
                 viewModel.salvar(item.categoria.id, nome, item.categoria.tipo, icone)
                 editandoId = null
-                mensagem("Categoria salva.")
+                mensagem("Categoria salva")
             },
             aoExcluir = {
                 viewModel.excluir(item.categoria)
                 editandoId = null
-                mensagem("Categoria excluída.")
+                mensagem("Categoria excluída")
             },
             aoFechar = { editandoId = null },
             destinos = itens.map { it.categoria }.filter {
@@ -153,7 +153,7 @@ fun CategoriasScreen(
             aoMoverEExcluir = { destino ->
                 viewModel.moverEExcluir(item.categoria, destino)
                 editandoId = null
-                mensagem("Lançamentos movidos para ${destino.nome}.")
+                mensagem("Lançamentos movidos para ${destino.nome}")
             }
         )
     }
@@ -166,7 +166,7 @@ fun CategoriasScreen(
             aoSalvar = { nome, icone ->
                 viewModel.salvar(null, nome, tipo, icone)
                 criando = false
-                mensagem("Categoria criada.")
+                mensagem("Categoria criada")
             },
             aoExcluir = {},
             aoFechar = { criando = false }

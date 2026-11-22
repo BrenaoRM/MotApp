@@ -197,14 +197,8 @@ fun CalendarioScreen(
             diaInteiro = novo.diaInteiro,
             horaFim = novo.horaFim
         ) { resultado ->
-            val texto = when (resultado) {
-                null -> "Afazer salvo com sucesso!"
-                ResultadoCalendario.SUCESSO -> "Salvo no Google Agenda!"
-                ResultadoCalendario.SEM_PERMISSAO -> "Salvo só no app: sem permissão para usar o Google Agenda."
-                ResultadoCalendario.SEM_CALENDARIO -> "Salvo só no app: conecte sua conta Google (a mesma do Drive) para usar o Google Agenda."
-                ResultadoCalendario.ERRO -> "Salvo só no app: não foi possível criar o evento no Google Agenda."
-            }
-            mensagem(texto)
+            val (texto, erro) = avisoAfazerSalvo(resultado)
+            mensagem(texto, erro)
         }
     }
 
@@ -513,11 +507,11 @@ fun CalendarioScreen(
                                 itemEmEdicao = ItemAgenda.Evento(evento)
                             } else {
                                 val aviso = if (evento.recorrente) {
-                                    "Evento recorrente: edite pelo app Google Agenda."
+                                    "Edite pelo app Google Agenda"
                                 } else {
-                                    "Este calendário é somente leitura."
+                                    "Calendário só de leitura"
                                 }
-                                mensagem(aviso)
+                                mensagem(aviso, erro = true)
                             }
                         }
                     )
@@ -553,11 +547,12 @@ fun CalendarioScreen(
                         horaFim = horaFim,
                         diaInteiro = diaInteiro
                     ) { resultado ->
-                        mensagem(mensagemEdicao(resultado, "Evento atualizado!"))
+                        val (texto, erro) = mensagemEdicao(resultado, "Evento atualizado")
+                        mensagem(texto, erro)
                     }
                     is ItemAgenda.Afazer -> {
                         viewModel.atualizarAfazer(item.afazer, titulo, data)
-                        mensagem("Afazer atualizado!")
+                        mensagem("Afazer atualizado")
                     }
                 }
                 itemEmEdicao = null
@@ -565,7 +560,8 @@ fun CalendarioScreen(
             onExcluir = {
                 when (item) {
                     is ItemAgenda.Evento -> viewModel.excluirEvento(item.evento) { resultado ->
-                        mensagem(mensagemEdicao(resultado, "Evento excluído."))
+                        val (texto, erro) = mensagemEdicao(resultado, "Evento excluído")
+                        mensagem(texto, erro)
                     }
                     is ItemAgenda.Afazer -> viewModel.excluirAfazer(item.afazer)
                 }
@@ -708,9 +704,19 @@ fun CalendarioScreen(
     }
 }
 
-private fun mensagemEdicao(resultado: ResultadoCalendario, sucesso: String): String = when (resultado) {
-    ResultadoCalendario.SUCESSO -> sucesso
-    ResultadoCalendario.SEM_PERMISSAO -> "Sem permissão para alterar o Google Agenda."
-    ResultadoCalendario.SEM_CALENDARIO -> "Nenhum calendário da conta Google conectada."
-    ResultadoCalendario.ERRO -> "Não foi possível alterar o evento no Google Agenda."
+/** Texto do aviso após salvar um afazer; `second` = erro. */
+internal fun avisoAfazerSalvo(resultado: ResultadoCalendario?): Pair<String, Boolean> = when (resultado) {
+    null -> "Afazer salvo" to false
+    ResultadoCalendario.SUCESSO -> "Salvo no Google Agenda" to false
+    ResultadoCalendario.SEM_PERMISSAO -> "Salvo só no app: sem acesso à Agenda" to true
+    ResultadoCalendario.SEM_CALENDARIO -> "Salvo só no app: conecte sua conta Google" to true
+    ResultadoCalendario.ERRO -> "Salvo só no app: falha na Agenda" to true
+}
+
+/** Texto do aviso após editar/excluir um evento; `second` = erro. */
+internal fun mensagemEdicao(resultado: ResultadoCalendario, sucesso: String): Pair<String, Boolean> = when (resultado) {
+    ResultadoCalendario.SUCESSO -> sucesso to false
+    ResultadoCalendario.SEM_PERMISSAO -> "Sem acesso à Agenda" to true
+    ResultadoCalendario.SEM_CALENDARIO -> "Nenhum calendário conectado" to true
+    ResultadoCalendario.ERRO -> "Falha ao alterar na Agenda" to true
 }

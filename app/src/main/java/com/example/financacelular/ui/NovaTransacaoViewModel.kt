@@ -154,14 +154,14 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
         if (salvando) return
         val valorNumerico = valor.replace(".", "").replace(',', '.').toDoubleOrNull() ?: 0.0
         if (valorNumerico <= 0.0) {
-            aoErro("Informe o valor.")
+            aoErro("Informe o valor")
             return
         }
         if (parcelasInvalidas) return
 
         val ehCredito = formaPagamento == FormaPagamento.CARTAO_CREDITO
         if (ehCredito && cartaoIdSelecionado == null) {
-            aoErro("Cadastre e selecione um cartão para lançar no crédito.")
+            aoErro("Escolha um cartão")
             return
         }
 
@@ -172,7 +172,7 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
                 val cartaoIdAsLong = if (ehCredito) cartaoIdSelecionado else null
                 val cartao = if (cartaoIdAsLong != null) repository.obterCartaoSync(cartaoIdAsLong) else null
                 if (ehCredito && cartao == null) {
-                    aoErro("O cartão selecionado não foi encontrado. Escolha outro cartão.")
+                    aoErro("Cartão não encontrado")
                     return@launch
                 }
 
@@ -185,7 +185,7 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
                     nomeCategoriaFinal = nomeTratado
                 }
                 if (catId == null) {
-                    aoErro("Escolha uma categoria.")
+                    aoErro("Escolha uma categoria")
                     return@launch
                 }
                 val fallbackTipo = if (tipo == TipoTransacao.RECEITA) "Ganho" else "Gasto"
