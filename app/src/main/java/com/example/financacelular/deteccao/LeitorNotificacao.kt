@@ -20,7 +20,10 @@ private val REGEX_ESTABELECIMENTO_INTER = Regex(
 )
 private val REGEX_DESTINO = Regex("""^\s*(?:em|para|de)\s+(.+?)(?=[.,;!]|\s+via\s|$)""", RegexOption.IGNORE_CASE)
 
-private val PALAVRAS_RECEITA = listOf("recebeu", "recebido", "depósito", "deposito", "estorno")
+// Vem antes das de gasto: "Fulano te enviou um Pix ... creditado na sua conta" (Inter) tem "enviou" e é ganho
+private val PALAVRAS_RECEITA = listOf(
+    "recebeu", "recebido", "depósito", "deposito", "estorno", "te enviou", "creditado", "creditada"
+)
 private val PALAVRAS_DESPESA = listOf(
     "compr", "pagamento", "enviou", "enviado", "débito", "debito", "transferência enviada"
 )

@@ -107,4 +107,17 @@ class LeitorNotificacaoTest {
         assertEquals(TipoTransacao.RECEITA, lida?.tipo)
         assertEquals(FormaPagamento.DEBITO, lida?.formaPagamento)
     }
+
+    @Test
+    fun pix_que_te_enviaram_no_inter_e_ganho() {
+        val lida = lerNotificacao("Fulano de Tal te enviou um Pix de R$ 1,00 creditado na sua conta final ***12345-6.")
+        assertEquals(TipoTransacao.RECEITA, lida?.tipo)
+        assertEquals(1.0, lida!!.valor, 0.001)
+    }
+
+    @Test
+    fun pix_que_voce_enviou_continua_gasto() {
+        val lida = lerNotificacao("Você enviou um Pix de R$ 30,00 para Fulano de Tal")
+        assertEquals(TipoTransacao.DESPESA, lida?.tipo)
+    }
 }
