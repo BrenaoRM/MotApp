@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
         CartaoEntity::class,
         EstabelecimentoCategoria::class
     ],
-    version = 13,
+    version = AppDatabase.VERSAO,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -39,6 +39,7 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         const val NOME_ARQUIVO_BANCO = "financa_celular.db"
+        const val VERSAO = 13
 
         @Volatile
         private var INSTANCE: AppDatabase? = null

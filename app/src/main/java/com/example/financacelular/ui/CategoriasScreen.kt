@@ -18,7 +18,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -40,7 +40,7 @@ fun CategoriasScreen(
     aoVoltar: (() -> Unit)? = null
 ) {
     val mensagem = LocalMensagem.current
-    val itensCarregados by viewModel.itens.collectAsState()
+    val itensCarregados by viewModel.itens.collectAsStateWithLifecycle()
     val itens = itensCarregados.orEmpty()
 
     var tipo by rememberSaveable { mutableStateOf(TipoTransacao.DESPESA) }

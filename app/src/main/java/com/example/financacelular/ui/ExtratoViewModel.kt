@@ -12,7 +12,6 @@ import com.example.financacelular.data.ehPagamentoDeFatura
 import com.example.financacelular.data.estaComFaturaPaga
 import com.example.financacelular.data.FinancaRepository
 import com.example.financacelular.data.FormaPagamento
-import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.data.Transacao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted

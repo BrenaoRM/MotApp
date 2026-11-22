@@ -45,7 +45,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -110,12 +110,12 @@ fun PopupDeTransacaoConteudo(
     val viewModel = remember {
         NovaTransacaoViewModel(context.applicationContext as Application).also { it.aplicarDetectada(detectada) }
     }
-    val categorias by viewModel.categorias.collectAsState()
-    val cartoes by viewModel.listaCartoes.collectAsState()
+    val categorias by viewModel.categorias.collectAsStateWithLifecycle()
+    val cartoes by viewModel.listaCartoes.collectAsStateWithLifecycle()
     val repositorio = remember {
         FinancaRepository.getInstance(AppDatabase.getInstance(context.applicationContext))
     }
-    val contagens by remember { repositorio.contarTransacoesPorCategoria() }.collectAsState(initial = emptyList())
+    val contagens by remember { repositorio.contarTransacoesPorCategoria() }.collectAsStateWithLifecycle(initialValue = emptyList())
 
     var etapa by remember { mutableIntStateOf(0) }
     var corrigindoValor by remember { mutableStateOf(false) }
@@ -161,6 +161,12 @@ fun PopupDeTransacaoConteudo(
         }
     }
 
+    // Crédito sem nenhum cartão cadastrado não teria como salvar (e a transação se perderia): lança no débito
+    LaunchedEffect(Unit) {
+        if (detectada.formaPagamento == FormaPagamento.CARTAO_CREDITO && repositorio.listarTodosCartoesSync().isEmpty()) {
+            viewModel.onFormaPagamentoChange(FormaPagamento.DEBITO)
+        }
+    }
     LaunchedEffect(ehCredito, cartoes) {
         if (ehCredito && viewModel.cartaoIdSelecionado == null) cartoes.firstOrNull()?.let { viewModel.onCartaoSelecionado(it.id) }
     }
@@ -189,7 +195,7 @@ fun PopupDeTransacaoConteudo(
     ) {
         AnimatedVisibility(
             visible = visivel,
-            enter = slideInVertically(tween(300)) { -it } + fadeIn(tween(200)),
+            enter = slideInVertically(tween(220)) { -it } + fadeIn(tween(150)),
             exit = slideOutVertically(tween(250)) { -it } + fadeOut(tween(200))
         ) {
             Surface(

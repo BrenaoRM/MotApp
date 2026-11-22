@@ -1,7 +1,6 @@
 package com.example.financacelular.ui
 
 import android.app.Application
-import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.financacelular.data.AfazerEntity
@@ -35,7 +34,6 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.YearMonth
 import java.time.format.TextStyle
-import java.util.Locale
 
 /**
  * Item da lista financeira do calendário.
@@ -58,7 +56,6 @@ data class ItemCalendario(
     val contaNosTotais: Boolean get() = !ehFaturaNaoPaga && !ehPagamentoFatura
 }
 
-private val LocalePtBr: Locale = Locale.forLanguageTag("pt-BR")
 
 /** "2026-09" -> "set/2026". */
 private fun rotuloMesFatura(anoMes: String): String {
@@ -268,7 +265,7 @@ class CalendarioViewModel(application: Application) : AndroidViewModel(applicati
         descricao: String?,
         data: LocalDate,
         hora: LocalTime,
-        horaFim: LocalTime,
+        horaFim: LocalTime?,
         diaInteiro: Boolean,
         aoConcluir: (ResultadoCalendario) -> Unit = {}
     ) {

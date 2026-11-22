@@ -30,14 +30,13 @@ import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.TrendingDown
-import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -68,7 +67,6 @@ import com.example.financacelular.ui.theme.cores
 import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.format.TextStyle
-import java.util.Locale
 
 private fun formatarDataIso(texto: String): String {
     val partes = texto.take(10).split("-")
@@ -91,14 +89,14 @@ fun DashboardScreen(
     aoDispensarDeteccao: () -> Unit = {},
     estadoLista: LazyListState = rememberLazyListState()
 ) {
-    val totalDespesas by viewModel.totalDespesas.collectAsState()
-    val totalReceitas by viewModel.totalReceitas.collectAsState()
-    val mesSelecionado by viewModel.mesSelecionado.collectAsState()
-    val resumoDoMes by viewModel.resumoDoMes.collectAsState()
-    val aportesDosUltimosMeses by viewModel.aportesDosUltimosMeses.collectAsState()
-    val serieDoMes by viewModel.serieDoMes.collectAsState()
+    val totalDespesas by viewModel.totalDespesas.collectAsStateWithLifecycle()
+    val totalReceitas by viewModel.totalReceitas.collectAsStateWithLifecycle()
+    val mesSelecionado by viewModel.mesSelecionado.collectAsStateWithLifecycle()
+    val resumoDoMes by viewModel.resumoDoMes.collectAsStateWithLifecycle()
+    val aportesDosUltimosMeses by viewModel.aportesDosUltimosMeses.collectAsStateWithLifecycle()
+    val serieDoMes by viewModel.serieDoMes.collectAsStateWithLifecycle()
 
-    val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
+    val formatoMoeda = remember { NumberFormat.getCurrencyInstance(LocalePtBr) }
     val saldo = totalReceitas - totalDespesas
     val saldoVisivel = ValoresVisiveis.visivel
     // Categorias e o detalhe delas seguem o mesmo olho do cartão do saldo
@@ -113,11 +111,11 @@ fun DashboardScreen(
         resumoDoMes.find { "${it.categoriaId}-${it.tipo}" == chave }
     }
 
-    val alertaFaturaPendente by viewModel.alertaFaturaPendente.collectAsState()
+    val alertaFaturaPendente by viewModel.alertaFaturaPendente.collectAsStateWithLifecycle()
 
     // Mês por extenso em minúsculas ("novembro"), como o pt-BR devolve
     val mesPorExtenso = remember(mesSelecionado) {
-        mesSelecionado.month.getDisplayName(TextStyle.FULL, Locale.Builder().setLanguage("pt").setRegion("BR").build())
+        mesSelecionado.month.getDisplayName(TextStyle.FULL, LocalePtBr)
     }
     val mesCapitalizado = mesPorExtenso.replaceFirstChar { it.uppercase() }
     val nomeMes = "$mesCapitalizado ${mesSelecionado.year}"

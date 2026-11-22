@@ -23,13 +23,12 @@ import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.CreditCard
-import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.*
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,15 +53,11 @@ import com.example.financacelular.ui.theme.Espaco
 import com.example.financacelular.ui.theme.Tamanho
 import com.example.financacelular.ui.theme.Verde
 import com.example.financacelular.ui.theme.cores
-import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.LocalDate
-import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import java.util.Locale
 
-private val LocalePtBr: Locale = Locale.forLanguageTag("pt-BR")
 
 private fun formatarDataFatura(texto: String): String {
     val partes = texto.take(10).split("-")
@@ -86,15 +81,15 @@ fun CartaoScreen(
 ) {
     val mensagem = LocalMensagem.current
     val focusManager = LocalFocusManager.current
-    val listaCartoesCarregada by viewModel.listaCartoes.collectAsState()
+    val listaCartoesCarregada by viewModel.listaCartoes.collectAsStateWithLifecycle()
     val listaCartoes = listaCartoesCarregada.orEmpty()
-    val categorias by viewModel.categorias.collectAsState()
+    val categorias by viewModel.categorias.collectAsStateWithLifecycle()
     val categoriaPorId = remember(categorias) { categorias.associateBy { it.id } }
-    val cartaoSelecionadoId by viewModel.cartaoSelecionadoId.collectAsState()
-    val mesSelecionado by viewModel.mesSelecionado.collectAsState()
-    val transacoesFaturaCarregada by viewModel.transacoesFatura.collectAsState()
+    val cartaoSelecionadoId by viewModel.cartaoSelecionadoId.collectAsStateWithLifecycle()
+    val mesSelecionado by viewModel.mesSelecionado.collectAsStateWithLifecycle()
+    val transacoesFaturaCarregada by viewModel.transacoesFatura.collectAsStateWithLifecycle()
     val transacoesFatura = transacoesFaturaCarregada.orEmpty()
-    val faturaPaga by viewModel.faturaPaga.collectAsState()
+    val faturaPaga by viewModel.faturaPaga.collectAsStateWithLifecycle()
 
     val pagerState = rememberPagerState(pageCount = { listaCartoes.size + 1 })
 
@@ -114,7 +109,6 @@ fun CartaoScreen(
 
     val valorTotalFatura = transacoesFatura.sumOf { it.valor }
     val naPaginaAdicionar = listaCartoes.isEmpty() || pagerState.currentPage >= listaCartoes.size
-    val cartaoDaPagina = listaCartoes.getOrNull(pagerState.currentPage)
 
     // Avisa o ViewModel quando o carrossel está na página "Adicionar cartão" (a barra inferior troca o botão)
     LaunchedEffect(naPaginaAdicionar, listaCartoesCarregada != null) {

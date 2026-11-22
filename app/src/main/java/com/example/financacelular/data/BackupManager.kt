@@ -2,6 +2,7 @@ package com.example.financacelular.data
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -46,7 +47,7 @@ object BackupManager {
             }
             copia
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("BackupManager", "Falha ao exportar o banco", e)
             copia?.delete()
             null
         }
@@ -83,7 +84,7 @@ object BackupManager {
             db.rawQuery("PRAGMA wal_checkpoint(TRUNCATE);", null).use { it.moveToFirst() }
             db.close()
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.w("BackupManager", "Falha no checkpoint do WAL", e)
         }
     }
 }

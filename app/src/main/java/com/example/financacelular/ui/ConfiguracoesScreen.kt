@@ -17,9 +17,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -85,14 +82,6 @@ internal fun acessoAsNotificacoesLiberado(context: Context): Boolean =
 
 /** "Exibir sobre outros apps": liberação do Android que deixa o popup de transação aparecer por cima de outros apps. */
 internal fun popupSobreOutrosAppsLiberado(context: Context): Boolean = Settings.canDrawOverlays(context)
-
-internal fun abrirPopupSobreOutrosApps(context: Context) {
-    runCatching {
-        context.startActivity(
-            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
-        )
-    }
-}
 
 /** Sem a economia de bateria o sistema não derruba o leitor de notificações. Um toque num diálogo do sistema. */
 @SuppressLint("BatteryLife")

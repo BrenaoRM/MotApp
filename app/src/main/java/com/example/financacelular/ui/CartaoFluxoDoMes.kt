@@ -58,7 +58,6 @@ import com.example.financacelular.ui.theme.AmareloInvestimento
 import com.example.financacelular.ui.theme.cores
 import java.time.YearMonth
 import java.time.format.TextStyle
-import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
@@ -205,11 +204,10 @@ fun CartaoInvestido(
     val forma = RoundedCornerShape(20.dp)
     val corTexto = MaterialTheme.colorScheme.onSurface
     val corNeutra = corTexto.copy(alpha = 0.13f)
-    val ptBr = remember { Locale.Builder().setLanguage("pt").setRegion("BR").build() }
 
     val meses = aportes.map { YearMonth.parse(it.anoMes) }
-    val rotulos = meses.map { it.month.getDisplayName(TextStyle.SHORT, ptBr).take(3).lowercase() }
-    val nomeMes = meses.last().month.getDisplayName(TextStyle.FULL, ptBr)
+    val rotulos = meses.map { it.month.getDisplayName(TextStyle.SHORT, LocalePtBr).take(3).lowercase() }
+    val nomeMes = meses.last().month.getDisplayName(TextStyle.FULL, LocalePtBr)
     val atual = aportes.last().total
     val anterior = aportes[aportes.size - 2].total
     val variacao = if (anterior > 0.0) ((atual - anterior) / anterior * 100).roundToInt() else null

@@ -83,7 +83,7 @@ fun CartaoFluxo(
     // Sem foco compara com o período anterior; com foco, com a barra de antes
     val referencia: Pair<Double, String>? = when {
         barraFocada == null -> if (dados.temBase) dados.saldoAnterior to dados.rotuloAnterior.removePrefix("período ") else null
-        indiceFocado != null && indiceFocado > 0 -> dados.barras[indiceFocado - 1].let { it.saldo to it.rotulo }
+        indiceFocado > 0 -> dados.barras[indiceFocado - 1].let { it.saldo to it.rotulo }
         else -> null
     }
 

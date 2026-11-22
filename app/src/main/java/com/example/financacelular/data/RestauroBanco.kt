@@ -2,6 +2,7 @@ package com.example.financacelular.data
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
+import android.util.Log
 import androidx.core.content.edit
 import java.io.File
 
@@ -14,6 +15,7 @@ object RestauroBanco {
     enum class Resultado { OK, INVALIDO, FALHOU }
 
     /** A versão 8 é a mais antiga com migração do Room até a atual. */
+    private const val TAG = "RestauroBanco"
     private const val VERSAO_MINIMA = 8
     private const val ID_MASTER_ROOM = 42
 
@@ -31,15 +33,23 @@ object RestauroBanco {
 
     /** O arquivo é um SQLite íntegro, de uma versão que o app consegue migrar e com o mesmo schema. */
     private fun validar(context: Context, arquivo: File): Boolean = try {
-        val local = AppDatabase.getInstance(context).openHelper.readableDatabase
+        // Banco local corrompido não pode impedir o restauro (é quando ele mais faz falta): sem ele, não
+        // compara o schema; se o Room recusar o restaurado, concluirPendente devolve o anterior
+        val local = try {
+            AppDatabase.getInstance(context).openHelper.readableDatabase
+        } catch (e: Exception) {
+            Log.w(TAG, "Banco local não abriu; validando o backup só pela versão", e)
+            null
+        }
         // Cópia temporária nossa: abre em leitura e escrita porque SQLite antigo não abre WAL só para leitura
         SQLiteDatabase.openDatabase(arquivo.absolutePath, null, SQLiteDatabase.OPEN_READWRITE).use { db ->
             val versao = db.version
             val integro = db.rawQuery("PRAGMA quick_check", null).use { it.moveToFirst() && it.getString(0) == "ok" }
-            integro && versao in VERSAO_MINIMA..local.version && (versao != local.version || mesmoSchema(local, db))
+            integro && versao in VERSAO_MINIMA..AppDatabase.VERSAO &&
+                (versao != AppDatabase.VERSAO || local == null || mesmoSchema(local, db))
         }
     } catch (e: Exception) {
-        e.printStackTrace()
+        Log.e(TAG, "Backup baixado não passou na validação", e)
         false
     }
 
@@ -58,7 +68,7 @@ object RestauroBanco {
             db.rawQuery("PRAGMA quick_check", null).use { it.moveToFirst() && it.getString(0) == "ok" }
         }
     } catch (e: Exception) {
-        e.printStackTrace()
+        Log.e(TAG, "Falha ao verificar a integridade do backup", e)
         false
     } finally {
         apagarAuxiliares(arquivo)
@@ -84,7 +94,7 @@ object RestauroBanco {
                 ContaDrive.prefs(context).edit(commit = true) { putBoolean(ContaDrive.RESTAURO_PENDENTE, true) }
                 true
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e(TAG, "Falha ao trocar o banco pelo restaurado", e)
                 if (anterior.exists()) {
                     dbFile.delete()
                     anterior.renameTo(dbFile)
@@ -109,7 +119,7 @@ object RestauroBanco {
             AppDatabase.getInstance(context).openHelper.writableDatabase
             anterior.delete()
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Room não abriu o banco restaurado; voltando ao anterior", e)
             AppDatabase.comBancoFechado {
                 if (anterior.exists()) {
                     dbFile.delete()

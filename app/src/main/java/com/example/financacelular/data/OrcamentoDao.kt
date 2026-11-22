@@ -15,9 +15,6 @@ interface OrcamentoDao {
     @Delete
     suspend fun excluir(orcamento: Orcamento)
 
-    @Query("SELECT * FROM orcamentos WHERE anoMes = :anoMes")
-    fun listarDoMes(anoMes: String): Flow<List<Orcamento>>
-
     // Busca o registro exato da categoria para o mês selecionado (priorizando o ID mais recente)
     @Query("SELECT * FROM orcamentos WHERE categoriaId = :categoriaId AND anoMes = :anoMes ORDER BY id DESC LIMIT 1")
     suspend fun buscarPorCategoriaEMes(categoriaId: Long, anoMes: String): Orcamento?

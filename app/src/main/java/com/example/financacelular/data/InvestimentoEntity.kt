@@ -3,6 +3,7 @@ package com.example.financacelular.data
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import java.time.LocalDate
+import java.util.Locale
 
 @Entity(tableName = "investimentos")
 data class InvestimentoEntity(
@@ -12,5 +13,5 @@ data class InvestimentoEntity(
     val categoria: String,
     val valorInvestido: Double,
     val data: LocalDate = LocalDate.now(),
-    val anoMes: String = String.format("%04d-%02d", data.year, data.monthValue)
+    val anoMes: String = String.format(Locale.ROOT, "%04d-%02d", data.year, data.monthValue)
 )

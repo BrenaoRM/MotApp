@@ -2,6 +2,7 @@ package com.example.financacelular.worker
 
 import android.accounts.Account
 import android.content.Context
+import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.example.financacelular.data.AppDatabase
@@ -35,19 +36,20 @@ class AutoBackupWorker(context: Context, params: WorkerParameters) : CoroutineWo
                 return@withContext Result.success()
             }
             val resultado = autorizarDrive(applicationContext, email)
+            // Consentimento revogado ou token vazio: retry não resolve, tenta de novo só no próximo período
             if (resultado.hasResolution()) {
-                return@withContext Result.retry()
+                return@withContext Result.failure()
             }
             val token = resultado.accessToken
             if (token.isNullOrBlank()) {
-                return@withContext Result.retry()
+                return@withContext Result.failure()
             }
             if (!applicationContext.getDatabasePath(AppDatabase.NOME_ARQUIVO_BANCO).exists()) {
                 return@withContext Result.success() // nada para guardar ainda
             }
             // Null = não deu para gerar uma cópia íntegra agora (WAL ocupado, cópia inválida): tenta mais tarde
             val ficheiroBackup = BackupManager.exportarBaseDeDadosParaFicheiro(applicationContext)
-                ?: return@withContext Result.retry()
+                ?: return@withContext tentarDeNovo()
             // Conta trocada/desconectada (ou banco restaurado) desde que o token foi pedido: não envia
             // o banco de agora para o Drive da conta de antes
             if (prefs.getString(ContaDrive.EMAIL, "") != email) {
@@ -59,7 +61,7 @@ class AutoBackupWorker(context: Context, params: WorkerParameters) : CoroutineWo
             } finally {
                 ficheiroBackup.delete()
             }
-            if (!sucesso) return@withContext Result.retry()
+            if (!sucesso) return@withContext tentarDeNovo()
 
             // Só atualiza a data se a conta continua a mesma (pode ter sido desconectada ou trocada no meio)
             if (prefs.getString(ContaDrive.EMAIL, "") == email) {
@@ -69,10 +71,13 @@ class AutoBackupWorker(context: Context, params: WorkerParameters) : CoroutineWo
             }
             Result.success()
         } catch (e: Exception) {
-            e.printStackTrace()
-            Result.retry()
+            Log.e("AutoBackupWorker", "Falha no backup automático", e)
+            tentarDeNovo()
         }
     }
+
+    // Falha transitória: no máximo 3 tentativas por execução; depois espera o próximo período
+    private fun tentarDeNovo(): Result = if (runAttemptCount < 3) Result.retry() else Result.failure()
 
     private suspend fun autorizarDrive(context: Context, email: String): AuthorizationResult {
         val request = AuthorizationRequest.builder()

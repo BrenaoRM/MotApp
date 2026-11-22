@@ -17,10 +17,10 @@ import androidx.work.WorkerParameters
 import com.example.financacelular.MainActivity
 import com.example.financacelular.data.AppDatabase
 import com.example.financacelular.data.FaturaAVencer
+import com.example.financacelular.data.FORMATO_DIA_MES
 import com.example.financacelular.data.FinancaRepository
 import com.example.financacelular.data.faturasProximasDoVencimento
 import kotlinx.coroutines.flow.first
-import java.time.format.DateTimeFormatter
 
 class LembreteFaturaWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
@@ -77,7 +77,7 @@ class LembreteFaturaWorker(context: Context, params: WorkerParameters) : Corouti
         val builder = NotificationCompat.Builder(applicationContext, channelId)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle("Fatura do ${fatura.cartao.nome} próxima do vencimento! ⚠️")
-            .setContentText("Vence em ${fatura.vencimento.format(DateTimeFormatter.ofPattern("dd/MM"))}. Pague para evitar juros!")
+            .setContentText("Vence em ${fatura.vencimento.format(FORMATO_DIA_MES)}. Pague para evitar juros!")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)

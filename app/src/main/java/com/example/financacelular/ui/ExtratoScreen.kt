@@ -1,16 +1,7 @@
 package com.example.financacelular.ui
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,11 +20,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.ArrowUpward
-import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.SearchOff
@@ -44,13 +33,11 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -63,49 +50,19 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.financacelular.data.CartaoEntity
-import com.example.financacelular.data.Categoria
 import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.data.Transacao
-import com.example.financacelular.ui.theme.Coral
 import com.example.financacelular.ui.theme.Espaco
 import com.example.financacelular.ui.theme.Tamanho
-import com.example.financacelular.ui.theme.Verde
-import com.example.financacelular.ui.theme.cores
 import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-import kotlin.math.abs
-
-private val localePtBr: Locale = Locale.Builder().setLanguage("pt").setRegion("BR").build()
-private val formatoRotuloDia: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE, dd 'de' MMM", localePtBr)
-private val formatoRotuloDiaAno: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE, dd 'de' MMM 'de' yyyy", localePtBr)
-
-/** "Hoje", "Ontem", "Amanhã" ou "Seg, 29 de set". */
-private fun rotuloDia(data: LocalDate): String {
-    val hoje = LocalDate.now()
-    return when (data) {
-        hoje -> "Hoje"
-        hoje.minusDays(1) -> "Ontem"
-        hoje.plusDays(1) -> "Amanhã"
-        else -> data
-            .format(if (data.year == hoje.year) formatoRotuloDia else formatoRotuloDiaAno)
-            .replace(".", "")
-            .replaceFirstChar { it.uppercase() }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -116,11 +73,11 @@ fun ExtratoScreen(
     aoFiltrosAcionado: () -> Unit = {},
     aoVoltar: (() -> Unit)? = null
 ) {
-    val transacoesOuNull by viewModel.todasTransacoes.collectAsState()
+    val transacoesOuNull by viewModel.todasTransacoes.collectAsStateWithLifecycle()
     val transacoes = transacoesOuNull ?: emptyList()
-    val futuros by viewModel.futurosLancamentos.collectAsState()
-    val categorias by viewModel.categorias.collectAsState()
-    val cartoes by viewModel.cartoes.collectAsState()
+    val futuros by viewModel.futurosLancamentos.collectAsStateWithLifecycle()
+    val categorias by viewModel.categorias.collectAsStateWithLifecycle()
+    val cartoes by viewModel.cartoes.collectAsStateWithLifecycle()
 
     var filtroTipo by rememberSaveable { mutableStateOf<TipoTransacao?>(null) }
     var filtroCategoriaId by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -131,7 +88,7 @@ fun ExtratoScreen(
         transacoes.find { it.id == id } ?: futuros.find { it.id == id }
     }
 
-    val formato = remember { NumberFormat.getCurrencyInstance(localePtBr) }
+    val formato = remember { NumberFormat.getCurrencyInstance(LocalePtBr) }
     var mostrarFiltros by rememberSaveable { mutableStateOf(false) }
     // Período do extrato: abre no mês atual
     var periodoInicio by rememberSaveable { mutableStateOf(YearMonth.now().atDay(1)) }
@@ -326,6 +283,7 @@ fun ExtratoScreen(
         BottomSheetEditarTransacao(
             transacao = transacao,
             categorias = categorias,
+            cartoes = cartoes,
             onDismiss = { transacaoEmEdicaoId = null },
             onSalvar = {
                 viewModel.atualizar(it)
@@ -588,345 +546,6 @@ private fun TituloSecao(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
-    }
-}
-
-@Composable
-private fun GrupoDia(
-    data: LocalDate,
-    transacoes: List<Transacao>,
-    categorias: List<Categoria>,
-    cartoes: List<CartaoEntity>,
-    formato: NumberFormat,
-    pendente: Boolean,
-    aoClicar: (Transacao) -> Unit
-) {
-    val saldoDia = transacoes.sumOf { if (it.tipo == TipoTransacao.DESPESA) -it.valor else it.valor }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 16.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                rotuloDia(data),
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                (if (saldoDia < 0) "- " else "+ ") + formato.format(abs(saldoDia)),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-
-        GrupoDeLista(itens = transacoes) { transacao ->
-            LinhaTransacao(
-                transacao = transacao,
-                categoria = categorias.find { it.id == transacao.categoriaId },
-                nomeCartao = transacao.cartaoId?.let { id -> cartoes.find { it.id == id }?.nome },
-                formato = formato,
-                pendente = pendente,
-                aoClicar = { aoClicar(transacao) }
-            )
-        }
-    }
-}
-
-@Composable
-private fun LinhaTransacao(
-    transacao: Transacao,
-    categoria: Categoria?,
-    nomeCartao: String?,
-    formato: NumberFormat,
-    pendente: Boolean,
-    aoClicar: () -> Unit
-) {
-    val cor = if (transacao.tipo == TipoTransacao.DESPESA) Coral else Verde
-    val corTexto = if (transacao.tipo == TipoTransacao.DESPESA) MaterialTheme.cores.textoGasto else MaterialTheme.cores.textoGanho
-    val intensidade = if (pendente) 0.7f else 1f
-    val anoMes = transacao.anoMes
-    val temDescricao = !transacao.descricao.isNullOrBlank()
-    // Sem descrição o título já é o nome da categoria: não repetir no subtítulo
-    val mostrarCategoria = temDescricao || categoria == null
-    val temFatura = transacao.formaPagamento == FormaPagamento.CARTAO_CREDITO && anoMes != null
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = transacao.id >= 0, role = Role.Button, onClick = aoClicar)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(46.dp)
-                .clip(RoundedCornerShape(15.dp))
-                .background(cor.copy(alpha = if (pendente) 0.10f else 0.14f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                iconeParaCategoria(categoria?.nome ?: "", categoria?.icone),
-                contentDescription = null,
-                tint = cor.copy(alpha = intensidade),
-                modifier = Modifier.size(Tamanho.icone)
-            )
-        }
-        Spacer(modifier = Modifier.width(14.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                transacao.descricao?.takeIf { it.isNotBlank() }
-                    ?: (categoria?.nome ?: if (pendente) "Transação futura" else "Transação"),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (mostrarCategoria || temFatura) Spacer(modifier = Modifier.height(3.dp))
-            if (mostrarCategoria || temFatura) Row(verticalAlignment = Alignment.CenterVertically) {
-                if (mostrarCategoria) {
-                    Text(
-                        categoria?.nome ?: "Sem categoria",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                }
-                if (temFatura && anoMes != null) {
-                    val partes = anoMes.split("-")
-                    val mesFatura = partes.getOrNull(1) ?: ""
-                    val anoFatura = partes.getOrNull(0)?.takeLast(2) ?: ""
-                    if (mostrarCategoria) Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(
-                                if (pendente) MaterialTheme.colorScheme.secondaryContainer
-                                else MaterialTheme.colorScheme.primaryContainer
-                            )
-                            .padding(horizontal = 7.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "Fatura $mesFatura/$anoFatura",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (pendente) MaterialTheme.colorScheme.onSecondaryContainer
-                            else MaterialTheme.colorScheme.onPrimaryContainer,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
-                    }
-                }
-            }
-            if (nomeCartao != null) {
-                Spacer(modifier = Modifier.height(4.dp))
-                EtiquetaCartao(nome = nomeCartao)
-            }
-        }
-
-        Spacer(modifier = Modifier.width(10.dp))
-        Text(
-            (if (transacao.tipo == TipoTransacao.DESPESA) "- " else "+ ") +
-                    formato.format(transacao.valor),
-            color = corTexto.copy(alpha = intensidade),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1
-        )
-    }
-}
-
-// =====================================================================
-// Componentes de formulário / filtros
-// =====================================================================
-
-
-/** Campo somente leitura que abre um seletor de data ao toque. */
-@Composable
-private fun CampoData(
-    valor: String,
-    rotulo: String,
-    descricao: String,
-    aoAbrir: () -> Unit,
-    modifier: Modifier = Modifier,
-    placeholder: String? = null
-) {
-    Box(modifier = modifier) {
-        CampoApp(
-            valor = valor.ifEmpty { placeholder.orEmpty() },
-            aoMudar = {},
-            rotulo = rotulo,
-            leitura = true,
-            trailingIcon = {
-                Icon(
-                    Icons.Outlined.CalendarToday,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(Tamanho.icone)
-                )
-            }
-        )
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clickable(role = Role.Button, onClickLabel = descricao, onClick = aoAbrir)
-        )
-    }
-}
-
-// =====================================================================
-// Edição de lançamento
-// =====================================================================
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun BottomSheetEditarTransacao(
-    transacao: Transacao,
-    categorias: List<Categoria>,
-    onDismiss: () -> Unit,
-    onSalvar: (Transacao) -> Unit,
-    onExcluir: () -> Unit
-) {
-    var valor by rememberSaveable { mutableStateOf(transacao.valor.toString()) }
-    var descricao by rememberSaveable { mutableStateOf(transacao.descricao ?: "") }
-    var dataSelecionada by rememberSaveable { mutableStateOf(transacao.data) }
-    var categoriaSelecionadaId by rememberSaveable { mutableStateOf(transacao.categoriaId) }
-    val categoriaSelecionada = categorias.find { it.id == categoriaSelecionadaId }
-    var menuExpandido by remember { mutableStateOf(false) }
-    var mostrarDatePicker by rememberSaveable { mutableStateOf(false) }
-    // Confirmação de exclusão troca o conteúdo deste mesmo sheet (um sheet por vez)
-    var confirmando by rememberSaveable { mutableStateOf(false) }
-    val focusManager = LocalFocusManager.current
-
-    val categoriasDoTipo = categorias.filter { it.tipo == transacao.tipo }
-    val formatoData = remember { DateTimeFormatter.ofPattern("dd/MM/yyyy") }
-    val corTipo = if (transacao.tipo == TipoTransacao.DESPESA) Coral else Verde
-    val corTextoTipo = if (transacao.tipo == TipoTransacao.DESPESA) MaterialTheme.cores.textoGasto else MaterialTheme.cores.textoGanho
-
-    FolhaApp(onDismiss = onDismiss) {
-        AnimatedContent(
-            targetState = confirmando,
-            transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) using SizeTransform() },
-            label = "confirmarExclusaoLancamento"
-        ) { emConfirmacao ->
-          if (emConfirmacao) {
-            ConfirmarAcaoConteudo(
-                titulo = "Excluir lançamento?",
-                texto = "Esse lançamento será removido do extrato. Essa ação não pode ser desfeita.",
-                textoConfirmar = "Excluir",
-                onConfirmar = onExcluir,
-                onCancelar = { confirmando = false }
-            )
-          } else {
-          TrocaPorData(
-              escolhendo = mostrarDatePicker,
-              data = dataSelecionada,
-              aoEscolher = { dataSelecionada = it },
-              aoVoltar = { mostrarDatePicker = false }
-          ) {
-          Column(modifier = Modifier.fillMaxWidth()) {
-            CabecalhoDeFolha(
-                titulo = "Editar lançamento",
-                aoFechar = onDismiss,
-                subtitulo = if (transacao.tipo == TipoTransacao.DESPESA) "Gasto" else "Ganho"
-            )
-            Spacer(modifier = Modifier.height(Espaco.md))
-
-            CampoValor(valor = valor, aoMudar = { valor = it })
-            Spacer(modifier = Modifier.height(Espaco.sm))
-
-            ExposedDropdownMenuBox(
-                expanded = menuExpandido,
-                onExpandedChange = { menuExpandido = it }
-            ) {
-                CampoApp(
-                    valor = categoriaSelecionada?.nome ?: "",
-                    aoMudar = {},
-                    rotulo = "Categoria",
-                    leitura = true,
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuExpandido) },
-                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                )
-                ExposedDropdownMenu(
-                    expanded = menuExpandido,
-                    onDismissRequest = { menuExpandido = false }
-                ) {
-                    categoriasDoTipo.forEach { categoria ->
-                        DropdownMenuItem(
-                            text = { Text(categoria.nome) },
-                            onClick = {
-                                categoriaSelecionadaId = categoria.id
-                                menuExpandido = false
-                            }
-                        )
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(Espaco.sm))
-
-            CampoApp(valor = descricao, aoMudar = { descricao = it }, rotulo = "Descrição")
-            Spacer(modifier = Modifier.height(Espaco.sm))
-
-            CampoData(
-                valor = dataSelecionada.format(formatoData),
-                rotulo = "Data",
-                descricao = "Selecionar data",
-                aoAbrir = { mostrarDatePicker = true },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(Espaco.lg))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                BotaoSecundario(
-                    texto = "Excluir",
-                    onClick = {
-                        focusManager.clearFocus()
-                        confirmando = true
-                    },
-                    modifier = Modifier.weight(1f),
-                    cor = MaterialTheme.cores.textoGasto,
-                )
-                BotaoPrincipal(
-                    texto = "Salvar",
-                    onClick = {
-                        val valorDouble = valor.replace(",", ".").toDoubleOrNull()
-                        val categoria = categoriaSelecionada
-                        if (valorDouble != null && categoria != null) {
-                            val novoAnoMes = String.format(Locale.ROOT, "%04d-%02d", dataSelecionada.year, dataSelecionada.monthValue)
-                            onSalvar(
-                                transacao.copy(
-                                    valor = valorDouble,
-                                    categoriaId = categoria.id,
-                                    descricao = descricao.ifBlank { null },
-                                    data = dataSelecionada,
-                                    anoMes = novoAnoMes
-                                )
-                            )
-                        }
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            Spacer(modifier = Modifier.height(Espaco.lg))
-          }
-          }
-          }
         }
     }
 }

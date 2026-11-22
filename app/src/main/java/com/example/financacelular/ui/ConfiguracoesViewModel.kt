@@ -6,6 +6,7 @@ import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.util.Log
 import androidx.activity.result.IntentSenderRequest
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,6 +47,7 @@ import kotlin.coroutines.resumeWithException
 
 private const val ESCOPO_DRIVE = "https://www.googleapis.com/auth/drive.file"
 private const val MENSAGEM_EXPORT_FALHOU = "Não foi possível preparar o backup agora. Tente de novo."
+private const val TAG = "ConfiguracoesViewModel"
 
 private enum class AcaoPendenteDrive { BACKUP, RESTAURAR, SINCRONIZAR }
 
@@ -189,11 +191,11 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
                 statusBackupMessage = "Login cancelado pelo usuário."
                 onResult(false, null)
             } catch (e: androidx.credentials.exceptions.NoCredentialException) {
-                e.printStackTrace()
+                Log.w(TAG, "Nenhuma credencial Google", e)
                 statusBackupMessage = "Nenhuma conta Google encontrada. Adicione uma conta nas Configurações do celular."
                 onResult(false, null)
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e(TAG, "Falha no login Google", e)
                 statusBackupMessage = "Erro no login: ${e.localizedMessage ?: "Desconhecido"}"
                 onResult(false, null)
             }
@@ -550,7 +552,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         }
         true
     } catch (e: Exception) {
-        e.printStackTrace()
+        Log.e(TAG, "Falha ao revogar acesso ao Drive", e)
         false
     }
 
@@ -638,7 +640,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
                     AcaoPendenteDrive.SINCRONIZAR -> executarFluxoInteligenteDrive(token, conta)
                 }
             } catch (e: ApiException) {
-                e.printStackTrace()
+                Log.e(TAG, "Permissão do Drive negada", e)
                 statusBackupMessage = "Permissão do Google Drive negada: ${e.localizedMessage}"
             } finally {
                 // Se o fluxo abriu o sheet de escolha, escolhaBackup já impede outra ação
@@ -710,12 +712,15 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
             }
 
             if (resultado.hasResolution()) {
+                val intentSender = resultado.pendingIntent?.intentSender
+                if (intentSender == null) {
+                    statusBackupMessage = "Erro de autorização do Drive. Tente de novo."
+                    return null
+                }
                 acaoPendente = acaoSeNaoAutorizado
                 contaPendente = conta
                 aguardandoConsentimento = true
-                pedidoAutorizacaoDrive = IntentSenderRequest
-                    .Builder(resultado.pendingIntent!!.intentSender)
-                    .build()
+                pedidoAutorizacaoDrive = IntentSenderRequest.Builder(intentSender).build()
                 null
             } else {
                 val dono = donoDoToken(resultado)
@@ -728,7 +733,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Falha na autorização do Drive", e)
             statusBackupMessage = "Erro de autorização do Drive: ${e.localizedMessage}"
             null
         }

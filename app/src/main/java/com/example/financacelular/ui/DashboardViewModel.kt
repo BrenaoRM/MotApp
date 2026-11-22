@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.financacelular.data.AppDatabase
+import com.example.financacelular.data.FORMATO_ANO_MES
 import com.example.financacelular.data.FinancaRepository
 import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.TipoTransacao
@@ -25,7 +26,6 @@ import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
 
 data class ResumoMovimentacao(
     val titulo: String,
@@ -42,7 +42,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     val mesSelecionado: StateFlow<YearMonth> = _mesSelecionado
 
     private val anoMesTexto: Flow<String> = _mesSelecionado.map {
-        it.format(DateTimeFormatter.ofPattern("yyyy-MM"))
+        it.format(FORMATO_ANO_MES)
     }
 
     private var alertaJaExibidoNestaSessao = false
@@ -145,7 +145,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     ) { mes, investimentos ->
         val totaisPorMes = investimentos.groupBy { it.anoMes }.mapValues { (_, invs) -> invs.sumOf { it.valorInvestido } }
         (5 downTo 0).map { atras ->
-            val anoMes = mes.minusMonths(atras.toLong()).format(DateTimeFormatter.ofPattern("yyyy-MM"))
+            val anoMes = mes.minusMonths(atras.toLong()).format(FORMATO_ANO_MES)
             TotalMensalInvestimento(anoMes, totaisPorMes[anoMes] ?: 0.0)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

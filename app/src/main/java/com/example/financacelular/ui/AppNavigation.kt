@@ -54,7 +54,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import com.example.financacelular.deteccao.PreenchimentoPendente
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -67,7 +67,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Dp
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.graphics.Color
@@ -197,8 +196,8 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     var atualizacaoDisponivel by remember { mutableStateOf<AtualizacaoDisponivel?>(null) }
     // Cabeçalho fixo das abas: o ViewModel da Análise e a folha de período ficam aqui, fora das telas
     val analiseViewModel: AnaliseViewModel = viewModel()
-    val mesGlobal by MesGlobal.mes.collectAsState()
-    val periodoAnalise by analiseViewModel.periodo.collectAsState()
+    val mesGlobal by MesGlobal.mes.collectAsStateWithLifecycle()
+    val periodoAnalise by analiseViewModel.periodo.collectAsStateWithLifecycle()
     var folhaPeriodoAberta by rememberSaveable { mutableStateOf(false) }
     // Uma lista por aba: o cabeçalho é derivado da rolagem real da lista da aba atual
     var alturaCabecalhoPx by remember { mutableFloatStateOf(0f) }
@@ -214,7 +213,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     // Abre uma tela interna sempre no topo (a lista fica aqui, então guardaria a rolagem da visita anterior)
     fun abrirInterna(rota: String, lista: LazyListState) {
         escopoLista.launch { lista.scrollToItem(0) }
-        navController.navigate(rota)
+        navController.navigate(rota) { launchSingleTop = true }
     }
 
     val context = LocalContext.current
@@ -244,7 +243,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     }
 
     // Transação detectada numa notificação de banco: abre Nova Transação, que preenche os campos
-    val transacaoDetectada by PreenchimentoPendente.atual.collectAsState()
+    val transacaoDetectada by PreenchimentoPendente.atual.collectAsStateWithLifecycle()
     LaunchedEffect(transacaoDetectada) {
         val detectada = transacaoDetectada ?: return@LaunchedEffect
         navController.navigate("$ROTA_NOVA_TRANSACAO_BASE?tipo=${detectada.tipo.name}") {
@@ -388,9 +387,9 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                             enabled = false
                                         )
                                     } else {
-                                        val faturaPaga by cartaoViewModel.faturaPaga.collectAsState()
-                                        val podePagar by cartaoViewModel.podePagarFatura.collectAsState()
-                                        val naPaginaAdicionar by cartaoViewModel.naPaginaAdicionar.collectAsState()
+                                        val faturaPaga by cartaoViewModel.faturaPaga.collectAsStateWithLifecycle()
+                                        val podePagar by cartaoViewModel.podePagarFatura.collectAsStateWithLifecycle()
+                                        val naPaginaAdicionar by cartaoViewModel.naPaginaAdicionar.collectAsStateWithLifecycle()
 
                                         if (naPaginaAdicionar) {
                                             BotaoIlha(
@@ -525,8 +524,8 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                     composable(DestinoPrincipal.INICIO.rota) {
                         DashboardScreen(
                             estadoLista = listaInicio,
-                            aoAbrirExtrato = { navController.navigate(ROTA_EXTRATO) },
-                            aoAbrirInvestimento = { navController.navigate(ROTA_INVESTIMENTO) },
+                            aoAbrirExtrato = { navController.navigate(ROTA_EXTRATO) { launchSingleTop = true } },
+                            aoAbrirInvestimento = { navController.navigate(ROTA_INVESTIMENTO) { launchSingleTop = true } },
                             aoAbrirCartao = { abrirInterna(ROTA_CARTAO, listaCartao) },
                             aoAbrirAssinaturas = { abrirInterna(ROTA_RECORRENTES, listaRecorrentes) },
                             aoAbrirParcelados = { abrirInterna(ROTA_PARCELADOS, listaParcelados) },
@@ -557,13 +556,13 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                     composable(ROTA_CONFIGURACOES) {
                         ConfiguracoesScreen(
                             viewModel = configuracoesViewModel,
-                            aoAbrirCategorias = { navController.navigate(ROTA_CATEGORIAS) },
-                            aoAbrirPermissoes = { navController.navigate(ROTA_PERMISSOES) },
-                            aoVoltar = { navController.popBackStack() }
+                            aoAbrirCategorias = { navController.navigate(ROTA_CATEGORIAS) { launchSingleTop = true } },
+                            aoAbrirPermissoes = { navController.navigate(ROTA_PERMISSOES) { launchSingleTop = true } },
+                            aoVoltar = { navController.navigateUp() }
                         )
                     }
                     composable(ROTA_PERMISSOES) {
-                        PermissoesScreen(aoVoltar = { navController.popBackStack() })
+                        PermissoesScreen(aoVoltar = { navController.navigateUp() })
                     }
                     composable(
                         route = ROTA_NOVA_TRANSACAO,
@@ -580,8 +579,8 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                             tipoInicial = TipoTransacao.valueOf(tipoTexto),
                             isParceladoInicial = isParcelado,
                             isRecorrenteInicial = isRecorrente,
-                            aoSalvar = { navController.popBackStack() },
-                            aoFechar = { navController.popBackStack() }
+                            aoSalvar = { navController.navigateUp() },
+                            aoFechar = { navController.navigateUp() }
                         )
                     }
                     composable(ROTA_ORCAMENTO) {
@@ -619,14 +618,14 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                             textoPesquisa = textoPesquisaExtrato,
                             acionarFiltrosExterno = acionarFiltrosExtrato,
                             aoFiltrosAcionado = { acionarFiltrosExtrato = false },
-                            aoVoltar = { navController.popBackStack() }
+                            aoVoltar = { navController.navigateUp() }
                         )
                     }
                     composable(ROTA_INVESTIMENTO) {
                         InvestimentoScreen(
                             acionarNovoAporteExterno = acionarNovoInvestimento,
                             aoAporteAcionado = { acionarNovoInvestimento = false },
-                            aoVoltar = { navController.popBackStack() }
+                            aoVoltar = { navController.navigateUp() }
                         )
                     }
                     composable(ROTA_PARCELADOS) {
@@ -636,7 +635,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         CategoriasScreen(
                             acionarNovaExterna = acionarNovaCategoria,
                             aoNovaAcionada = { acionarNovaCategoria = false },
-                            aoVoltar = { navController.popBackStack() }
+                            aoVoltar = { navController.navigateUp() }
                         )
                     }
                 }
@@ -662,20 +661,20 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         .padding(horizontal = MaterialTheme.dimens.paddingScreen)
                         .padding(top = 16.dp, bottom = 16.dp)
                 ) {
-                    val voltar: () -> Unit = { navController.popBackStack() }
+                    val voltar: () -> Unit = { navController.navigateUp() }
                     Crossfade(targetState = rotaDoCabecalho, animationSpec = tween(TEMPO_SAIDA + 60)) { rota ->
                         when (rota) {
                             DestinoPrincipal.ANALISE.rota -> CabecalhoPadrao(
                                 titulo = periodoAnalise.tituloCurto(),
                                 subtitulo = periodoAnalise.subtituloCurto(),
-                                aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) },
+                                aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) { launchSingleTop = true } },
                                 aoAnterior = { analiseViewModel.periodoAnterior() },
                                 aoSeguinte = { analiseViewModel.periodoSeguinte() },
                                 aoTocarTitulo = { folhaPeriodoAberta = true }
                             )
                             DestinoPrincipal.CONTAS.rota -> CabecalhoPadrao(
                                 titulo = "Contas",
-                                aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) }
+                                aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) { launchSingleTop = true } }
                             )
                             ROTA_CARTAO -> CabecalhoPadrao(
                                 titulo = mesGlobal.nomeDoMes(),
@@ -697,7 +696,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                             else -> CabecalhoPadrao(
                                 titulo = mesGlobal.nomeDoMes(),
                                 subtitulo = mesGlobal.year.toString(),
-                                aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) },
+                                aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) { launchSingleTop = true } },
                                 aoAnterior = { MesGlobal.anterior() },
                                 aoSeguinte = { MesGlobal.seguinte() }
                             )

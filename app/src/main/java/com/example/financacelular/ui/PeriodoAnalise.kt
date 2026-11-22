@@ -60,12 +60,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
+import com.example.financacelular.data.FORMATO_DATA_CURTA
+import com.example.financacelular.data.FORMATO_DIA_MES
 import java.time.format.TextStyle
 import java.time.temporal.ChronoUnit
-import java.util.Locale
 
-private val LocaleBr: Locale = Locale.Builder().setLanguage("pt").setRegion("BR").build()
 
 /** Intervalo de datas (inclusive) analisado na tela de Análise. */
 data class Periodo(val inicio: LocalDate, val fim: LocalDate) {
@@ -104,21 +103,21 @@ fun atalhosDePeriodo(hoje: LocalDate = LocalDate.now()): List<Pair<String, Perio
 /** "Novembro 2026" para um mês; o nome do atalho quando é um; senão "05/11 – 15/11/26". */
 fun Periodo.rotulo(): String {
     if (ehMesUnico) {
-        return inicio.month.getDisplayName(TextStyle.FULL, LocaleBr).replaceFirstChar { it.uppercase() } + " " + inicio.year
+        return inicio.month.getDisplayName(TextStyle.FULL, LocalePtBr).replaceFirstChar { it.uppercase() } + " " + inicio.year
     }
     atalhosDePeriodo().firstOrNull { it.second == this }?.let { return it.first }
-    return inicio.format(DateTimeFormatter.ofPattern("dd/MM")) + " – " + fim.format(DateTimeFormatter.ofPattern("dd/MM/yy"))
+    return inicio.format(FORMATO_DIA_MES) + " – " + fim.format(FORMATO_DATA_CURTA)
 }
 
-private fun LocalDate.mesCurto(): String = month.getDisplayName(TextStyle.SHORT, LocaleBr).removeSuffix(".")
+private fun LocalDate.mesCurto(): String = month.getDisplayName(TextStyle.SHORT, LocalePtBr).removeSuffix(".")
 
 /** Linha grande do cabeçalho: "Novembro" para um mês; "3 meses" para meses fechados; senão "05–15 nov" ou "05/11 – 03/12". */
 fun Periodo.tituloCurto(): String = when {
-    ehMesUnico -> inicio.month.getDisplayName(TextStyle.FULL, LocaleBr).replaceFirstChar { it.uppercase() }
+    ehMesUnico -> inicio.month.getDisplayName(TextStyle.FULL, LocalePtBr).replaceFirstChar { it.uppercase() }
     mesesFechados -> "$quantidadeDeMeses meses"
     inicio == fim -> "%02d %s".format(inicio.dayOfMonth, inicio.mesCurto())
     YearMonth.from(inicio) == YearMonth.from(fim) -> "%02d–%02d %s".format(inicio.dayOfMonth, fim.dayOfMonth, inicio.mesCurto())
-    else -> inicio.format(DateTimeFormatter.ofPattern("dd/MM")) + " – " + fim.format(DateTimeFormatter.ofPattern("dd/MM"))
+    else -> inicio.format(FORMATO_DIA_MES) + " – " + fim.format(FORMATO_DIA_MES)
 }
 
 /** Linha pequena do cabeçalho: o ano ("2026", ou "2025–2026"); para vários meses fechados, "set–nov 2026". */

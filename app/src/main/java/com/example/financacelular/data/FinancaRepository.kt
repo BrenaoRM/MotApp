@@ -25,6 +25,18 @@ internal fun dataDoPagamentoDeFatura(cartao: CartaoEntity?, anoMes: String, hoje
     return if (pagouNoMesDela) hoje else vencimento
 }
 
+/**
+ * Divide [total] em [n] parcelas em centavos, de modo que a soma seja exatamente o total.
+ * A primeira parcela absorve o resto da divisão (ex.: 100,00 em 3x = 33,34 / 33,33 / 33,33).
+ */
+internal fun dividirEmParcelas(total: Double, n: Int): List<Double> {
+    if (n <= 0) return emptyList()
+    val centavos = Math.round(total * 100)
+    val base = centavos / n
+    val resto = centavos % n
+    return List(n) { i -> (if (i == 0) base + resto else base) / 100.0 }
+}
+
 @Suppress("unused")
 class FinancaRepository(private val database: AppDatabase) {
     private val dao = database.transacaoDao()
@@ -63,6 +75,9 @@ class FinancaRepository(private val database: AppDatabase) {
     // ------------------------------------------------------------------
     fun listarTransacoes(): Flow<List<Transacao>> =
         dao.listarTransacoes()
+
+    suspend fun listarTransacoesDoDia(data: LocalDate): List<Transacao> =
+        dao.listarTransacoesDoDia(data)
 
     fun listarTransacoesFatura(cartaoId: Long, anoMes: String): Flow<List<Transacao>> =
         dao.listarTransacoesFatura(cartaoId, anoMes)
@@ -155,7 +170,9 @@ class FinancaRepository(private val database: AppDatabase) {
         anoInicio: Int,
         mesInicio: Int
     ) {
-        val valorParcela = if (tipoCalculo == "TOTAL") valorTotalOuParcela / numeroParcelas else valorTotalOuParcela
+        val valoresParcelas =
+            if (tipoCalculo == "TOTAL") dividirEmParcelas(valorTotalOuParcela, numeroParcelas)
+            else List(numeroParcelas) { valorTotalOuParcela }
         val grupoId = UUID.randomUUID().toString()
         var anoAtual = anoInicio
         var mesAtual = mesInicio
@@ -168,7 +185,7 @@ class FinancaRepository(private val database: AppDatabase) {
 
             listaTransacoes.add(
                 Transacao(
-                    valor = valorParcela,
+                    valor = valoresParcelas[i - 1],
                     data = dataTransacao,
                     categoriaId = categoriaId,
                     tipo = TipoTransacao.DESPESA,
@@ -328,7 +345,6 @@ class FinancaRepository(private val database: AppDatabase) {
     fun listarCategorias(): Flow<List<Categoria>> = categoriaDao.listarTodas()
     fun listarCategoriasPorTipo(tipo: TipoTransacao): Flow<List<Categoria>> = categoriaDao.listarPorTipo(tipo)
     suspend fun salvarCategoria(categoria: Categoria): Long = categoriaDao.inserir(categoria)
-    suspend fun excluirCategoria(categoria: Categoria) = categoriaDao.excluir(categoria)
     suspend fun atualizarCategoria(categoria: Categoria) = categoriaDao.atualizar(categoria)
 
     fun contarTransacoesPorCategoria(): Flow<List<ContagemPorCategoria>> = dao.contarPorCategoria()
@@ -380,7 +396,6 @@ class FinancaRepository(private val database: AppDatabase) {
     fun listarRecorrentes(): Flow<List<DespesaRecorrente>> = despesaRecorrenteDao.listarTodas()
 
     fun listarHistoricoOrcamentos(anoMes: String): Flow<List<Orcamento>> = orcamentoDao.listarHistoricoAteMes(anoMes)
-    fun listarOrcamentosDoMes(anoMes: String): Flow<List<Orcamento>> = orcamentoDao.listarDoMes(anoMes)
     suspend fun buscarOrcamentoDoMes(categoriaId: Long, anoMes: String): Orcamento? = orcamentoDao.buscarPorCategoriaEMes(categoriaId, anoMes)
     suspend fun definirOrcamento(orcamento: Orcamento) = orcamentoDao.definir(orcamento)
 

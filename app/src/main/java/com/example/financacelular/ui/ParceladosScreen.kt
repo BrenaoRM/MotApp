@@ -6,16 +6,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -26,7 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,20 +40,18 @@ import com.example.financacelular.ui.theme.Espaco
 import com.example.financacelular.ui.theme.TealParcelados
 import com.example.financacelular.ui.theme.Verde
 import com.example.financacelular.ui.theme.cores
-import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
-import java.time.format.DateTimeFormatter
-import java.util.Locale
+import com.example.financacelular.data.FORMATO_DATA
 
 @Composable
 fun ParceladosScreen(
     viewModel: ParceladosViewModel = viewModel(),
     estadoLista: LazyListState
 ) {
-    val comprasCarregadas by viewModel.comprasAgrupadas.collectAsState()
+    val comprasCarregadas by viewModel.comprasAgrupadas.collectAsStateWithLifecycle()
     val comprasAgrupadas = comprasCarregadas.orEmpty()
-    val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
-    val totalRestante = comprasAgrupadas.sumOf { it.parcelasRestantes * it.valorParcela }
+    val formatoMoeda = remember { NumberFormat.getCurrencyInstance(LocalePtBr) }
+    val totalRestante = comprasAgrupadas.sumOf { it.valorRestante }
     val parcelasPagas = comprasAgrupadas.sumOf { it.parcelasPagas }
     val parcelasTotais = comprasAgrupadas.sumOf { it.totalParcelas }
 
@@ -121,12 +114,16 @@ fun ParceladosScreen(
                 CartaoUnicoDeLinhas {
                     comprasAgrupadas.forEachIndexed { indice, compra ->
                         if (indice > 0) DivisorDeLinha()
-                        val quitada = compra.parcelasRestantes == 0
-                        val cor = if (quitada) Verde else TealParcelados
+                        val quitada = compra.quitada
+                        val cor = corDaCompra(compra)
                         LinhaDePagina(
                             inicio = { AnelDaCompra(compra, cor) },
                             titulo = compra.descricaoBase,
-                            valor = if (quitada) "Quitada" else formatoMoeda.format(compra.parcelasRestantes * compra.valorParcela),
+                            valor = when {
+                                quitada -> "Quitada"
+                                compra.encerrada -> "Encerrada"
+                                else -> formatoMoeda.format(compra.valorRestante)
+                            },
                             corValor = if (quitada) MaterialTheme.cores.textoGanho else Color.Unspecified,
                             subtitulo = "${compra.totalParcelas}x de ${formatoMoeda.format(compra.valorParcela)}" +
                                 (compra.cartaoNome?.let { " · $it" } ?: ""),
@@ -174,12 +171,20 @@ fun ParceladosScreen(
     }
 }
 
+/** Verde quando quitada, neutra quando encerrada (parcelas canceladas), teal em andamento. */
+@Composable
+private fun corDaCompra(compra: CompraParceladaAgrupada): Color = when {
+    compra.quitada -> Verde
+    compra.encerrada -> MaterialTheme.colorScheme.onSurfaceVariant
+    else -> TealParcelados
+}
+
 /** Anel da compra: parcelas pagas / total dentro do anel; verde com check quando quitada. */
 @Composable
 private fun AnelDaCompra(compra: CompraParceladaAgrupada, cor: Color) {
     val progresso = if (compra.totalParcelas > 0) compra.parcelasPagas.toFloat() / compra.totalParcelas else 0f
     AnelDeProgresso(progresso, cor) {
-        if (compra.parcelasRestantes == 0) {
+        if (compra.quitada) {
             Icon(Icons.Outlined.Check, contentDescription = "Quitada", tint = cor, modifier = Modifier.size(Tamanho.icone))
         } else {
             Text(
@@ -199,7 +204,7 @@ private fun DetalheDaCompra(
     aoFechar: () -> Unit,
     aoCancelar: () -> Unit
 ) {
-    val quitada = compra.parcelasRestantes == 0
+    val quitada = compra.quitada
     Column(modifier = Modifier.fillMaxWidth()) {
         CabecalhoDeFolha(
             titulo = compra.descricaoBase,
@@ -211,24 +216,25 @@ private fun DetalheDaCompra(
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                ValorDoHero(formatoMoeda.format(compra.parcelasRestantes * compra.valorParcela))
+                ValorDoHero(formatoMoeda.format(compra.valorRestante))
                 Text(
                     if (quitada) "Compra totalmente quitada"
+                    else if (compra.encerrada) "Compra encerrada"
                     else "restante · " + if (compra.parcelasRestantes == 1) "1 parcela" else "${compra.parcelasRestantes} parcelas",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            AnelDaCompra(compra, if (quitada) Verde else TealParcelados)
+            AnelDaCompra(compra, corDaCompra(compra))
         }
 
         Spacer(modifier = Modifier.height(Espaco.md))
-        LinhaDeDetalhe("Data da compra", compra.dataCompra.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")))
+        LinhaDeDetalhe("Data da compra", compra.dataCompra.format(FORMATO_DATA))
         LinhaDeDetalhe("Parcelas pagas", "${compra.parcelasPagas} de ${compra.totalParcelas}")
-        LinhaDeDetalhe("Total já pago", formatoMoeda.format(compra.parcelasPagas * compra.valorParcela))
+        LinhaDeDetalhe("Total já pago", formatoMoeda.format(compra.valorPago))
         LinhaDeDetalhe("Valor total", formatoMoeda.format(compra.valorTotal))
 
-        if (!quitada) {
+        if (compra.transacoesPendentes.isNotEmpty()) {
             Spacer(modifier = Modifier.height(Espaco.xl))
             BotaoSecundario(
                 texto = "Cancelar ${compra.parcelasRestantes} parcelas",

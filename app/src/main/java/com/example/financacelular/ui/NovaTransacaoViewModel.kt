@@ -11,6 +11,7 @@ import com.example.financacelular.data.Categoria
 import com.example.financacelular.data.FinancaRepository
 import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.TipoTransacao
+import com.example.financacelular.data.mesDaFaturaDaCompra
 import com.example.financacelular.data.Transacao
 import com.example.financacelular.deteccao.TransacaoDetectada
 import com.example.financacelular.deteccao.valorParaCampo
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.YearMonth
 import java.util.Locale
 
 class NovaTransacaoViewModel(application: Application) : AndroidViewModel(application) {
@@ -189,16 +191,14 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
                 val fallbackTipo = if (tipo == TipoTransacao.RECEITA) "Ganho" else "Gasto"
                 val nomeFinal = descricao.ifBlank { nomeCategoriaFinal ?: fallbackTipo }
 
-                // Em meses curtos o cartão fecha no último dia (ex.: fechamento dia 31 em fevereiro)
-                val diaFechamento = minOf(cartao?.diaFechamento ?: 31, data.lengthOfMonth())
-
-                val dataFaturaAjustada = if (ehCredito && data.dayOfMonth >= diaFechamento) {
-                    data.plusMonths(1)
+                val mesFatura = if (ehCredito) {
+                    mesDaFaturaDaCompra(data, cartao?.diaFechamento ?: 31)
                 } else {
-                    data
+                    YearMonth.from(data)
                 }
-                val anoBase = dataFaturaAjustada.year
-                val mesBase = dataFaturaAjustada.monthValue
+                val dataFaturaAjustada = if (mesFatura != YearMonth.from(data)) data.plusMonths(1) else data
+                val anoBase = mesFatura.year
+                val mesBase = mesFatura.monthValue
                 val anoMesFormatado = String.format(Locale.ROOT, "%04d-%02d", anoBase, mesBase)
 
                 if (ehRecorrente) {

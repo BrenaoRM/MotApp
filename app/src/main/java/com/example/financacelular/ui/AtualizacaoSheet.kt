@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -34,10 +35,10 @@ fun AtualizacaoSheet(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var baixando by remember { mutableStateOf(false) }
-    var progresso by remember { mutableStateOf(0f) }
+    var progresso by remember { mutableFloatStateOf(0f) }
     var erroDownload by remember { mutableStateOf<String?>(null) }
 
-    val erroInstalacao by StatusInstalacao.erro.collectAsState()
+    val erroInstalacao by StatusInstalacao.erro.collectAsStateWithLifecycle()
     LaunchedEffect(erroInstalacao) {
         erroInstalacao?.let {
             baixando = false
@@ -127,6 +128,13 @@ fun AtualizacaoSheet(
                                 onError = { mensagem ->
                                     baixando = false
                                     erroDownload = mensagem
+                                },
+                                onAguardandoUsuario = { precisaPermissao ->
+                                    baixando = false
+                                    progresso = 0f
+                                    if (precisaPermissao) {
+                                        erroDownload = "Libere a instalação e toque em Atualizar de novo"
+                                    }
                                 }
                             )
                         }

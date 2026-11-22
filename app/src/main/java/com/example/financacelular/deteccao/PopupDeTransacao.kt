@@ -1,11 +1,13 @@
 package com.example.financacelular.deteccao
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.util.Log
 import android.view.ContextThemeWrapper
 import android.view.Gravity
 import android.view.WindowManager
@@ -34,6 +36,8 @@ import com.example.financacelular.ui.theme.ProvideResponsiveDensity
  */
 object PopupDeTransacao {
     private val principal = Handler(Looper.getMainLooper())
+    // Seguro: Aberto só guarda o applicationContext e a ComposeView, e ambos são soltos em remover() (aberto = null).
+    @SuppressLint("StaticFieldLeak")
     private var aberto: Aberto? = null
 
     fun podeMostrar(context: Context): Boolean = Settings.canDrawOverlays(context)
@@ -49,7 +53,12 @@ object PopupDeTransacao {
                 if (!it.resolvido) notificarTransacao(app, it.detectada, it.nomeBanco)
                 it.remover()
             }
-            aberto = Aberto(app, detectada, nomeBanco).also { it.adicionar() }
+            val novo = Aberto(app, detectada, nomeBanco)
+            // A liberação pode ter sido retirada entre o podeMostrar e agora: vira notificação em vez de fechar o app
+            aberto = if (novo.adicionar()) novo else {
+                notificarTransacao(app, detectada, nomeBanco)
+                null
+            }
         }
         return true
     }
@@ -77,7 +86,8 @@ object PopupDeTransacao {
             softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
         }
 
-        fun adicionar() {
+        /** Devolve false se o Android recusou a janela. */
+        fun adicionar(): Boolean {
             dono.iniciar()
             val tela = ComposeView(ContextThemeWrapper(app, R.style.Theme_FinanceAPP)).apply {
                 setViewTreeLifecycleOwner(dono)
@@ -98,7 +108,15 @@ object PopupDeTransacao {
                 }
             }
             visao = tela
-            gerenciador.addView(tela, parametros)
+            return try {
+                gerenciador.addView(tela, parametros)
+                true
+            } catch (e: RuntimeException) { // WindowManager.BadTokenException, SecurityException
+                Log.w("PopupDeTransacao", "Janela flutuante recusada", e)
+                visao = null
+                dono.encerrar()
+                false
+            }
         }
 
         /** Sem teclado a janela não rouba o foco do app de baixo; com teclado precisa tê-lo. */

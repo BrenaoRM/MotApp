@@ -6,13 +6,13 @@ import androidx.lifecycle.viewModelScope
 import com.example.financacelular.data.AppDatabase
 import com.example.financacelular.data.CartaoEntity
 import com.example.financacelular.data.Categoria
+import com.example.financacelular.data.FORMATO_ANO_MES
 import com.example.financacelular.data.FinancaRepository
 import com.example.financacelular.data.Transacao
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
 
 class CartaoViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: FinancaRepository = FinancaRepository.getInstance(AppDatabase.getInstance(application))
@@ -60,7 +60,7 @@ class CartaoViewModel(application: Application) : AndroidViewModel(application) 
         if (cartaoId == null) {
             flowOf(emptyList())
         } else {
-            val anoMesStr = ym.format(DateTimeFormatter.ofPattern("yyyy-MM"))
+            val anoMesStr = ym.format(FORMATO_ANO_MES)
             repository.listarTransacoesFatura(cartaoId, anoMesStr)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -72,7 +72,7 @@ class CartaoViewModel(application: Application) : AndroidViewModel(application) 
         if (cartaoId == null) {
             flowOf(false)
         } else {
-            val anoMesStr = ym.format(DateTimeFormatter.ofPattern("yyyy-MM"))
+            val anoMesStr = ym.format(FORMATO_ANO_MES)
             repository.verificarFaturaPagaCartao(cartaoId, anoMesStr)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
@@ -97,7 +97,7 @@ class CartaoViewModel(application: Application) : AndroidViewModel(application) 
     fun pagarFatura(onSucesso: () -> Unit) {
         viewModelScope.launch {
             if (_naPaginaAdicionar.value) return@launch
-            val anoMesStr = _mesSelecionado.value.format(DateTimeFormatter.ofPattern("yyyy-MM"))
+            val anoMesStr = _mesSelecionado.value.format(FORMATO_ANO_MES)
             val valor = transacoesFatura.value?.sumOf { it.valor } ?: 0.0
             val cartaoId = _cartaoSelecionadoId.value ?: return@launch
             if (valor > 0.0) {
@@ -110,7 +110,7 @@ class CartaoViewModel(application: Application) : AndroidViewModel(application) 
     fun cancelarPagamentoFatura(onSucesso: () -> Unit) {
         viewModelScope.launch {
             if (_naPaginaAdicionar.value) return@launch
-            val anoMesStr = _mesSelecionado.value.format(DateTimeFormatter.ofPattern("yyyy-MM"))
+            val anoMesStr = _mesSelecionado.value.format(FORMATO_ANO_MES)
             val cartaoId = _cartaoSelecionadoId.value ?: return@launch
             repository.cancelarPagamentoFaturaCartao(cartaoId, anoMesStr)
             onSucesso()

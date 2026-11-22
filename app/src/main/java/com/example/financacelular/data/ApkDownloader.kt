@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
@@ -21,7 +22,8 @@ object ApkDownloader {
         context: Context,
         urlApk: String,
         onProgresso: (Float) -> Unit,
-        onError: (String) -> Unit
+        onError: (String) -> Unit,
+        onAguardandoUsuario: (precisaPermissao: Boolean) -> Unit
     ) = withContext(Dispatchers.IO) {
         try {
             val url = URL(urlApk)
@@ -40,32 +42,34 @@ object ApkDownloader {
             val arquivoApk = File(context.cacheDir, "atualizacao.apk")
             if (arquivoApk.exists()) arquivoApk.delete()
 
-            val inputStream = conexao.inputStream
-            val outputStream = FileOutputStream(arquivoApk)
             val buffer = ByteArray(8192)
             var bytesLidos: Int
             var totalBaixado = 0L
 
-            while (inputStream.read(buffer).also { bytesLidos = it } != -1) {
-                outputStream.write(buffer, 0, bytesLidos)
-                totalBaixado += bytesLidos
-                if (tamanhoTotal > 0) {
-                    val progresso = totalBaixado.toFloat() / tamanhoTotal.toFloat()
-                    withContext(Dispatchers.Main) { onProgresso(progresso) }
+            conexao.inputStream.use { inputStream ->
+                FileOutputStream(arquivoApk).use { outputStream ->
+                    while (inputStream.read(buffer).also { bytesLidos = it } != -1) {
+                        outputStream.write(buffer, 0, bytesLidos)
+                        totalBaixado += bytesLidos
+                        if (tamanhoTotal > 0) {
+                            val progresso = totalBaixado.toFloat() / tamanhoTotal.toFloat()
+                            withContext(Dispatchers.Main) { onProgresso(progresso) }
+                        }
+                    }
                 }
             }
-
-            outputStream.flush()
-            outputStream.close()
-            inputStream.close()
 
             val instalando = context.packageManager.canRequestPackageInstalls() &&
                 instalarPorSessao(context, arquivoApk)
             if (!instalando) {
-                withContext(Dispatchers.Main) { instalarApk(context, arquivoApk) }
+                val precisaPermissao = !context.packageManager.canRequestPackageInstalls()
+                withContext(Dispatchers.Main) {
+                    instalarApk(context, arquivoApk)
+                    onAguardandoUsuario(precisaPermissao)
+                }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("ApkDownloader", "Falha ao baixar a atualização", e)
             withContext(Dispatchers.Main) { onError(e.localizedMessage ?: "Erro ao baixar arquivo") }
         }
     }
@@ -106,7 +110,7 @@ object ApkDownloader {
             }
             true
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.w("ApkDownloader", "Instalação por sessão falhou; usando o instalador do sistema", e)
             if (id != -1) runCatching { instalador.abandonSession(id) }
             false
         }

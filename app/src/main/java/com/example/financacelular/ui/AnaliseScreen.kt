@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -36,7 +35,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.TrendingDown
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.ArrowUpward
-import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -50,7 +48,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -74,6 +72,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -85,9 +84,7 @@ import com.example.financacelular.ui.theme.Verde
 import com.example.financacelular.ui.theme.cores
 import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
-import java.util.Locale
 
-private val LocalePtBr: Locale = Locale.Builder().setLanguage("pt").setRegion("BR").build()
 
 /** "2026-10-03" -> "03/10" (sem depender do tipo exato da data). */
 private fun formatarDataCurta(texto: String): String {
@@ -117,15 +114,15 @@ fun AnaliseScreen(
     viewModel: AnaliseViewModel = viewModel(),
     estadoLista: LazyListState = rememberLazyListState()
 ) {
-    val despesasPorCategoria by viewModel.despesasPorCategoria.collectAsState()
-    val receitasPorCategoria by viewModel.receitasPorCategoria.collectAsState()
-    val fluxo by viewModel.fluxo.collectAsState()
-    val topDespesas by viewModel.topDespesas.collectAsState()
-    val aportes by viewModel.aportes.collectAsState()
-    val periodo by viewModel.periodo.collectAsState()
-    val totalDespesas by viewModel.totalDespesasPeriodo.collectAsState()
-    val totalReceitas by viewModel.totalReceitasPeriodo.collectAsState()
-    val serie by viewModel.serieDoPeriodo.collectAsState()
+    val despesasPorCategoria by viewModel.despesasPorCategoria.collectAsStateWithLifecycle()
+    val receitasPorCategoria by viewModel.receitasPorCategoria.collectAsStateWithLifecycle()
+    val fluxo by viewModel.fluxo.collectAsStateWithLifecycle()
+    val topDespesas by viewModel.topDespesas.collectAsStateWithLifecycle()
+    val aportes by viewModel.aportes.collectAsStateWithLifecycle()
+    val periodo by viewModel.periodo.collectAsStateWithLifecycle()
+    val totalDespesas by viewModel.totalDespesasPeriodo.collectAsStateWithLifecycle()
+    val totalReceitas by viewModel.totalReceitasPeriodo.collectAsStateWithLifecycle()
+    val serie by viewModel.serieDoPeriodo.collectAsStateWithLifecycle()
 
     val formatoReal = remember { NumberFormat.getCurrencyInstance(LocalePtBr) }
     val valoresVisiveis = ValoresVisiveis.visivel
@@ -410,7 +407,7 @@ internal fun SeletorQuadrado(
         val deslocamento by animateDpAsState(larguraOpcao * indiceSelecionado, tween(280, easing = FastOutSlowInEasing), label = "deslizeSeletor")
         Box(
             modifier = Modifier
-                .offset(x = deslocamento)
+                .offset { IntOffset(deslocamento.roundToPx(), 0) }
                 .width(larguraOpcao)
                 .fillMaxHeight()
                 .clip(formaAtiva)

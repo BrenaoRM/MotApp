@@ -2,7 +2,6 @@ package com.example.financacelular.data
 
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
 
 /**
  * Cartão ao qual pertencem os dados criados antes do suporte a vários cartões
@@ -12,7 +11,6 @@ const val ID_CARTAO_PADRAO = 1L
 
 private const val PREFIXO_PAGAMENTO = "Pagamento de Fatura"
 private val REGEX_PAGAMENTO = Regex("""^Pagamento de Fatura - (\d{4}-\d{2})(?: - (\d+))?$""")
-private val FORMATO_ANO_MES = DateTimeFormatter.ofPattern("yyyy-MM")
 
 /** Identifica uma fatura: um cartão em um mês ("yyyy-MM"). */
 data class FaturaChave(val cartaoId: Long, val anoMes: String)
@@ -56,6 +54,20 @@ fun calcularVencimentoFatura(anoMes: YearMonth, diaVencimento: Int, diaFechament
     val mesDoVencimento = if (diaVencimento < diaFechamento) anoMes.plusMonths(1) else anoMes
     return mesDoVencimento.atDay(diaVencimento.coerceIn(1, mesDoVencimento.lengthOfMonth()))
 }
+
+/**
+ * Mês da fatura em que uma compra no cartão cai. Compra no dia do fechamento (ou depois) vai para o
+ * mês seguinte; em meses curtos o cartão fecha no último dia (ex.: fechamento 31 em fevereiro).
+ */
+fun mesDaFaturaDaCompra(data: LocalDate, diaFechamento: Int): YearMonth {
+    val fechamento = minOf(diaFechamento, data.lengthOfMonth())
+    val mes = YearMonth.from(data)
+    return if (data.dayOfMonth >= fechamento) mes.plusMonths(1) else mes
+}
+
+/** Igual a [mesDaFaturaDaCompra], no formato "yyyy-MM" gravado em `Transacao.anoMes`. */
+fun anoMesDaCompraNoCartao(data: LocalDate, diaFechamento: Int): String =
+    mesDaFaturaDaCompra(data, diaFechamento).format(FORMATO_ANO_MES)
 
 data class FaturaAVencer(
     val cartao: CartaoEntity,

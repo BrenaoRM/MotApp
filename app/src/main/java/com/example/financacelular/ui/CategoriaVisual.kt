@@ -1,13 +1,5 @@
 package com.example.financacelular.ui
 
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.AttachMoney
@@ -38,17 +30,7 @@ import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.Subscriptions
 import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material.icons.outlined.Work
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.unit.dp
-import com.example.financacelular.ui.theme.Tamanho
 import java.text.Normalizer
 
 /** Um ícone que o usuário pode escolher para uma categoria; [chave] é o que fica guardado no banco. */
@@ -136,39 +118,4 @@ fun iconeParaCategoria(nome: String, chave: String? = null): ImageVector {
     }
     val chaveFinal = regra?.chave ?: "outros"
     return IconesDeCategoria.first { it.chave == chaveFinal }.icone
-}
-
-/** Fileira rolável para escolher o ícone de uma categoria nova; tocar no ícone escolhido de novo desfaz. */
-@Composable
-fun SeletorDeIconeCategoria(
-    selecionada: String?,
-    aoSelecionar: (String?) -> Unit,
-    cor: Color,
-    modifier: Modifier = Modifier
-) {
-    val forma = RoundedCornerShape(12.dp)
-    LazyRow(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        items(IconesDeCategoria, key = { it.chave }) { opcao ->
-            val ativo = opcao.chave == selecionada
-            Box(
-                modifier = Modifier
-                    .size(Tamanho.toque)
-                    .clip(forma)
-                    .then(if (ativo) Modifier.border(1.dp, cor, forma) else Modifier)
-                    .selectable(
-                        selected = ativo,
-                        role = Role.RadioButton,
-                        onClick = { aoSelecionar(if (ativo) null else opcao.chave) }
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    opcao.icone,
-                    contentDescription = opcao.rotulo,
-                    tint = if (ativo) cor else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(Tamanho.iconeGrande)
-                )
-            }
-        }
-    }
 }

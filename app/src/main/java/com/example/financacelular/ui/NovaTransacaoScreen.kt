@@ -49,7 +49,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,6 +75,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.Categoria
+import com.example.financacelular.data.FORMATO_DATA
 import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.deteccao.PreenchimentoPendente
@@ -86,7 +87,6 @@ import com.example.financacelular.ui.theme.cores
 import com.example.financacelular.ui.theme.dimens
 import java.text.Normalizer
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 /** Quantas categorias aparecem na grade da tela; o resto fica em "Todas". */
 private const val CATEGORIAS_NA_GRADE = 7
@@ -455,7 +455,7 @@ fun NovaTransacaoScreen(
     }
 
     // Transação detectada numa notificação de banco: preenche o que o banco informou
-    val transacaoDetectada by PreenchimentoPendente.atual.collectAsState()
+    val transacaoDetectada by PreenchimentoPendente.atual.collectAsStateWithLifecycle()
     LaunchedEffect(transacaoDetectada) {
         transacaoDetectada?.let {
             viewModel.aplicarDetectada(it)
@@ -463,10 +463,10 @@ fun NovaTransacaoScreen(
         }
     }
 
-    val categorias by viewModel.categorias.collectAsState()
-    val listaCartoes by viewModel.listaCartoes.collectAsState()
+    val categorias by viewModel.categorias.collectAsStateWithLifecycle()
+    val listaCartoes by viewModel.listaCartoes.collectAsStateWithLifecycle()
     val categoriasViewModel: CategoriasViewModel = viewModel()
-    val itensCategoria by categoriasViewModel.itens.collectAsState()
+    val itensCategoria by categoriasViewModel.itens.collectAsStateWithLifecycle()
 
     // Um sheet por vez: nenhum, lista completa, editar (id) ou criar categoria
     var mostrarTodas by rememberSaveable { mutableStateOf(false) }
@@ -524,7 +524,6 @@ fun NovaTransacaoScreen(
     val hoje = remember { LocalDate.now() }
     val ontem = remember { hoje.minusDays(1) }
     val scrollState = rememberScrollState()
-    val formatoData = remember { DateTimeFormatter.ofPattern("dd/MM/yyyy") }
 
     val focoValor = remember { FocusRequester() }
     val teclado = LocalSoftwareKeyboardController.current
@@ -642,7 +641,7 @@ fun NovaTransacaoScreen(
                     ) {
                         Box(modifier = Modifier.weight(1.3f)) {
                             CampoApp(
-                                valor = viewModel.data.format(formatoData),
+                                valor = viewModel.data.format(FORMATO_DATA),
                                 aoMudar = {},
                                 rotulo = "Data",
                                 leitura = true,
@@ -798,7 +797,7 @@ fun NovaTransacaoScreen(
                     val valorTexto = viewModel.valor.takeIf { it.isNotBlank() }
                         ?.replace(".", "")?.replace(',', '.')?.toDoubleOrNull()
                         ?.takeIf { it > 0.0 }
-                        ?.let { "R$ " + "%,.2f".format(java.util.Locale.forLanguageTag("pt-BR"), it) }
+                        ?.let { "R$ " + "%,.2f".format(LocalePtBr, it) }
                     val textoBotao = when {
                         valorTexto == null -> if (viewModel.ehRecorrente) "Salvar recorrência" else "Salvar"
                         viewModel.ehRecorrente -> "Salvar recorrência de $valorTexto"

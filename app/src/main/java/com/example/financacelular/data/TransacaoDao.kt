@@ -13,7 +13,6 @@ data class GastoCategoria(val categoriaId: Long, val total: Double)
 
 /** Quantos registros usam cada categoria (lançamentos ou recorrências). */
 data class ContagemPorCategoria(val categoriaId: Long, val total: Int)
-data class TotalMensal(val anoMes: String, val totalReceitas: Double, val totalDespesas: Double)
 
 @Dao
 interface TransacaoDao {
@@ -23,6 +22,9 @@ interface TransacaoDao {
 
     @Query("SELECT * FROM transacoes ORDER BY data DESC")
     fun listarTransacoes(): Flow<List<Transacao>>
+
+    @Query("SELECT * FROM transacoes WHERE data = :data")
+    suspend fun listarTransacoesDoDia(data: LocalDate): List<Transacao>
 
     @Query("SELECT * FROM transacoes WHERE cartaoId = :cartaoId AND anoMes = :anoMes")
     fun listarTransacoesFatura(cartaoId: Long, anoMes: String): Flow<List<Transacao>>

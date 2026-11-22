@@ -11,7 +11,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -22,6 +21,13 @@ import java.time.LocalDate
 class NotificacaoListener : NotificationListenerService() {
     private val escopo = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val filtro = FiltroDeRepeticao()
+
+    private fun repositorio() = FinancaRepository.getInstance(AppDatabase.getInstance(applicationContext))
+
+    // Abre o banco já na conexão do serviço: o primeiro aviso não espera o Room abrir
+    override fun onListenerConnected() {
+        escopo.launch { runCatching { repositorio().listarTransacoesDoDia(LocalDate.now()) } }
+    }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val pacote = sbn.packageName
@@ -42,9 +48,9 @@ class NotificacaoListener : NotificationListenerService() {
 
         escopo.launch {
             runCatching {
-                val repositorio = FinancaRepository.getInstance(AppDatabase.getInstance(applicationContext))
-                val lancamentos = repositorio.listarTransacoes().first()
-                if (!jaLancada(detectada, LocalDate.now(), lancamentos)) {
+                // Só os lançamentos de hoje: jaLancada não olha outros dias, e ler tudo atrasava o popup
+                val hoje = LocalDate.now()
+                if (!jaLancada(detectada, hoje, repositorio().listarTransacoesDoDia(hoje))) {
                     avisarTransacao(applicationContext, detectada, banco.nome)
                 }
             }

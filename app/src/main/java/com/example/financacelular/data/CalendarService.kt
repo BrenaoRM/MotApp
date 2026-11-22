@@ -6,6 +6,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
 import android.provider.CalendarContract
+import android.util.Log
 import androidx.core.content.ContextCompat
 import java.time.Instant
 import java.time.LocalDate
@@ -40,6 +41,8 @@ enum class ResultadoCalendario {
 }
 
 object CalendarService {
+    private const val TAG = "CalendarService"
+
 
     /** Descrição gravada nos eventos criados pelo app (também usada para não exibir duplicatas antigas). */
     const val DESCRICAO_EVENTO_APP = "Lembrete financeiro - Finança Celular"
@@ -164,7 +167,7 @@ object CalendarService {
                 }
             }
         } catch (e: SecurityException) {
-            e.printStackTrace()
+            Log.w(TAG, "Falha ao ler o calendário", e)
         }
 
         val info = buscarInfoEventos(context, eventos.map { it.id }.toSet())
@@ -255,7 +258,7 @@ object CalendarService {
                 }
             }
         } catch (e: SecurityException) {
-            e.printStackTrace()
+            Log.w(TAG, "Falha ao ler o calendário", e)
         }
 
         return dias
@@ -298,9 +301,9 @@ object CalendarService {
                 }
             }
         } catch (e: SecurityException) {
-            e.printStackTrace()
+            Log.w(TAG, "Falha ao ler o calendário", e)
         } catch (e: IllegalArgumentException) {
-            e.printStackTrace()
+            Log.w(TAG, "Falha ao ler o calendário", e)
         }
 
         return resultado
@@ -353,7 +356,7 @@ object CalendarService {
                 }
             }
         } catch (e: SecurityException) {
-            e.printStackTrace()
+            Log.w(TAG, "Falha ao ler o calendário", e)
         }
         return calendarios
     }
@@ -407,10 +410,10 @@ object CalendarService {
             val uri = context.contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
             if (uri != null) ResultadoCalendario.SUCESSO else ResultadoCalendario.ERRO
         } catch (e: SecurityException) {
-            e.printStackTrace()
+            Log.e(TAG, "Falha ao gravar no calendário", e)
             ResultadoCalendario.SEM_PERMISSAO
         } catch (e: IllegalArgumentException) {
-            e.printStackTrace()
+            Log.e(TAG, "Falha ao gravar no calendário", e)
             ResultadoCalendario.ERRO
         }
     }
@@ -470,10 +473,10 @@ object CalendarService {
                 ResultadoCalendario.ERRO
             }
         } catch (e: SecurityException) {
-            e.printStackTrace()
+            Log.e(TAG, "Falha ao gravar no calendário", e)
             ResultadoCalendario.SEM_PERMISSAO
         } catch (e: IllegalArgumentException) {
-            e.printStackTrace()
+            Log.e(TAG, "Falha ao gravar no calendário", e)
             ResultadoCalendario.ERRO
         }
     }
@@ -496,10 +499,10 @@ object CalendarService {
                 ResultadoCalendario.ERRO
             }
         } catch (e: SecurityException) {
-            e.printStackTrace()
+            Log.e(TAG, "Falha ao gravar no calendário", e)
             ResultadoCalendario.SEM_PERMISSAO
         } catch (e: IllegalArgumentException) {
-            e.printStackTrace()
+            Log.e(TAG, "Falha ao gravar no calendário", e)
             ResultadoCalendario.ERRO
         }
     }

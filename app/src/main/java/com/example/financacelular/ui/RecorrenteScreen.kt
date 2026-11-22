@@ -7,10 +7,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -26,7 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,21 +46,19 @@ import com.example.financacelular.ui.theme.Espaco
 import com.example.financacelular.ui.theme.LilasRecorrente
 import com.example.financacelular.ui.theme.Tamanho
 import com.example.financacelular.ui.theme.cores
-import com.example.financacelular.ui.theme.dimens
 import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
-import java.util.Locale
 
 @Composable
 fun RecorrenteScreen(
     viewModel: RecorrenteViewModel = viewModel(),
     estadoLista: LazyListState
 ) {
-    val recorrentesCarregados by viewModel.recorrentes.collectAsState()
+    val recorrentesCarregados by viewModel.recorrentes.collectAsStateWithLifecycle()
     val recorrentes = recorrentesCarregados.orEmpty()
-    val cartoes by viewModel.cartoes.collectAsState()
-    val formatoMoeda = remember { NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("pt").setRegion("BR").build()) }
+    val cartoes by viewModel.cartoes.collectAsStateWithLifecycle()
+    val formatoMoeda = remember { NumberFormat.getCurrencyInstance(LocalePtBr) }
 
     val receitasRecorrentes = recorrentes.filter { it.tipo == TipoTransacao.RECEITA }
     val despesasRecorrentes = recorrentes.filter { it.tipo == TipoTransacao.DESPESA }

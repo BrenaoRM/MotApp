@@ -5,13 +5,13 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.financacelular.data.AppDatabase
 import com.example.financacelular.data.Categoria
+import com.example.financacelular.data.FORMATO_ANO_MES
 import com.example.financacelular.data.FinancaRepository
 import com.example.financacelular.data.GastoCategoria
 import com.example.financacelular.data.Orcamento
 import com.example.financacelular.data.TipoTransacao
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
 
 data class ItemOrcamento(
     val categoria: Categoria,
@@ -32,12 +31,11 @@ data class ItemOrcamento(
 class OrcamentoViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: FinancaRepository = FinancaRepository.getInstance(AppDatabase.getInstance(application))
-    private val formatoAnoMes = DateTimeFormatter.ofPattern("yyyy-MM")
 
     private val _mesSelecionado: StateFlow<YearMonth> = MesGlobal.mes
     val mesSelecionado: StateFlow<YearMonth> = _mesSelecionado
 
-    private val anoMesTexto: Flow<String> = _mesSelecionado.map { it.format(formatoAnoMes) }
+    private val anoMesTexto: Flow<String> = _mesSelecionado.map { it.format(FORMATO_ANO_MES) }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val historicoOrcamentos: Flow<List<Orcamento>> =
@@ -53,7 +51,8 @@ class OrcamentoViewModel(application: Application) : AndroidViewModel(applicatio
         gastosDoMes,
         anoMesTexto
     ) { categorias, historico, gastos, anoMesAtual ->
-        categorias.map { categoria ->
+        // "Fatura" é categoria do sistema: o pagamento duplicaria as compras do cartão já contadas
+        categorias.filterNot { it.nome.equals("Fatura", ignoreCase = true) }.map { categoria ->
             val entradasCategoria = historico.filter { it.categoriaId == categoria.id }
             val entradaMaisRecente = entradasCategoria.firstOrNull()
 
@@ -90,7 +89,7 @@ class OrcamentoViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun definirLimite(categoria: Categoria, valor: Double) {
         viewModelScope.launch {
-            val anoMesAtual = _mesSelecionado.value.format(formatoAnoMes)
+            val anoMesAtual = _mesSelecionado.value.format(FORMATO_ANO_MES)
             val existente = repository.buscarOrcamentoDoMes(categoria.id, anoMesAtual)
 
             repository.definirOrcamento(
