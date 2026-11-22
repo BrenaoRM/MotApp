@@ -46,7 +46,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 private const val ESCOPO_DRIVE = "https://www.googleapis.com/auth/drive.file"
-private const val MENSAGEM_EXPORT_FALHOU = "Não foi possível preparar o backup agora. Tente de novo."
+private const val MENSAGEM_EXPORT_FALHOU = "Falha ao enviar o backup"
 private const val TAG = "ConfiguracoesViewModel"
 
 private enum class AcaoPendenteDrive { BACKUP, RESTAURAR, SINCRONIZAR }
@@ -66,6 +66,14 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         private set
     var statusBackupMessage: String by mutableStateOf("")
         private set
+    /** Se [statusBackupMessage] é um erro (aviso coral). */
+    var statusBackupErro: Boolean by mutableStateOf(false)
+        private set
+
+    private fun status(texto: String, erro: Boolean = false) {
+        statusBackupErro = erro
+        statusBackupMessage = texto
+    }
     var emailUtilizador: String by mutableStateOf("")
         private set
     var completouBoasVindas: Boolean by mutableStateOf(false)
@@ -135,7 +143,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
 
         if (contaPrefs.getBoolean(ContaDrive.RESTAURO_REVERTIDO, false)) {
             contaPrefs.edit { putBoolean(ContaDrive.RESTAURO_REVERTIDO, false) }
-            statusBackupMessage = "O backup restaurado não abriu neste app. Seus dados anteriores foram recuperados e a conta foi desconectada."
+            status("Backup não abriu. Dados mantidos", erro = true)
         }
         revogarPendentes()
 
@@ -188,15 +196,15 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
 
                 tratarResultadoLogin(result, onResult)
             } catch (_: androidx.credentials.exceptions.GetCredentialCancellationException) {
-                statusBackupMessage = "Login cancelado pelo usuário."
+                status("Login cancelado")
                 onResult(false, null)
             } catch (e: androidx.credentials.exceptions.NoCredentialException) {
                 Log.w(TAG, "Nenhuma credencial Google", e)
-                statusBackupMessage = "Nenhuma conta Google encontrada. Adicione uma conta nas Configurações do celular."
+                status("Adicione uma conta Google no celular", erro = true)
                 onResult(false, null)
             } catch (e: Exception) {
                 Log.e(TAG, "Falha no login Google", e)
-                statusBackupMessage = "Erro no login: ${e.localizedMessage ?: "Desconhecido"}"
+                status("Não foi possível entrar", erro = true)
                 onResult(false, null)
             }
         }
@@ -217,7 +225,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         }
 
         if (emailObtido.isNullOrBlank()) {
-            statusBackupMessage = "Não foi possível identificar a conta Google."
+            status("Não foi possível identificar a conta Google", erro = true)
             onResult(false, null)
         } else {
             onResult(true, emailObtido)
@@ -241,12 +249,12 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun realizarBackupNaNuvem(activity: Activity) = comTrava {
-        statusBackupMessage = "Preparando o backup local..."
+        status("Preparando o backup local...")
         val context = getApplication<Application>()
         val ficheiroBackup = BackupManager.exportarBaseDeDadosParaFicheiro(context)
 
         if (ficheiroBackup == null) {
-            statusBackupMessage = MENSAGEM_EXPORT_FALHOU
+            status(MENSAGEM_EXPORT_FALHOU, erro = true)
             return@comTrava
         }
 
@@ -268,13 +276,13 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
                 return@iniciarLoginGoogle
             }
             if (conta.equals(emailUtilizador, ignoreCase = true)) {
-                statusBackupMessage = "Essa conta já está conectada."
+                status("Essa conta já está conectada")
                 processando = false
                 return@iniciarLoginGoogle
             }
             viewModelScope.launch {
                 try {
-                    statusBackupMessage = "Verificando o Google Drive..."
+                    status("Verificando o Google Drive...")
                     val accessToken = obterAccessTokenDrive(activity, AcaoPendenteDrive.SINCRONIZAR, conta) ?: return@launch
                     executarFluxoInteligenteDrive(accessToken, conta)
                 } finally {
@@ -289,14 +297,14 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
      * temporário e, se este aparelho também tem dados, quem decide é o usuário (EscolhaBackup).
      */
     private suspend fun executarFluxoInteligenteDrive(accessToken: String, conta: String) {
-        statusBackupMessage = "Procurando backup na nuvem..."
+        status("Procurando backup na nuvem...")
         val context = getApplication<Application>()
         val temporario = File.createTempFile("backup_nuvem_", ".db", context.cacheDir)
 
         when (GoogleDriveService.baixarBackup(accessToken, temporario)) {
             GoogleDriveService.ResultadoDownload.ERRO -> {
                 temporario.delete()
-                statusBackupMessage = "Não foi possível acessar o Google Drive. Nada foi alterado."
+                status("Sem acesso ao Google Drive", erro = true)
                 abandonarConta(conta)
             }
             GoogleDriveService.ResultadoDownload.SEM_BACKUP -> {
@@ -305,7 +313,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
             }
             GoogleDriveService.ResultadoDownload.BAIXADO -> {
                 if (temDadosLocais(context)) {
-                    statusBackupMessage = ""
+                    status("")
                     escolhaBackup = EscolhaBackup(conta, accessToken, temporario)
                 } else {
                     aplicarBackupDaNuvem(conta, temporario)
@@ -337,11 +345,11 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
 
     private suspend fun conectarEnviandoDadosDoAparelho(accessToken: String, conta: String) {
         val context = getApplication<Application>()
-        statusBackupMessage = "A configurar backup automático..."
+        status("A configurar backup automático...")
         val bancoExiste = context.getDatabasePath(AppDatabase.NOME_ARQUIVO_BANCO).exists()
         val ficheiroBackup = BackupManager.exportarBaseDeDadosParaFicheiro(context)
         if (bancoExiste && ficheiroBackup == null) {
-            statusBackupMessage = "$MENSAGEM_EXPORT_FALHOU Nada foi alterado."
+            status(MENSAGEM_EXPORT_FALHOU, erro = true)
             abandonarConta(conta)
             return
         }
@@ -352,7 +360,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
                 ficheiroBackup.delete()
             }
             if (!enviou) {
-                statusBackupMessage = "Erro ao enviar o backup. Nada foi alterado."
+                status(MENSAGEM_EXPORT_FALHOU, erro = true)
                 abandonarConta(conta)
                 return
             }
@@ -360,7 +368,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         confirmarConta(conta)
         if (ficheiroBackup != null) registarBackupRealizado()
         marcarBoasVindasComoConcluida()
-        statusBackupMessage = "Conta ligada com sucesso!"
+        status("Conta conectada")
     }
 
     /**
@@ -370,15 +378,15 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
      */
     private suspend fun aplicarBackupDaNuvem(conta: String, baixado: File) {
         val context = getApplication<Application>()
-        statusBackupMessage = "Backup encontrado! Restaurando dados..."
+        status("Backup encontrado! Restaurando dados...")
 
         when (withContext(Dispatchers.IO) { RestauroBanco.restaurar(context, baixado) }) {
             RestauroBanco.Resultado.INVALIDO -> {
-                statusBackupMessage = "O backup da nuvem está inválido ou é de uma versão do app que não dá para abrir. Nada foi alterado."
+                status("Backup da nuvem incompatível", erro = true)
                 abandonarConta(conta)
             }
             RestauroBanco.Resultado.FALHOU -> {
-                statusBackupMessage = "Erro ao restaurar o backup. Seus dados foram mantidos."
+                status("Falha ao restaurar o backup", erro = true)
                 abandonarConta(conta)
             }
             RestauroBanco.Resultado.OK -> {
@@ -482,7 +490,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         val escolha = escolhaBackup ?: return
         escolhaBackup = null
         escolha.arquivo.delete()
-        statusBackupMessage = "Nada foi alterado."
+        status("Nada foi alterado")
         viewModelScope.launch { abandonarConta(escolha.conta) }
     }
 
@@ -496,7 +504,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         processando = true
         viewModelScope.launch {
             try {
-                statusBackupMessage = "A desconectar..."
+                status("A desconectar...")
                 val context = getApplication<Application>()
                 // Se a permissão já foi retirada pela conta Google, não há o que revogar e o app não pode ficar preso
                 val revogada = revogarAcessoDrive(context, conta) || permissaoJaRetirada(context, conta)
@@ -504,7 +512,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
                 if (!revogada) {
                     if (!desconexaoForcavel) {
                         desconexaoForcavel = true
-                        statusBackupMessage = "Não foi possível revogar a permissão agora. Verifique a internet e tente de novo, ou desconecte mesmo assim tocando outra vez."
+                        status("Sem internet. Toque de novo para desconectar", erro = true)
                         return@launch
                     }
                     permissaoOrfa = true
@@ -522,11 +530,13 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
                 emailUtilizador = ""
                 estaLogadoGoogle = false
                 ultimaDataBackup = "Nunca"
-                statusBackupMessage = if (permissaoOrfa) {
-                    "Desconectado. A permissão será retirada do Google assim que houver conexão."
-                } else {
-                    "Conta desconectada. Seus dados continuam neste aparelho."
-                }
+                status(
+                    if (permissaoOrfa) {
+                        "Desconectado. A permissão será retirada do Google assim que houver conexão"
+                    } else {
+                        "Conta desconectada. Seus dados continuam neste aparelho"
+                    }
+                )
             } finally {
                 processando = false
             }
@@ -585,7 +595,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         email.trim().lowercase().replace("@googlemail.com", "@gmail.com")
 
     fun restaurarBackupDaNuvem(activity: Activity) = comTrava {
-        statusBackupMessage = "A contactar o Google Drive..."
+        status("A contactar o Google Drive...")
         val accessToken = obterAccessTokenDrive(activity, AcaoPendenteDrive.RESTAURAR) ?: return@comTrava
         continuarRestauroComToken(accessToken)
     }
@@ -604,7 +614,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         aguardandoConsentimento = false
 
         if (dataIntent == null || acao == null || conta.isBlank()) {
-            statusBackupMessage = "Permissão do Google Drive não concedida."
+            status("Permissão do Drive negada", erro = true)
             processando = false
             return
         }
@@ -616,12 +626,12 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
 
                 val token = resultado.accessToken
                 if (token == null) {
-                    statusBackupMessage = "Não foi possível obter permissão do Google Drive."
+                    status("Permissão do Drive negada", erro = true)
                     return@launch
                 }
                 val dono = donoDoToken(resultado)
                 if (!contaConfere(dono, conta)) {
-                    statusBackupMessage = "O Google autorizou outra conta. Tente de novo com $conta."
+                    status("Use a conta $conta", erro = true)
                     dono?.let { abandonarConta(it) }
                     return@launch
                 }
@@ -631,7 +641,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
                         val context = getApplication<Application>()
                         val ficheiroBackup = BackupManager.exportarBaseDeDadosParaFicheiro(context)
                         if (ficheiroBackup == null) {
-                            statusBackupMessage = MENSAGEM_EXPORT_FALHOU
+                            status(MENSAGEM_EXPORT_FALHOU, erro = true)
                         } else {
                             continuarBackupComToken(token, ficheiroBackup)
                         }
@@ -641,7 +651,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
                 }
             } catch (e: ApiException) {
                 Log.e(TAG, "Permissão do Drive negada", e)
-                statusBackupMessage = "Permissão do Google Drive negada: ${e.localizedMessage}"
+                status("Permissão do Drive negada", erro = true)
             } finally {
                 // Se o fluxo abriu o sheet de escolha, escolhaBackup já impede outra ação
                 processando = false
@@ -650,7 +660,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
     }
 
     private suspend fun continuarBackupComToken(accessToken: String, ficheiroBackup: File) {
-        statusBackupMessage = "Enviando para o Google Drive..."
+        status("Enviando para o Google Drive...")
         val sucesso = try {
             GoogleDriveService.uploadBackup(accessToken, ficheiroBackup)
         } finally {
@@ -659,14 +669,14 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         if (sucesso) {
             registarBackupRealizado()
             marcarBoasVindasComoConcluida()
-            statusBackupMessage = "Backup enviado com sucesso!"
+            status("Backup enviado")
         } else {
-            statusBackupMessage = "Erro ao enviar o arquivo para a nuvem."
+            status(MENSAGEM_EXPORT_FALHOU, erro = true)
         }
     }
 
     private suspend fun continuarRestauroComToken(accessToken: String) {
-        statusBackupMessage = "Baixando backup da nuvem..."
+        status("Baixando backup da nuvem...")
         val context = getApplication<Application>()
         // Baixa para um temporário: o banco local só é trocado depois de validar o arquivo
         val temporario = File.createTempFile("backup_nuvem_", ".db", context.cacheDir)
@@ -675,11 +685,11 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
             GoogleDriveService.ResultadoDownload.BAIXADO -> aplicarBackupDaNuvem(emailUtilizador, temporario)
             GoogleDriveService.ResultadoDownload.SEM_BACKUP -> {
                 temporario.delete()
-                statusBackupMessage = "Nenhum backup encontrado no Google Drive."
+                status("Nenhum backup no Drive", erro = true)
             }
             GoogleDriveService.ResultadoDownload.ERRO -> {
                 temporario.delete()
-                statusBackupMessage = "Não foi possível acessar o Google Drive. Seus dados foram mantidos."
+                status("Sem acesso ao Google Drive", erro = true)
             }
         }
     }
@@ -697,11 +707,11 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         conta: String = emailUtilizador
     ): String? {
         if (conta.isBlank()) {
-            statusBackupMessage = "Erro: Nenhuma conta Google conectada."
+            status("Nenhuma conta conectada", erro = true)
             return null
         }
 
-        statusBackupMessage = "A obter autorização do Google Drive..."
+        status("A obter autorização do Google Drive...")
 
         return try {
             val resultado = suspendCancellableCoroutine<AuthorizationResult> { continuacao ->
@@ -714,7 +724,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
             if (resultado.hasResolution()) {
                 val intentSender = resultado.pendingIntent?.intentSender
                 if (intentSender == null) {
-                    statusBackupMessage = "Erro de autorização do Drive. Tente de novo."
+                    status("Falha na autorização do Drive", erro = true)
                     return null
                 }
                 acaoPendente = acaoSeNaoAutorizado
@@ -725,7 +735,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
             } else {
                 val dono = donoDoToken(resultado)
                 if (!contaConfere(dono, conta)) {
-                    statusBackupMessage = "O Google autorizou outra conta. Tente de novo com $conta."
+                    status("Use a conta $conta", erro = true)
                     dono?.let { abandonarConta(it) }
                     null
                 } else {
@@ -734,7 +744,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
             }
         } catch (e: Exception) {
             Log.e(TAG, "Falha na autorização do Drive", e)
-            statusBackupMessage = "Erro de autorização do Drive: ${e.localizedMessage}"
+            status("Falha na autorização do Drive", erro = true)
             null
         }
     }

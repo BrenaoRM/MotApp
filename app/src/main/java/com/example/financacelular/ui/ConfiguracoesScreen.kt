@@ -125,10 +125,10 @@ fun ConfiguracoesScreen(
         onDispose { ciclo?.removeObserver(observador) }
     }
 
-    // Resultado do backup também vira Snackbar (mensagens de progresso terminam em "...")
+    // Resultado do backup também vira aviso no topo (mensagens de progresso terminam em "...")
     LaunchedEffect(viewModel.statusBackupMessage) {
         val texto = viewModel.statusBackupMessage
-        if (texto.isNotEmpty() && !texto.endsWith("...")) mensagem(texto)
+        if (texto.isNotEmpty() && !texto.endsWith("...")) mensagem(texto, erro = viewModel.statusBackupErro)
     }
     var confirmarRestauracao by remember { mutableStateOf(false) }
     var confirmarDesconexao by remember { mutableStateOf(false) }
