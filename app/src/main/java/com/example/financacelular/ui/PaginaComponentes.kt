@@ -6,8 +6,8 @@ import java.time.YearMonth
 import java.time.format.TextStyle
 import java.util.Locale
 
-/** Mostra uma mensagem curta ao usuário (Snackbar); provido pelo AppNavigation. */
-val LocalMensagem = staticCompositionLocalOf<(String) -> Unit> { {} }
+/** Mostra uma mensagem curta ao usuário (aviso no topo, ver `AvisoDePagina.kt`); provido pelo AppNavigation. */
+val LocalMensagem = staticCompositionLocalOf { Mensageiro { _, _ -> } }
 
 /** Cor usada no cartão principal quando algo está estourado/negativo (igual à home). */
 val CorHeroAlerta = Color(0xFFA85560)

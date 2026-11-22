@@ -808,7 +808,7 @@ fun NovaTransacaoScreen(
                         onClick = {
                             viewModel.salvar(
                                 nomeCategoriaDigitada = "",
-                                aoErro = { erro -> mensagem(erro) }
+                                aoErro = { texto -> mensagem(texto, erro = true) }
                             ) {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                 mensagem("Transação salva com sucesso!")

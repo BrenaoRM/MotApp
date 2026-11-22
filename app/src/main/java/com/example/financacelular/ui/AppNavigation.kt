@@ -47,8 +47,6 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -141,34 +139,18 @@ private val ROTAS_INTERNAS_COM_CABECALHO = setOf(ROTA_CARTAO, ROTA_RECORRENTES, 
 @Composable
 fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     val navController = rememberNavController()
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    val mensagem: (String) -> Unit = remember(snackbarHostState, scope) {
-        { texto ->
-            scope.launch {
-                snackbarHostState.currentSnackbarData?.dismiss()
-                snackbarHostState.showSnackbar(texto)
-            }
-            Unit
-        }
-    }
+    val estadoAviso = remember { EstadoAviso() }
+    val mensagem = remember(estadoAviso) { Mensageiro(estadoAviso::mostrar) }
 
     if (!configuracoesViewModel.completouBoasVindas) {
         CompositionLocalProvider(LocalMensagem provides mensagem) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                WelcomeScreen(
-                    viewModel = configuracoesViewModel,
-                    aoConcluir = {
-                        configuracoesViewModel.marcarBoasVindasComoConcluida()
-                    }
-                )
-                SnackbarHost(
-                    hostState = snackbarHostState,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .navigationBarsPadding()
-                )
-            }
+            WelcomeScreen(
+                viewModel = configuracoesViewModel,
+                aoConcluir = {
+                    configuracoesViewModel.marcarBoasVindasComoConcluida()
+                }
+            )
+            AvisoNoTopo(estadoAviso)
         }
         return
     }
@@ -317,9 +299,9 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     )
 
     CompositionLocalProvider(LocalMensagem provides mensagem) {
+    AvisoNoTopo(estadoAviso)
     @Suppress("UnusedMaterial3ScaffoldPaddingParameter")
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             if (!emTelaDeFormulario && !emTelaConfiguracoes) {
                 Box(
