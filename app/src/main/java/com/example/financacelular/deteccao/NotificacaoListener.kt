@@ -24,9 +24,10 @@ class NotificacaoListener : NotificationListenerService() {
 
     private fun repositorio() = FinancaRepository.getInstance(AppDatabase.getInstance(applicationContext))
 
-    // Abre o banco já na conexão do serviço: o primeiro aviso não espera o Room abrir
+    // Abre o banco e monta o popup escondido já na conexão do serviço: o primeiro aviso não espera nada carregar
     override fun onListenerConnected() {
         escopo.launch { runCatching { repositorio().listarTransacoesDoDia(LocalDate.now()) } }
+        PopupDeTransacao.aquecer(applicationContext)
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {

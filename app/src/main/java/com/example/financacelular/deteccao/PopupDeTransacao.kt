@@ -24,7 +24,9 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.example.financacelular.R
+import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.TemaPreferencia
+import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.ui.PopupDeTransacaoConteudo
 import com.example.financacelular.ui.theme.FinanceAPPTheme
 import com.example.financacelular.ui.theme.ProvideResponsiveDensity
@@ -39,6 +41,8 @@ object PopupDeTransacao {
     // Seguro: Aberto só guarda o applicationContext e a ComposeView, e ambos são soltos em remover() (aberto = null).
     @SuppressLint("StaticFieldLeak")
     private var aberto: Aberto? = null
+    @SuppressLint("StaticFieldLeak")
+    private var aquecendo: Aberto? = null
 
     fun podeMostrar(context: Context): Boolean = Settings.canDrawOverlays(context)
 
@@ -47,6 +51,7 @@ object PopupDeTransacao {
         val app = context.applicationContext
         if (!podeMostrar(app)) return false
         principal.post {
+            aquecendo?.remover()
             // Um aviso novo troca o popup aberto; se aquele ainda não foi salvo nem fechado, vira notificação
             // para a transação não se perder
             aberto?.let {
@@ -63,10 +68,29 @@ object PopupDeTransacao {
         return true
     }
 
+    /**
+     * Monta o popup uma vez numa janela invisível, que não recebe toques, e tira logo depois. Com o app fechado o
+     * código do Compose ainda não foi carregado, e a primeira montagem levava segundos; assim o aviso de verdade já
+     * o encontra pronto. Nada é salvo: o popup só é desenhado com um valor de exemplo.
+     */
+    fun aquecer(context: Context) {
+        val app = context.applicationContext
+        if (!podeMostrar(app)) return
+        principal.post {
+            if (aberto != null || aquecendo != null) return@post
+            val exemplo = TransacaoDetectada(1.0, TipoTransacao.DESPESA, null, FormaPagamento.DEBITO)
+            val oculto = Aberto(app, exemplo, "", invisivel = true)
+            if (!oculto.adicionar()) return@post
+            aquecendo = oculto
+            principal.postDelayed({ oculto.remover() }, TEMPO_DE_AQUECIMENTO_MS)
+        }
+    }
+
     private class Aberto(
         private val app: Context,
         val detectada: TransacaoDetectada,
-        val nomeBanco: String
+        val nomeBanco: String,
+        private val invisivel: Boolean = false
     ) {
         /** Verdadeiro quando a pessoa salvou ou fechou o popup. */
         var resolvido = false
@@ -79,9 +103,10 @@ object PopupDeTransacao {
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            FLAGS_SEM_TECLADO,
+            FLAGS_SEM_TECLADO or extras(),
             PixelFormat.TRANSLUCENT
         ).apply {
+            if (invisivel) alpha = 0f
             gravity = Gravity.TOP
             softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
         }
@@ -119,9 +144,12 @@ object PopupDeTransacao {
             }
         }
 
+        private fun extras() = if (invisivel) WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE else 0
+
         /** Sem teclado a janela não rouba o foco do app de baixo; com teclado precisa tê-lo. */
         private fun alternarTeclado(precisa: Boolean) {
             val tela = visao ?: return
+            if (invisivel) return
             parametros.flags = if (precisa) FLAGS_COM_TECLADO else FLAGS_SEM_TECLADO
             runCatching { gerenciador.updateViewLayout(tela, parametros) }
         }
@@ -132,6 +160,7 @@ object PopupDeTransacao {
             runCatching { gerenciador.removeView(tela) }
             dono.encerrar()
             if (aberto === this) aberto = null
+            if (aquecendo === this) aquecendo = null
         }
 
         private fun temaEscuro(): Boolean {
@@ -148,6 +177,7 @@ object PopupDeTransacao {
             app.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
     }
 
+    private const val TEMPO_DE_AQUECIMENTO_MS = 1500L
     private const val FLAGS_SEM_TECLADO = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
         WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
         WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
