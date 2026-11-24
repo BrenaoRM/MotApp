@@ -67,6 +67,8 @@ object PopupDeTransacao {
                 notificarTransacao(app, detectada, nomeBanco)
                 null
             }
+            // Sem isso o Android pode congelar o app antes de o popup terminar de aparecer (ver ServicoDoPopup)
+            if (aberto != null) ServicoDoPopup.iniciar(app)
         }
         return true
     }
@@ -179,7 +181,10 @@ object PopupDeTransacao {
             visao = null
             runCatching { gerenciador.removeView(tela) }
             dono.encerrar()
-            if (aberto === this) aberto = null
+            if (aberto === this) {
+                aberto = null
+                ServicoDoPopup.parar(app)
+            }
             if (aquecendo === this) aquecendo = null
         }
 
