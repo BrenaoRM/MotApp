@@ -15,6 +15,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -41,8 +42,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Restauro de backup pendente: o Room abre (ou o banco anterior volta) antes de qualquer tela usar o banco
-        RestauroBanco.concluirPendente(applicationContext)
+        // Restauro de backup pendente: o Room abre (ou o banco anterior volta) em I/O antes de qualquer tela usar
+        // o banco. Sem restauro pendente (caso comum) já nasce pronto e nada muda; com ele, a tela fica vazia até terminar
+        val bancoPronto = mutableStateOf(!RestauroBanco.temPendente(applicationContext))
 
         enableEdgeToEdge()
 
@@ -76,12 +78,15 @@ class MainActivity : ComponentActivity() {
         )
         // Garante que as assinaturas tenham cobranças geradas até 12 meses à frente
         lifecycleScope.launch(Dispatchers.IO) {
+            RestauroBanco.concluirPendente(applicationContext)
+            bancoPronto.value = true
             FinancaRepository
                 .getInstance(AppDatabase.getInstance(applicationContext))
                 .gerarRecorrentesPendentes()
         }
 
         setContent {
+            if (!bancoPronto.value) return@setContent
             val configuracoesViewModel: ConfiguracoesViewModel = viewModel()
             val temaEscuroSistema = isSystemInDarkTheme()
             val temaEscuro = when (configuracoesViewModel.temaAtual) {

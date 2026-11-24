@@ -26,6 +26,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -108,10 +109,11 @@ fun OrcamentoScreen(
             .replaceFirstChar { it.uppercase() } + " " + mesSelecionado.year
     }
 
-    var categoriaEmEdicao by remember { mutableStateOf<ItemOrcamento?>(null) }
-    var mostrarSheet by remember { mutableStateOf(false) }
-    var modoNovoLimite by remember { mutableStateOf(false) }
-    var valorInput by remember { mutableStateOf("") }
+    var categoriaEmEdicaoId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val categoriaEmEdicao: ItemOrcamento? = itens.firstOrNull { it.categoria.id == categoriaEmEdicaoId }
+    var mostrarSheet by rememberSaveable { mutableStateOf(false) }
+    var modoNovoLimite by rememberSaveable { mutableStateOf(false) }
+    var valorInput by rememberSaveable { mutableStateOf("") }
 
     val totalGasto = remember(itens) { itens.sumOf { it.gasto } }
     val totalLimite = remember(itens) { itens.sumOf { it.limite ?: 0.0 } }
@@ -124,7 +126,7 @@ fun OrcamentoScreen(
             val inicial = itens.firstOrNull { (it.limite ?: 0.0) <= 0.0 } ?: itens.firstOrNull()
             if (inicial != null) {
                 modoNovoLimite = true
-                categoriaEmEdicao = inicial
+                categoriaEmEdicaoId = inicial.categoria.id
                 valorInput = limiteParaTexto(inicial.limite)
                 mostrarSheet = true
             }
@@ -234,7 +236,7 @@ fun OrcamentoScreen(
                                 corSubtitulo = if (ultrapassou) MaterialTheme.cores.textoGasto else Color.Unspecified,
                                 onClick = {
                                     modoNovoLimite = false
-                                    categoriaEmEdicao = item
+                                    categoriaEmEdicaoId = item.categoria.id
                                     valorInput = limiteParaTexto(item.limite)
                                     mostrarSheet = true
                                 }
@@ -261,7 +263,7 @@ fun OrcamentoScreen(
                             BlocoDeEscolha(
                                 selecionado = item?.categoria == opcao.categoria,
                                 onClick = {
-                                    categoriaEmEdicao = opcao
+                                    categoriaEmEdicaoId = opcao.categoria.id
                                     valorInput = limiteParaTexto(opcao.limite)
                                 }
                             ) {

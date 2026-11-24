@@ -66,6 +66,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -106,22 +107,22 @@ fun InvestimentoScreen(
     val listaAtivosAgrupados = ativosCarregados ?: emptyList()
     val patrimonioTotal = listaAtivosAgrupados.sumOf { it.valorTotal }
 
-    var categoriaFiltro by remember { mutableStateOf("Todas") }
-    var ativoDetalheChave by remember { mutableStateOf<String?>(null) }
-    var mostrarFiltro by remember { mutableStateOf(false) }
+    var categoriaFiltro by rememberSaveable { mutableStateOf("Todas") }
+    var ativoDetalheChave by rememberSaveable { mutableStateOf<String?>(null) }
+    var mostrarFiltro by rememberSaveable { mutableStateOf(false) }
 
-    var mostrarSheetNovoAporte by remember { mutableStateOf(false) }
-    var ativoParaAporteOuResgate by remember { mutableStateOf<InvestimentoAgrupado?>(null) }
-    var mostrarSheetResgate by remember { mutableStateOf(false) }
-    var valorResgateInput by remember { mutableStateOf("") }
+    var mostrarSheetNovoAporte by rememberSaveable { mutableStateOf(false) }
+    var ativoParaAporteOuResgateChave by rememberSaveable { mutableStateOf<String?>(null) }
+    var mostrarSheetResgate by rememberSaveable { mutableStateOf(false) }
+    var valorResgateInput by rememberSaveable { mutableStateOf("") }
 
     var aporteParaExcluir by remember { mutableStateOf<AporteParaExcluir?>(null) }
 
-    var novoNome by remember { mutableStateOf("") }
-    var novaCategoria by remember { mutableStateOf("Renda Fixa") }
-    var novoValor by remember { mutableStateOf("") }
+    var novoNome by rememberSaveable { mutableStateOf("") }
+    var novaCategoria by rememberSaveable { mutableStateOf("Renda Fixa") }
+    var novoValor by rememberSaveable { mutableStateOf("") }
     var dataSelecionada by remember { mutableStateOf(LocalDate.now()) }
-    var mostrarDatePicker by remember { mutableStateOf(false) }
+    var mostrarDatePicker by rememberSaveable { mutableStateOf(false) }
     val categoriasSugestoes = listOf("Renda Fixa", "Ações", "FIIs", "Tesouro Direto", "Criptomoedas", "Previdência", "Outros")
 
     // Tipos de ativo (categorias) do maior para o menor, com o total de cada um
@@ -379,7 +380,7 @@ fun InvestimentoScreen(
                                 BotaoSecundario(
                                     texto = "Resgatar",
                                     onClick = {
-                                        ativoParaAporteOuResgate = ativo
+                                        ativoParaAporteOuResgateChave = ativo.chave()
                                         valorResgateInput = ""
                                         ativoDetalheChave = null
                                         mostrarSheetResgate = true
@@ -436,7 +437,7 @@ fun InvestimentoScreen(
             }
         }
 
-        val ativoResgate = ativoParaAporteOuResgate
+        val ativoResgate = ativoParaAporteOuResgateChave?.let { chave -> listaAtivosAgrupados.find { it.chave() == chave } }
         if (mostrarSheetResgate && ativoResgate != null) {
             val ativo = ativoResgate
             val valorTotalAtivo = ativo.valorTotal

@@ -39,7 +39,7 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         const val NOME_ARQUIVO_BANCO = "financa_celular.db"
-        const val VERSAO = 13
+        const val VERSAO = 14
 
         @Volatile
         private var INSTANCE: AppDatabase? = null
@@ -51,7 +51,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     NOME_ARQUIVO_BANCO
                 )
-                    .addMigrations(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
+                    .addMigrations(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
                     .addCallback(object : Callback() {
                         override fun onCreate(db: SupportSQLiteDatabase) {
                             super.onCreate(db)

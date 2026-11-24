@@ -127,7 +127,7 @@ fun AnaliseScreen(
     val formatoReal = remember { NumberFormat.getCurrencyInstance(LocalePtBr) }
     val valoresVisiveis = ValoresVisiveis.visivel
     val formato = ValoresVisiveis.formato(formatoReal)
-    val saldo = totalReceitas - totalDespesas
+    val saldo = (totalReceitas - totalDespesas).arredondadoACentavos()
     val saldoPositivo = saldo >= 0
     val nomePeriodo = periodo.rotulo()
 

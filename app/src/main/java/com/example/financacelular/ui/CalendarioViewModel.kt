@@ -18,6 +18,7 @@ import com.example.financacelular.data.Transacao
 import com.example.financacelular.data.calcularVencimentoFatura
 import com.example.financacelular.data.chaveFatura
 import com.example.financacelular.data.conjuntoFaturasPagas
+import com.example.financacelular.data.ehCompraNoCartao
 import com.example.financacelular.data.ehPagamentoDeFatura
 import com.example.financacelular.data.faturaQuitadaPorEstePagamento
 import kotlinx.coroutines.Dispatchers
@@ -108,7 +109,7 @@ private fun montarItensCalendario(
     // 2) Faturas em aberto: um item virtual no dia do vencimento de cada fatura não paga
     val totais = HashMap<FaturaChave, Double>()
     for (t in transacoes) {
-        if (t.formaPagamento != FormaPagamento.CARTAO_CREDITO) continue
+        if (!t.ehCompraNoCartao()) continue
         val chave = t.chaveFatura() ?: continue
         totais[chave] = (totais[chave] ?: 0.0) + t.valor
     }

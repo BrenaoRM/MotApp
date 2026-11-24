@@ -104,6 +104,10 @@ object RestauroBanco {
         }
     }
 
+    /** Leitura barata (só as preferências): diz se [concluirPendente] tem trabalho a fazer. */
+    fun temPendente(context: Context): Boolean =
+        ContaDrive.prefs(context).getBoolean(ContaDrive.RESTAURO_PENDENTE, false)
+
     /**
      * Chamado ao abrir o app: se houve restauro, abre o Room agora. Deu certo, o `.bak` é apagado;
      * deu errado (schema que o Room recusa), o banco anterior volta e o app não trava em loop.

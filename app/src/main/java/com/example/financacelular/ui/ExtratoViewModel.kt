@@ -8,8 +8,8 @@ import com.example.financacelular.data.CartaoEntity
 import com.example.financacelular.data.Categoria
 import com.example.financacelular.data.FaturaChave
 import com.example.financacelular.data.conjuntoFaturasPagas
-import com.example.financacelular.data.ehPagamentoDeFatura
-import com.example.financacelular.data.estaComFaturaPaga
+import com.example.financacelular.data.estaPendente
+import com.example.financacelular.data.estaRealizada
 import com.example.financacelular.data.FinancaRepository
 import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.Transacao
@@ -41,19 +41,7 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
             val hoje = LocalDate.now()
             val faturasPagas = conjuntoFaturasPagas(transacoes)
 
-            transacoes.filter { t ->
-                if (t.ehPagamentoDeFatura()) return@filter false
-
-                val faturaPaga = t.estaComFaturaPaga(faturasPagas)
-                val ehCartao = t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.cartaoId != null
-                val ehFuturo = t.data.isAfter(hoje)
-
-                if (ehCartao) {
-                    faturaPaga // Compras no cartão entram em "Realizados" assim que a fatura do anoMes for paga
-                } else {
-                    !ehFuturo // Débito/Dinheiro entram em "Realizados" pela data de ocorrência
-                }
-            }
+            transacoes.filter { t -> t.estaRealizada(faturasPagas, hoje) }
         }.flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
@@ -69,19 +57,7 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
         val primeiroCartaoId = cartoes.firstOrNull()?.id
 
         // Transações de cartão com fatura em aberto OU dinheiro/débito futuros
-        val transacoesFuturasBanco = transacoes.filter { t ->
-            if (t.ehPagamentoDeFatura()) return@filter false
-
-            val faturaPaga = t.estaComFaturaPaga(faturasPagas)
-            val ehCartao = t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.cartaoId != null
-            val ehFuturo = t.data.isAfter(hoje)
-
-            if (ehCartao) {
-                !faturaPaga
-            } else {
-                ehFuturo
-            }
-        }
+        val transacoesFuturasBanco = transacoes.filter { t -> t.estaPendente(faturasPagas, hoje) }
 
         // Projeta assinaturas/recorrentes do mês atual que ainda não foram lançadas
         val recorrentesPrevistas = recorrentes.mapNotNull { recorrente ->

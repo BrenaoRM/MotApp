@@ -3,17 +3,44 @@ name: Build and Release APK
 on:
   push:
     branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
 
 jobs:
+  # Em pull request roda só os testes e o lint: sem checagem de versão, keystore, build release ou publicação.
+  testes:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Testes unitários e lint
+        run: ./gradlew testDebugUnitTest lintDebug
+
   build:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
     permissions:
       contents: write
 
     steps:
+      # fetch-depth: 0 traz o histórico e as tags, necessários para gerar as notas do release
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -67,12 +94,23 @@ jobs:
       - name: Renomear APK para MotApp
         run: mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/MotApp.apk
 
+      # Texto do release: títulos dos commits desde a tag anterior (ou os últimos 20, se não houver tag)
+      - name: Gerar notas do release
+        run: |
+          ANTERIOR=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          if [ -z "$ANTERIOR" ]; then
+            LISTA=$(git log -20 --pretty='- %s' --no-merges)
+          else
+            LISTA=$(git log "$ANTERIOR"..HEAD --pretty='- %s' --no-merges)
+          fi
+          printf '%s\n' "$LISTA" > notas.md
+
       - name: MotApp Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.versao.outputs.versao }}
           name: MotApp Versão v${{ steps.versao.outputs.versao }}
-          body: "Nova atualização automática do MotApp assinada com chave oficial e correções recentes."
+          body_path: notas.md
           files: app/build/outputs/apk/release/MotApp.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

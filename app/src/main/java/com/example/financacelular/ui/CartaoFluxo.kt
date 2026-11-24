@@ -78,7 +78,7 @@ fun CartaoFluxo(
     val barraFocada = indiceFocado?.let { dados.barras.getOrNull(it) }
     val ganhos = barraFocada?.ganhos ?: dados.ganhos
     val gastos = barraFocada?.gastos ?: dados.gastos
-    val saldo = ganhos - gastos
+    val saldo = (ganhos - gastos).arredondadoACentavos()
 
     // Sem foco compara com o período anterior; com foco, com a barra de antes
     val referencia: Pair<Double, String>? = when {

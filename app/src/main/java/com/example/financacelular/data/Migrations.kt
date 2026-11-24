@@ -68,6 +68,19 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
     }
 }
 
+/** 13 -> 14: índices nas colunas filtradas de transacoes e nas chaves estrangeiras de categoria (nada de dados muda). */
+val MIGRATION_13_14 = object : Migration(13, 14) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_transacoes_anoMes` ON `transacoes` (`anoMes`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_transacoes_data` ON `transacoes` (`data`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_transacoes_categoriaId` ON `transacoes` (`categoriaId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_transacoes_cartaoId` ON `transacoes` (`cartaoId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_transacoes_recorrenteId` ON `transacoes` (`recorrenteId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_despesas_recorrentes_categoriaId` ON `despesas_recorrentes` (`categoriaId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_orcamentos_categoriaId` ON `orcamentos` (`categoriaId`)")
+    }
+}
+
 /** 12 -> 13: categoria lembrada por estabelecimento detectado (tabela nova, nada existente muda). */
 val MIGRATION_12_13 = object : Migration(12, 13) {
     override fun migrate(db: SupportSQLiteDatabase) {

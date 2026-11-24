@@ -2,6 +2,7 @@ package com.example.financacelular.data
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(
@@ -13,7 +14,8 @@ import androidx.room.PrimaryKey
             childColumns = ["categoriaId"],
             onDelete = ForeignKey.CASCADE
         )
-    ]
+    ],
+    indices = [Index("categoriaId")]
 )
 data class Orcamento(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

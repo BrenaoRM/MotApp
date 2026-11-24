@@ -97,7 +97,7 @@ fun DashboardScreen(
     val serieDoMes by viewModel.serieDoMes.collectAsStateWithLifecycle()
 
     val formatoMoeda = remember { NumberFormat.getCurrencyInstance(LocalePtBr) }
-    val saldo = totalReceitas - totalDespesas
+    val saldo = (totalReceitas - totalDespesas).arredondadoACentavos()
     val saldoVisivel = ValoresVisiveis.visivel
     // Categorias e o detalhe delas seguem o mesmo olho do cartão do saldo
     val formatoCategorias = ValoresVisiveis.formato(formatoMoeda)

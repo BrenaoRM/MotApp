@@ -32,6 +32,9 @@ object ValoresVisiveis {
     fun formato(real: NumberFormat): NumberFormat = if (visivel) real else FormatoOculto
 }
 
+/** Arredonda para centavos: somas em Double que dão -0,0000001 viram 0,0 e não aparecem como "-R$ 0,00" em vermelho. */
+fun Double.arredondadoACentavos(): Double = (Math.round(this * 100) / 100.0) + 0.0
+
 /** Formata qualquer valor como "R$ ••••••", para esconder dinheiro sem mexer em cada tela. */
 object FormatoOculto : NumberFormat() {
     private const val TEXTO = "R$ ••••••"

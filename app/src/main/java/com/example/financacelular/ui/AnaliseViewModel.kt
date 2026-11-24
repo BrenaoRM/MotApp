@@ -5,11 +5,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.financacelular.data.AppDatabase
 import com.example.financacelular.data.Categoria
+import com.example.financacelular.data.comCategoriaDaFatura
 import com.example.financacelular.data.conjuntoFaturasPagas
-import com.example.financacelular.data.ehPagamentoDeFatura
-import com.example.financacelular.data.estaComFaturaPaga
+import com.example.financacelular.data.estaRealizada
 import com.example.financacelular.data.FinancaRepository
-import com.example.financacelular.data.FormaPagamento
+import com.example.financacelular.data.idDaCategoriaFatura
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.data.Transacao
 import kotlinx.coroutines.Dispatchers
@@ -47,7 +47,7 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
         val primeiroAnoMes = YearMonth.from(periodo.inicio).toString()
         val ultimoAnoMes = YearMonth.from(periodo.fim).toString()
         val faturasPagas = conjuntoFaturasPagas(todas)
-        val categoriaFaturaId = categorias.find { it.nome.equals("Fatura", ignoreCase = true) }?.id ?: 1L
+        val categoriaFaturaId = idDaCategoriaFatura(categorias) ?: 1L
 
         return todas.filter { t ->
             // Meses fechados seguem o mês de competência (fatura do cartão); intervalo livre segue a data
@@ -58,20 +58,9 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
                 !t.data.isBefore(periodo.inicio) && !t.data.isAfter(periodo.fim)
             }
             if (!ehDoPeriodo) return@filter false
-            if (t.ehPagamentoDeFatura()) return@filter false
-            val ehFuturo = t.data.isAfter(hoje)
-
-            if (t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.cartaoId != null) {
-                t.estaComFaturaPaga(faturasPagas)
-            } else {
-                !ehFuturo
-            }
+            t.estaRealizada(faturasPagas, hoje)
         }.map { t ->
-            if (t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.cartaoId != null) {
-                t.copy(categoriaId = categoriaFaturaId)
-            } else {
-                t
-            }
+            t.comCategoriaDaFatura(categoriaFaturaId)
         }
     }
 

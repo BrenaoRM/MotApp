@@ -3,6 +3,7 @@ package com.example.financacelular.data
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.time.LocalDate
 
@@ -15,7 +16,8 @@ import java.time.LocalDate
             childColumns = ["categoriaId"],
             onDelete = ForeignKey.RESTRICT
         )
-    ]
+    ],
+    indices = [Index("categoriaId")]
 )
 data class DespesaRecorrente(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

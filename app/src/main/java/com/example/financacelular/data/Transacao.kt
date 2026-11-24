@@ -2,6 +2,7 @@ package com.example.financacelular.data
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.time.LocalDate
 
@@ -17,6 +18,13 @@ enum class FormaPagamento { DINHEIRO, DEBITO, CARTAO_CREDITO }
             childColumns = ["categoriaId"],
             onDelete = ForeignKey.RESTRICT
         )
+    ],
+    indices = [
+        Index("anoMes"),
+        Index("data"),
+        Index("categoriaId"),
+        Index("cartaoId"),
+        Index("recorrenteId")
     ]
 )
 data class Transacao(

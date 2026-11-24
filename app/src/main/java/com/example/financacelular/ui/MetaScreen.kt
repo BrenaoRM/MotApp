@@ -120,7 +120,9 @@ fun MetaScreen(
         ListaDePagina(estadoLista) {
             item {
                 val metasConcluidas = metas.count { it.valorAlvo > 0 && it.valorAtual >= it.valorAlvo }
-                val progressoGeral = if (totalAlvo > 0) (totalAcumulado / totalAlvo).toFloat() else 0f
+                // Cada meta contribui no máximo com o próprio alvo: meta acima de 100% não infla o progresso das outras
+                val acumuladoLimitado = metas.sumOf { minOf(it.valorAtual, it.valorAlvo) }
+                val progressoGeral = if (totalAlvo > 0) (acumuladoLimitado / totalAlvo).toFloat() else 0f
                 CartaoHeroDePagina(RoxoMeta) {
                     Text(
                         "Total acumulado",

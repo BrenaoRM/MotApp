@@ -65,7 +65,7 @@ internal fun GrupoDia(
     pendente: Boolean,
     aoClicar: (Transacao) -> Unit
 ) {
-    val saldoDia = transacoes.sumOf { if (it.tipo == TipoTransacao.DESPESA) -it.valor else it.valor }
+    val saldoDia = transacoes.sumOf { if (it.tipo == TipoTransacao.DESPESA) -it.valor else it.valor }.arredondadoACentavos()
 
     Column(
         modifier = Modifier

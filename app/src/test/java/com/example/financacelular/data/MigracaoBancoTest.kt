@@ -16,7 +16,7 @@ class MigracaoBancoTest {
     @get:Rule
     val helper = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), AppDatabase::class.java)
 
-    private val todas = arrayOf(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
+    private val todas = arrayOf(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
 
     @Test
     fun migraDoSchema8AoAtualSemPerderDados() {
@@ -38,7 +38,7 @@ class MigracaoBancoTest {
         }
 
         // runMigrationsAndValidate compara o resultado com o schema exportado da versão atual
-        val db = helper.runMigrationsAndValidate(NOME, 13, true, *todas)
+        val db = helper.runMigrationsAndValidate(NOME, 14, true, *todas)
 
         db.query("SELECT COUNT(*), SUM(valor) FROM transacoes").use {
             it.moveToFirst()
@@ -66,6 +66,33 @@ class MigracaoBancoTest {
         db.query("SELECT COUNT(*) FROM estabelecimento_categoria").use {
             it.moveToFirst()
             assertEquals(1, it.getInt(0))
+        }
+    }
+
+    @Test
+    fun migraDoSchema13Para14CriandoOsIndicesSemPerderDados() {
+        helper.createDatabase(NOME, 13).apply {
+            execSQL("INSERT INTO categorias (id, nome, tipo) VALUES (1, 'Mercado', 'DESPESA')")
+            execSQL(
+                "INSERT INTO transacoes (valor, data, categoriaId, tipo, descricao, formaPagamento, anoMes, numeroParcela, totalParcelas) " +
+                    "VALUES (50.0, '2026-11-01', 1, 'DESPESA', 'Pão', 'DEBITO', '2026-11', 1, 1)"
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(NOME, 14, true, MIGRATION_13_14)
+
+        db.query("SELECT COUNT(*) FROM transacoes").use {
+            it.moveToFirst()
+            assertEquals(1, it.getInt(0))
+        }
+        db.query("SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name LIKE 'index_%_categoriaId'").use {
+            it.moveToFirst()
+            assertEquals(3, it.getInt(0))
+        }
+        db.query("SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND tbl_name = 'transacoes' AND name LIKE 'index_transacoes_%'").use {
+            it.moveToFirst()
+            assertEquals(5, it.getInt(0))
         }
     }
 

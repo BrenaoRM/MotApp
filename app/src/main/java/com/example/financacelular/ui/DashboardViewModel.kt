@@ -6,13 +6,13 @@ import androidx.lifecycle.viewModelScope
 import com.example.financacelular.data.AppDatabase
 import com.example.financacelular.data.FORMATO_ANO_MES
 import com.example.financacelular.data.FinancaRepository
-import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.data.Transacao
+import com.example.financacelular.data.comCategoriaDaFatura
 import com.example.financacelular.data.conjuntoFaturasPagas
-import com.example.financacelular.data.ehPagamentoDeFatura
-import com.example.financacelular.data.estaComFaturaPaga
+import com.example.financacelular.data.estaRealizada
 import com.example.financacelular.data.faturasProximasDoVencimento
+import com.example.financacelular.data.idDaCategoriaFatura
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -73,27 +73,16 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
         val faturasPagas = conjuntoFaturasPagas(todas)
 
-        val categoriaFaturaId = categorias.find { it.nome.equals("Fatura", ignoreCase = true) }?.id ?: 1L
+        val categoriaFaturaId = idDaCategoriaFatura(categorias) ?: 1L
 
         todas.filter { t ->
             val anoMesTransacao = t.anoMes ?: t.data.toString().take(7)
             val ehDoMes = anoMesTransacao == anoMes
             if (!ehDoMes) return@filter false
 
-            if (t.ehPagamentoDeFatura()) return@filter false
-
-            val ehFuturo = t.data.isAfter(hoje)
-            if (t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.cartaoId != null) {
-                t.estaComFaturaPaga(faturasPagas)
-            } else {
-                !ehFuturo
-            }
+            t.estaRealizada(faturasPagas, hoje)
         }.map { t ->
-            if (t.formaPagamento == FormaPagamento.CARTAO_CREDITO && t.cartaoId != null) {
-                t.copy(categoriaId = categoriaFaturaId)
-            } else {
-                t
-            }
+            t.comCategoriaDaFatura(categoriaFaturaId)
         }
     }.flowOn(Dispatchers.Default)
         .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1)
