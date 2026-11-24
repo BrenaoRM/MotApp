@@ -7,6 +7,7 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import com.example.financacelular.data.AppDatabase
 import com.example.financacelular.data.FinancaRepository
+import com.example.financacelular.data.RestauroBanco
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -26,6 +27,8 @@ class NotificacaoListener : NotificationListenerService() {
 
     // Abre o banco e monta o popup escondido já na conexão do serviço: o primeiro aviso não espera nada carregar
     override fun onListenerConnected() {
+        // Restauro pendente: não abre o banco antes da troca do arquivo
+        if (RestauroBanco.temPendente(applicationContext)) return
         escopo.launch { runCatching { repositorio().listarTransacoesDoDia(LocalDate.now()) } }
         PopupDeTransacao.aquecer(applicationContext)
     }
@@ -33,6 +36,8 @@ class NotificacaoListener : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val pacote = sbn.packageName
         if (pacote == packageName) return
+        // Restauro pendente: ignora a notificação em vez de abrir o banco antes da troca do arquivo
+        if (RestauroBanco.temPendente(applicationContext)) return
 
         val prefs = getSharedPreferences("financacelular_prefs", Context.MODE_PRIVATE)
         if (pacote !in BancosMonitorados.ativados(prefs)) return

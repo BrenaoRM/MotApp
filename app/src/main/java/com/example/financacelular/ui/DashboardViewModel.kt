@@ -73,7 +73,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
         val faturasPagas = conjuntoFaturasPagas(todas)
 
-        val categoriaFaturaId = idDaCategoriaFatura(categorias) ?: 1L
+        val categoriaFaturaId = idDaCategoriaFatura(categorias)
 
         todas.filter { t ->
             val anoMesTransacao = t.anoMes ?: t.data.toString().take(7)

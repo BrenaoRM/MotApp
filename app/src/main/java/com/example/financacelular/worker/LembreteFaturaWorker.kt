@@ -19,12 +19,16 @@ import com.example.financacelular.data.AppDatabase
 import com.example.financacelular.data.FaturaAVencer
 import com.example.financacelular.data.FORMATO_DIA_MES
 import com.example.financacelular.data.FinancaRepository
+import com.example.financacelular.data.RestauroBanco
 import com.example.financacelular.data.faturasProximasDoVencimento
 import kotlinx.coroutines.flow.first
 
 class LembreteFaturaWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
+        // Restauro de backup pendente: abrir o banco agora o abriria antes da troca do arquivo; tenta de novo mais tarde
+        if (RestauroBanco.temPendente(applicationContext)) return Result.retry()
+
         val repository = FinancaRepository.getInstance(AppDatabase.getInstance(applicationContext))
 
         val cartoes = repository.listarTodosCartoesSync()

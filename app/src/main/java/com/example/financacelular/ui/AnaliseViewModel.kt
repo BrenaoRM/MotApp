@@ -47,7 +47,7 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
         val primeiroAnoMes = YearMonth.from(periodo.inicio).toString()
         val ultimoAnoMes = YearMonth.from(periodo.fim).toString()
         val faturasPagas = conjuntoFaturasPagas(todas)
-        val categoriaFaturaId = idDaCategoriaFatura(categorias) ?: 1L
+        val categoriaFaturaId = idDaCategoriaFatura(categorias)
 
         return todas.filter { t ->
             // Meses fechados seguem o mês de competência (fatura do cartão); intervalo livre segue a data

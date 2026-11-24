@@ -20,8 +20,12 @@ fun descricaoPagamentoFatura(cartaoId: Long, anoMes: String): String =
     if (cartaoId == ID_CARTAO_PADRAO) "$PREFIXO_PAGAMENTO - $anoMes"
     else "$PREFIXO_PAGAMENTO - $anoMes - $cartaoId"
 
-/** True para qualquer transação de pagamento de fatura (de qualquer cartão). */
-fun Transacao.ehPagamentoDeFatura(): Boolean = descricao?.startsWith(PREFIXO_PAGAMENTO) == true
+/**
+ * True para transação de pagamento de fatura (de qualquer cartão): exige cartaoId nulo e a descrição
+ * no formato exato de [descricaoPagamentoFatura]. Lançamento digitado que só começa com
+ * "Pagamento de Fatura" não conta.
+ */
+fun Transacao.ehPagamentoDeFatura(): Boolean = faturaQuitadaPorEstePagamento() != null
 
 /** Se esta transação é um pagamento de fatura, devolve qual fatura (cartão + mês) ela quita. */
 fun Transacao.faturaQuitadaPorEstePagamento(): FaturaChave? {

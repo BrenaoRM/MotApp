@@ -176,6 +176,8 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     // ViewModel do Cartão exposto à barra inferior (evita buscá-lo na entrada atual, que pode ser outra durante a transição)
     var cartaoViewModelBarra by remember { mutableStateOf<CartaoViewModel?>(null) }
     var atualizacaoDisponivel by remember { mutableStateOf<AtualizacaoDisponivel?>(null) }
+    // Sobrevive à rotação: depois de dispensado, o sheet não volta quando a Activity é recriada
+    var atualizacaoDispensada by rememberSaveable { mutableStateOf(false) }
     // Cabeçalho fixo das abas: o ViewModel da Análise e a folha de período ficam aqui, fora das telas
     val analiseViewModel: AnaliseViewModel = viewModel()
     val mesGlobal by MesGlobal.mes.collectAsStateWithLifecycle()
@@ -206,6 +208,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     }
 
     LaunchedEffect(Unit) {
+        if (atualizacaoDispensada) return@LaunchedEffect
         val versaoAtual = try {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0"
         } catch (_: Exception) {
@@ -727,9 +730,13 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
             aoAbrirNavegador = {
                 val urlParaAbrir = atualizacao.urlApk.ifBlank { atualizacao.urlPagina }
                 context.startActivity(Intent(Intent.ACTION_VIEW, urlParaAbrir.toUri()))
+                atualizacaoDispensada = true
                 atualizacaoDisponivel = null
             },
-            aoFechar = { atualizacaoDisponivel = null }
+            aoFechar = {
+                atualizacaoDispensada = true
+                atualizacaoDisponivel = null
+            }
         )
     }
 }

@@ -49,6 +49,9 @@ fun Transacao.estaPendente(faturasPagas: Set<FaturaChave>, hoje: LocalDate): Boo
 fun idDaCategoriaFatura(categorias: List<Categoria>): Long? =
     categorias.find { it.nome.equals("Fatura", ignoreCase = true) }?.id
 
-/** Compra no cartão passa a aparecer na categoria [categoriaFaturaId]; os demais lançamentos ficam iguais. */
-fun Transacao.comCategoriaDaFatura(categoriaFaturaId: Long): Transacao =
-    if (ehCompraNoCartao()) copy(categoriaId = categoriaFaturaId) else this
+/**
+ * Compra no cartão passa a aparecer na categoria [categoriaFaturaId]; os demais lançamentos ficam iguais.
+ * Sem categoria "Fatura" (null), a compra mantém a própria categoria.
+ */
+fun Transacao.comCategoriaDaFatura(categoriaFaturaId: Long?): Transacao =
+    if (categoriaFaturaId != null && ehCompraNoCartao()) copy(categoriaId = categoriaFaturaId) else this

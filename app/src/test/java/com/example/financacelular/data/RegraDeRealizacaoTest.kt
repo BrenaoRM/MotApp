@@ -165,6 +165,23 @@ class RegraDeRealizacaoTest {
     }
 
     @Test
+    fun categoria_da_fatura_nula_mantem_categoria_da_compra() {
+        assertEquals(5L, credito(hoje).comCategoriaDaFatura(null).categoriaId)
+    }
+
+    @Test
+    fun pagamento_de_fatura_exige_formato_exato_e_sem_cartao() {
+        fun lanc(descricao: String, cartaoId: Long? = null) = Transacao(
+            valor = 10.0, data = hoje, categoriaId = 5L, tipo = TipoTransacao.DESPESA,
+            descricao = descricao, cartaoId = cartaoId
+        )
+        assertFalse(lanc("Pagamento de Fatura do aluguel").ehPagamentoDeFatura())
+        assertTrue(lanc("Pagamento de Fatura - 2026-11").ehPagamentoDeFatura())
+        assertTrue(lanc("Pagamento de Fatura - 2026-11 - 3").ehPagamentoDeFatura())
+        assertFalse(lanc("Pagamento de Fatura - 2026-11", cartaoId = 1L).ehPagamentoDeFatura())
+    }
+
+    @Test
     fun id_da_categoria_fatura_ignora_maiusculas() {
         val categorias = listOf(
             Categoria(id = 1L, nome = "Mercado", tipo = TipoTransacao.DESPESA),

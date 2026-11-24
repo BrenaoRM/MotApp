@@ -29,6 +29,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -85,14 +86,6 @@ import java.time.LocalDate
 import com.example.financacelular.data.FORMATO_DATA
 import java.util.Locale
 
-/** Guarda os dados do aporte aguardando confirmação de exclusão. */
-private data class AporteParaExcluir(
-    val data: LocalDate,
-    val valor: Double,
-    val nomeAtivo: String,
-    val confirmar: () -> Unit
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InvestimentoScreen(
@@ -116,12 +109,15 @@ fun InvestimentoScreen(
     var mostrarSheetResgate by rememberSaveable { mutableStateOf(false) }
     var valorResgateInput by rememberSaveable { mutableStateOf("") }
 
-    var aporteParaExcluir by remember { mutableStateOf<AporteParaExcluir?>(null) }
+    // Id do aporte aguardando confirmação de exclusão (sobrevive à rotação; o aporte é buscado na lista atual)
+    var aporteParaExcluirId by rememberSaveable { mutableStateOf<Long?>(null) }
 
     var novoNome by rememberSaveable { mutableStateOf("") }
     var novaCategoria by rememberSaveable { mutableStateOf("Renda Fixa") }
     var novoValor by rememberSaveable { mutableStateOf("") }
-    var dataSelecionada by remember { mutableStateOf(LocalDate.now()) }
+    // Guardada como epochDay para sobreviver à rotação
+    var dataSelecionadaDia by rememberSaveable { mutableLongStateOf(LocalDate.now().toEpochDay()) }
+    val dataSelecionada = LocalDate.ofEpochDay(dataSelecionadaDia)
     var mostrarDatePicker by rememberSaveable { mutableStateOf(false) }
     val categoriasSugestoes = listOf("Renda Fixa", "Ações", "FIIs", "Tesouro Direto", "Criptomoedas", "Previdência", "Outros")
 
@@ -145,6 +141,16 @@ fun InvestimentoScreen(
     // O detalhe é buscado na lista atual, assim ele acompanha aportes excluídos ou resgatados
     val ativoDetalhe = ativoDetalheChave?.let { chave -> listaAtivosAgrupados.find { it.chave() == chave } }
 
+    // Se o ativo do resgate não existe mais (ex.: excluído), limpa a seleção para o sheet não ficar marcado aberto
+    LaunchedEffect(listaAtivosAgrupados, ativosCarregados) {
+        if (ativosCarregados != null && ativoParaAporteOuResgateChave != null &&
+            listaAtivosAgrupados.none { it.chave() == ativoParaAporteOuResgateChave }
+        ) {
+            mostrarSheetResgate = false
+            ativoParaAporteOuResgateChave = null
+        }
+    }
+
     // Se o tipo filtrado deixa de existir (ex.: último aporte excluído), volta para "Todas"
     LaunchedEffect(tiposOrdenados) {
         if (categoriaFiltro != "Todas" && tiposOrdenados.none { it.first.equals(categoriaFiltro, ignoreCase = true) }) {
@@ -157,7 +163,7 @@ fun InvestimentoScreen(
             novoNome = ""
             novaCategoria = "Renda Fixa"
             novoValor = ""
-            dataSelecionada = LocalDate.now()
+            dataSelecionadaDia = LocalDate.now().toEpochDay()
             mostrarSheetNovoAporte = true
             aoAporteAcionado()
         }
@@ -300,7 +306,9 @@ fun InvestimentoScreen(
 
         // ---------------- SHEET: DETALHE DO ATIVO ----------------
         ativoDetalhe?.let { ativo ->
-            val fecharDetalhe = { ativoDetalheChave = null; aporteParaExcluir = null }
+            val fecharDetalhe = { ativoDetalheChave = null; aporteParaExcluirId = null }
+            // Se o aporte some da lista (ex.: já excluído), a confirmação some junto
+            val aporteParaExcluir = aporteParaExcluirId?.let { id -> ativo.aportes.find { it.id == id } }
             FolhaApp(onDismiss = fecharDetalhe) {
                 AnimatedContent(
                     targetState = aporteParaExcluir,
@@ -313,16 +321,16 @@ fun InvestimentoScreen(
                             texto = "Esta ação não pode ser desfeita e o valor será removido do patrimônio.",
                             textoConfirmar = "Excluir",
                             onConfirmar = {
-                                pendente.confirmar()
+                                viewModel.deletarAporte(pendente)
                                 mensagem("Aporte removido")
-                                aporteParaExcluir = null
+                                aporteParaExcluirId = null
                             },
-                            onCancelar = { aporteParaExcluir = null },
+                            onCancelar = { aporteParaExcluirId = null },
                             resumo = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            pendente.nomeAtivo,
+                                            ativo.nome,
                                             style = MaterialTheme.typography.titleSmall,
                                             fontWeight = FontWeight.Bold,
                                             maxLines = 1,
@@ -335,7 +343,7 @@ fun InvestimentoScreen(
                                         )
                                     }
                                     Text(
-                                        formatoMoeda.format(pendente.valor),
+                                        formatoMoeda.format(pendente.valorInvestido),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = AmareloInvestimento
@@ -369,7 +377,7 @@ fun InvestimentoScreen(
                                         novoNome = ativo.nome
                                         novaCategoria = ativo.categoria
                                         novoValor = ""
-                                        dataSelecionada = LocalDate.now()
+                                        dataSelecionadaDia = LocalDate.now().toEpochDay()
                                         ativoDetalheChave = null
                                         mostrarSheetNovoAporte = true
                                     },
@@ -411,12 +419,7 @@ fun InvestimentoScreen(
                                         )
                                         IconButton(
                                             onClick = {
-                                                aporteParaExcluir = AporteParaExcluir(
-                                                    data = aporte.data,
-                                                    valor = aporte.valorInvestido,
-                                                    nomeAtivo = ativo.nome,
-                                                    confirmar = { viewModel.deletarAporte(aporte) }
-                                                )
+                                                aporteParaExcluirId = aporte.id
                                             },
                                             modifier = Modifier.size(Tamanho.toque)
                                         ) {
@@ -499,7 +502,7 @@ fun InvestimentoScreen(
               TrocaPorData(
                 escolhendo = mostrarDatePicker,
                 data = dataSelecionada,
-                aoEscolher = { dataSelecionada = it },
+                aoEscolher = { dataSelecionadaDia = it.toEpochDay() },
                 aoVoltar = { mostrarDatePicker = false }
               ) {
               Column(Modifier.fillMaxWidth()) {

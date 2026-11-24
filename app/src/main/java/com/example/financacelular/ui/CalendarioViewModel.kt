@@ -19,8 +19,8 @@ import com.example.financacelular.data.calcularVencimentoFatura
 import com.example.financacelular.data.chaveFatura
 import com.example.financacelular.data.conjuntoFaturasPagas
 import com.example.financacelular.data.ehCompraNoCartao
-import com.example.financacelular.data.ehPagamentoDeFatura
 import com.example.financacelular.data.faturaQuitadaPorEstePagamento
+import com.example.financacelular.data.idDaCategoriaFatura
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -72,7 +72,7 @@ private fun montarItensCalendario(
 ): List<ItemCalendario> {
     val cartoesPorId = cartoes.associateBy { it.id }
     val categoriasPorId = categorias.associateBy { it.id }
-    val categoriaFaturaId = categorias.find { it.nome.equals("Fatura", ignoreCase = true) }?.id ?: 0L
+    val categoriaFaturaId = idDaCategoriaFatura(categorias)
     val pagas = conjuntoFaturasPagas(transacoes)
 
     val itens = ArrayList<ItemCalendario>(transacoes.size + 8)
@@ -80,13 +80,9 @@ private fun montarItensCalendario(
     // 1) Lançamentos reais (compras, receitas, pagamentos de fatura)
     for (t in transacoes) {
         val quitada = t.faturaQuitadaPorEstePagamento()
-        if (quitada != null || t.ehPagamentoDeFatura()) {
-            val nomeCartao = quitada?.let { cartoesPorId[it.cartaoId]?.nome ?: "Cartão" }
-            val titulo = if (quitada != null) {
-                "Fatura ${rotuloMesFatura(quitada.anoMes)} · $nomeCartao"
-            } else {
-                t.descricao ?: "Pagamento de fatura"
-            }
+        if (quitada != null) {
+            val nomeCartao = cartoesPorId[quitada.cartaoId]?.nome ?: "Cartão"
+            val titulo = "Fatura ${rotuloMesFatura(quitada.anoMes)} · $nomeCartao"
             itens += ItemCalendario(
                 transacao = t,
                 ehPagamentoFatura = true,
@@ -122,7 +118,7 @@ private fun montarItensCalendario(
             transacao = Transacao(
                 valor = total,
                 data = vencimento,
-                categoriaId = categoriaFaturaId,
+                categoriaId = categoriaFaturaId ?: 0L, // item virtual: o nome exibido vem de categoriaNome
                 tipo = TipoTransacao.DESPESA,
                 descricao = "Fatura ${rotuloMesFatura(chave.anoMes)} · ${cartao.nome}",
                 formaPagamento = FormaPagamento.DINHEIRO,
