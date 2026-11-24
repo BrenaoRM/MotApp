@@ -196,7 +196,6 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
                 } else {
                     YearMonth.from(data)
                 }
-                val dataFaturaAjustada = if (mesFatura != YearMonth.from(data)) data.plusMonths(1) else data
                 val anoBase = mesFatura.year
                 val mesBase = mesFatura.monthValue
                 val anoMesFormatado = String.format(Locale.ROOT, "%04d-%02d", anoBase, mesBase)
@@ -209,7 +208,8 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
                         diaDoMes = data.dayOfMonth,
                         cartaoId = cartaoIdAsLong,
                         tipo = tipo,
-                        dataInicio = dataFaturaAjustada,
+                        // A cobrança fica na data escolhida; o gerador põe na fatura pelo fechamento
+                        dataInicio = data,
                         formaPagamento = formaPagamento
                     )
                 } else if (formaPagamento == FormaPagamento.CARTAO_CREDITO && ehParcelado) {

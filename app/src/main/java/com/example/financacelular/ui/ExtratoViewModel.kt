@@ -7,6 +7,7 @@ import com.example.financacelular.data.AppDatabase
 import com.example.financacelular.data.CartaoEntity
 import com.example.financacelular.data.Categoria
 import com.example.financacelular.data.FaturaChave
+import com.example.financacelular.data.anoMesDaCobrancaRecorrente
 import com.example.financacelular.data.conjuntoFaturasPagas
 import com.example.financacelular.data.estaPendente
 import com.example.financacelular.data.estaRealizada
@@ -66,8 +67,9 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
             val diaSeguro = minOf(recorrente.diaDoMes, hoje.lengthOfMonth())
             val dataPrevista = LocalDate.of(hoje.year, hoje.monthValue, diaSeguro)
 
+            // Pela data da cobrança, não pelo anoMes (no cartão o anoMes é o mês da fatura)
             val jaLancada = transacoes.any { t ->
-                val mesmoMes = t.anoMes == mesAtualStr || t.data.toString().startsWith(mesAtualStr)
+                val mesmoMes = t.data.toString().startsWith(mesAtualStr)
                 mesmoMes && (
                         t.recorrenteId == recorrente.id ||
                                 // Descrição só vale para cobranças antigas sem vínculo (evita confundir assinaturas de mesmo nome)
@@ -80,8 +82,10 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
 
             // Despesa: cartão da própria assinatura (ou o primeiro cartão, para assinaturas antigas). Receita: sem cartão.
             val cartaoPrevisto = if (ehReceita) null else (recorrente.cartaoId ?: primeiroCartaoId)
+            val diaFechamento = cartaoPrevisto?.let { id -> cartoes.find { it.id == id }?.diaFechamento }
+            val anoMesPrevisto = anoMesDaCobrancaRecorrente(dataPrevista, diaFechamento)
             val faturaDesteMesPaga = cartaoPrevisto != null &&
-                    FaturaChave(cartaoPrevisto, mesAtualStr) in faturasPagas
+                    FaturaChave(cartaoPrevisto, anoMesPrevisto) in faturasPagas
 
             if (!ehReceita && cartaoPrevisto == null) {
                 null // despesa de cartão sem nenhum cartão cadastrado: não há fatura para prever
@@ -95,7 +99,7 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
                     descricao = "${recorrente.nome} (Previsto)",
                     formaPagamento = if (ehReceita) FormaPagamento.DEBITO else FormaPagamento.CARTAO_CREDITO,
                     cartaoId = cartaoPrevisto,
-                    anoMes = mesAtualStr
+                    anoMes = anoMesPrevisto
                 )
             } else null
         }

@@ -59,17 +59,29 @@ interface TransacaoDao {
 
     // ---- Recorrentes / assinaturas ----
 
-    /** Última cobrança já gerada para uma assinatura (a de mês mais recente). */
-    @Query("SELECT * FROM transacoes WHERE recorrenteId = :recorrenteId ORDER BY anoMes DESC, data DESC LIMIT 1")
+    /**
+     * Última cobrança já gerada para uma assinatura (a de data mais recente). Ordena pela data, não pelo
+     * anoMes: no cartão o anoMes é o mês da fatura e pode ser o mês seguinte ao da cobrança.
+     */
+    @Query("SELECT * FROM transacoes WHERE recorrenteId = :recorrenteId ORDER BY data DESC LIMIT 1")
     suspend fun ultimaDaRecorrente(recorrenteId: Long): Transacao?
 
     /**
-     * Quantas cobranças da assinatura já existem no mês. Conta SOMENTE pelo vínculo (recorrenteId):
-     * comparar pela descrição fazia uma assinatura nova com o mesmo nome de outra (ou de uma
-     * cobrança antiga sem vínculo) ser tratada como "já lançada" e nunca gerar as cobranças.
+     * Quantas cobranças da assinatura têm a data no mês calendário [mes] ("yyyy-MM"; a data é gravada como
+     * "yyyy-MM-dd"). Não usa o anoMes: o mês da fatura pode coincidir em dois meses seguidos quando o dia é
+     * limitado ao fim do mês (fevereiro). Conta SOMENTE pelo vínculo (recorrenteId): comparar pela descrição
+     * fazia uma assinatura nova com o mesmo nome de outra ser tratada como "já lançada".
      */
-    @Query("SELECT COUNT(*) FROM transacoes WHERE anoMes = :anoMes AND recorrenteId = :recorrenteId")
-    suspend fun contarDaRecorrenteNoMes(recorrenteId: Long, anoMes: String): Int
+    @Query("SELECT COUNT(*) FROM transacoes WHERE recorrenteId = :recorrenteId AND substr(data, 1, 7) = :mes")
+    suspend fun contarDaRecorrenteComDataNoMes(recorrenteId: Long, mes: String): Int
+
+    /** Cobranças de assinatura lançadas em cartão (para o reparo do anoMes da fatura). */
+    @Query("SELECT * FROM transacoes WHERE recorrenteId IS NOT NULL AND cartaoId IS NOT NULL AND data >= :hoje")
+    suspend fun cobrancasDeRecorrenteNoCartaoDesde(hoje: LocalDate): List<Transacao>
+
+    /** Pagamentos de fatura de qualquer mês (para saber quais faturas estão pagas). */
+    @Query("SELECT * FROM transacoes WHERE cartaoId IS NULL AND descricao LIKE 'Pagamento de Fatura - %'")
+    suspend fun todosPagamentosDeFatura(): List<Transacao>
 
     /** Apaga todas as compras/cobranças lançadas em um cartão (os pagamentos de fatura não têm cartaoId e ficam). */
     @Query("DELETE FROM transacoes WHERE cartaoId = :cartaoId")

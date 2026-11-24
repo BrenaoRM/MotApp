@@ -73,6 +73,38 @@ fun mesDaFaturaDaCompra(data: LocalDate, diaFechamento: Int): YearMonth {
 fun anoMesDaCompraNoCartao(data: LocalDate, diaFechamento: Int): String =
     mesDaFaturaDaCompra(data, diaFechamento).format(FORMATO_ANO_MES)
 
+/**
+ * `anoMes` de uma cobrança de recorrente: no cartão ([diaFechamento] não nulo), o mês da fatura, igual a
+ * uma compra avulsa ([anoMesDaCompraNoCartao]); sem cartão (débito/receita), o mês da própria data.
+ */
+fun anoMesDaCobrancaRecorrente(data: LocalDate, diaFechamento: Int?): String =
+    if (diaFechamento != null) anoMesDaCompraNoCartao(data, diaFechamento)
+    else YearMonth.from(data).format(FORMATO_ANO_MES)
+
+/**
+ * Cobranças de recorrente no cartão, de [hoje] em diante, cujo `anoMes` não bate com o fechamento atual do
+ * cartão; devolve cópias já corrigidas. Fica de fora quem tem a fatura atual ou a nova já paga, e quem é de
+ * cartão que não está em [diaFechamentoPorCartao]. Idempotente: aplicar o resultado e rodar de novo dá vazio.
+ */
+fun recorrentesNoCartaoComAnoMesErrado(
+    transacoes: List<Transacao>,
+    diaFechamentoPorCartao: Map<Long, Int>,
+    pagas: Set<FaturaChave>,
+    hoje: LocalDate
+): List<Transacao> = transacoes.mapNotNull { t ->
+    val cartaoId = t.cartaoId ?: return@mapNotNull null
+    if (t.recorrenteId == null || t.data.isBefore(hoje)) return@mapNotNull null
+    val fechamento = diaFechamentoPorCartao[cartaoId] ?: return@mapNotNull null
+    val novo = anoMesDaCobrancaRecorrente(t.data, fechamento)
+    val atual = t.anoMes
+    when {
+        novo == atual -> null
+        atual != null && FaturaChave(cartaoId, atual) in pagas -> null
+        FaturaChave(cartaoId, novo) in pagas -> null
+        else -> t.copy(anoMes = novo)
+    }
+}
+
 data class FaturaAVencer(
     val cartao: CartaoEntity,
     val anoMes: String,

@@ -225,17 +225,21 @@ class FinancaRepository(private val database: AppDatabase) {
     ) {
         val descricao = descricaoDaRecorrente(recorrente)
         val novas = mutableListOf<Transacao>()
+        // No cartão, a cobrança entra na fatura pelo fechamento, igual a uma compra avulsa
+        val diaFechamento = cartaoId?.let { cartaoDao.obterPorIdSync(it)?.diaFechamento }
 
         var mes = de
         while (!mes.isAfter(ate)) {
-            val anoMes = String.format(Locale.ROOT, "%04d-%02d", mes.year, mes.monthValue)
+            val mesDaData = String.format(Locale.ROOT, "%04d-%02d", mes.year, mes.monthValue)
 
-            if (dao.contarDaRecorrenteNoMes(recorrente.id, anoMes) == 0) {
+            if (dao.contarDaRecorrenteComDataNoMes(recorrente.id, mesDaData) == 0) {
                 val dia = minOf(recorrente.diaDoMes, mes.lengthOfMonth())
+                val data = mes.atDay(dia)
+                val anoMes = anoMesDaCobrancaRecorrente(data, diaFechamento)
                 novas.add(
                     Transacao(
                         valor = recorrente.valor,
-                        data = mes.atDay(dia),
+                        data = data,
                         categoriaId = recorrente.categoriaId,
                         tipo = recorrente.tipo,
                         descricao = descricao,
@@ -299,13 +303,14 @@ class FinancaRepository(private val database: AppDatabase) {
         database.withTransaction {
             val agora = YearMonth.now()
             val limite = agora.plusMonths(MESES_A_FRENTE)
-            val primeiroCartaoId = cartaoDao.listarTodosSync().firstOrNull()?.id
+            val cartoes = cartaoDao.listarTodosSync()
+            val primeiroCartaoId = cartoes.firstOrNull()?.id
+            repararAnoMesDasRecorrentesNoCartao(cartoes)
 
             for (recorrente in despesaRecorrenteDao.listarTodasSync()) {
                 val ultima = dao.ultimaDaRecorrente(recorrente.id)
-                val mesDaUltima = ultima?.let {
-                    runCatching { YearMonth.parse(it.anoMes ?: it.data.toString().take(7)) }.getOrNull()
-                }
+                // Mês da data da cobrança (no cartão o anoMes é o da fatura, que pode ser o seguinte)
+                val mesDaUltima = ultima?.let { YearMonth.from(it.data) }
 
                 val inicio = maxOf(agora, mesDaUltima?.plusMonths(1) ?: agora.plusMonths(1))
                 if (inicio.isAfter(limite)) continue
@@ -324,6 +329,22 @@ class FinancaRepository(private val database: AppDatabase) {
                 )
             }
         }
+    }
+
+    /**
+     * Acerta o anoMes das cobranças futuras de assinatura no cartão para a fatura pelo fechamento atual
+     * (as antigas eram gravadas no mês da data). Idempotente; não toca em lançamento passado nem em
+     * fatura paga. Também corrige quando o usuário muda o dia de fechamento do cartão.
+     */
+    private suspend fun repararAnoMesDasRecorrentesNoCartao(cartoes: List<CartaoEntity>) {
+        val hoje = LocalDate.now()
+        val corrigidas = recorrentesNoCartaoComAnoMesErrado(
+            transacoes = dao.cobrancasDeRecorrenteNoCartaoDesde(hoje),
+            diaFechamentoPorCartao = cartoes.associate { it.id to it.diaFechamento },
+            pagas = conjuntoFaturasPagas(dao.todosPagamentosDeFatura()),
+            hoje = hoje
+        )
+        for (t in corrigidas) dao.atualizarTransacao(t)
     }
 
     suspend fun excluirRecorrente(despesa: DespesaRecorrente) {
