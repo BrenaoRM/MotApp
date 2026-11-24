@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.YearMonth
 
 class ExtratoViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: FinancaRepository = FinancaRepository.getInstance(AppDatabase.getInstance(application))
@@ -66,6 +67,8 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
             val ehReceita = recorrente.semCartao
             val diaSeguro = minOf(recorrente.diaDoMes, hoje.lengthOfMonth())
             val dataPrevista = LocalDate.of(hoje.year, hoje.monthValue, diaSeguro)
+            // Assinatura que só começa num mês futuro não tem cobrança prevista neste mês
+            if (YearMonth.from(recorrente.dataCriacao).isAfter(YearMonth.from(hoje))) return@mapNotNull null
 
             // Pela data da cobrança, não pelo anoMes (no cartão o anoMes é o mês da fatura)
             val jaLancada = transacoes.any { t ->
@@ -80,8 +83,10 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
                         )
             }
 
-            // Despesa: cartão da própria assinatura (ou o primeiro cartão, para assinaturas antigas). Receita: sem cartão.
-            val cartaoPrevisto = if (ehReceita) null else (recorrente.cartaoId ?: primeiroCartaoId)
+            // Despesa: mesma ordem do gerador (gerarRecorrentesPendentes): cartão da assinatura, o da última
+            // cobrança, por fim o primeiro cartão. Receita: sem cartão.
+            val cartaoDaUltima = transacoes.filter { it.recorrenteId == recorrente.id }.maxByOrNull { it.data }?.cartaoId
+            val cartaoPrevisto = if (ehReceita) null else (recorrente.cartaoId ?: cartaoDaUltima ?: primeiroCartaoId)
             val diaFechamento = cartaoPrevisto?.let { id -> cartoes.find { it.id == id }?.diaFechamento }
             val anoMesPrevisto = anoMesDaCobrancaRecorrente(dataPrevista, diaFechamento)
             val faturaDesteMesPaga = cartaoPrevisto != null &&

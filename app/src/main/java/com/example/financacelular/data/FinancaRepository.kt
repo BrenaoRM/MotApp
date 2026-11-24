@@ -312,7 +312,8 @@ class FinancaRepository(private val database: AppDatabase) {
                 // Mês da data da cobrança (no cartão o anoMes é o da fatura, que pode ser o seguinte)
                 val mesDaUltima = ultima?.let { YearMonth.from(it.data) }
 
-                val inicio = maxOf(agora, mesDaUltima?.plusMonths(1) ?: agora.plusMonths(1))
+                // Sem nenhuma cobrança (todas excluídas à mão): recomeça no mês atual, ou no de início se for futuro
+                val inicio = maxOf(agora, mesDaUltima?.plusMonths(1) ?: YearMonth.from(recorrente.dataCriacao))
                 if (inicio.isAfter(limite)) continue
 
                 val semCartao = recorrente.semCartao
