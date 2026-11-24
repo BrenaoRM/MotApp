@@ -45,6 +45,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -54,6 +55,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
@@ -91,6 +94,8 @@ private const val ETAPA_DESCRICAO = 2
 private const val ETAPA_CARTAO = 3 // só no crédito com mais de um cartão
 private const val ETAPA_CONFIRMAR = 4
 private const val ETAPA_SALVO = 5
+/** Sem nenhum toque nesse tempo, o popup some e a transação vira notificação. */
+private const val TEMPO_SEM_RESPOSTA_MS = 30_000L
 
 /**
  * Conteúdo do popup de transação detectada (janela flutuante, ver `PopupDeTransacao`).
@@ -105,7 +110,9 @@ fun PopupDeTransacaoConteudo(
     nomeBanco: String,
     aoPrecisarTeclado: (Boolean) -> Unit,
     aoResolver: () -> Unit,
-    aoRemover: () -> Unit
+    aoRemover: () -> Unit,
+    aoExpirar: () -> Unit,
+    aoMudarVoltar: ((() -> Unit)?) -> Unit
 ) {
     val context = LocalContext.current
     val viewModel = remember {
@@ -152,7 +159,32 @@ fun PopupDeTransacaoConteudo(
         }
     }
 
+    // Voltar uma etapa (seta do cabeçalho e botão voltar do sistema)
+    val voltarEtapa: (() -> Unit)? = if (etapa in ETAPA_CATEGORIA..ETAPA_CONFIRMAR) {
+        {
+            erro = null
+            verTodas = false
+            voltarAoResumo = false
+            etapa = if (etapa == ETAPA_CONFIRMAR && !temEtapaCartao) ETAPA_DESCRICAO else etapa - 1
+        }
+    } else null
+
+    // O voltar do sistema só chega à janela nas etapas com teclado (só nelas a janela tem foco)
+    val acaoDoVoltar: (() -> Unit)? = voltarEtapa ?: if (corrigindoValor) {
+        { corrigindoValor = false }
+    } else null
+    SideEffect { aoMudarVoltar(acaoDoVoltar) }
+
     LaunchedEffect(Unit) { visivel = true }
+    // Ninguém tocou no popup: some sozinho e a transação fica na notificação, para não se perder
+    var tocou by remember { mutableStateOf(false) }
+    LaunchedEffect(tocou) {
+        if (!tocou) {
+            delay(TEMPO_SEM_RESPOSTA_MS)
+            aoExpirar()
+            fechar()
+        }
+    }
     // Só pede o foco da janela (e o teclado) enquanto há um campo de texto na tela
     LaunchedEffect(etapa, corrigindoValor) { aoPrecisarTeclado(corrigindoValor || etapa == ETAPA_DESCRICAO) }
     LaunchedEffect(etapa) {
@@ -196,6 +228,14 @@ fun PopupDeTransacaoConteudo(
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 16.dp)
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (!tocou) {
+                        awaitPointerEvent(PointerEventPass.Initial)
+                        tocou = true
+                    }
+                }
+            }
     ) {
         AnimatedVisibility(
             visible = visivel,
@@ -214,14 +254,7 @@ fun PopupDeTransacaoConteudo(
                         nomeBanco = nomeBanco,
                         posicao = posicao,
                         total = totalDeEtapas,
-                        aoVoltar = if (etapa in ETAPA_CATEGORIA..ETAPA_CONFIRMAR) {
-                            {
-                                erro = null
-                                verTodas = false
-                                voltarAoResumo = false
-                                etapa = if (etapa == ETAPA_CONFIRMAR && !temEtapaCartao) ETAPA_DESCRICAO else etapa - 1
-                            }
-                        } else null,
+                        aoVoltar = voltarEtapa,
                         aoFechar = ::fechar
                     )
                     Spacer(Modifier.height(4.dp))

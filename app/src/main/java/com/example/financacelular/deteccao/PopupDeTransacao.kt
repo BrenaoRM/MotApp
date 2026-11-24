@@ -10,7 +10,10 @@ import android.provider.Settings
 import android.util.Log
 import android.view.ContextThemeWrapper
 import android.view.Gravity
+import android.view.KeyEvent
+import android.view.View
 import android.view.WindowManager
+import android.widget.FrameLayout
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -98,7 +101,9 @@ object PopupDeTransacao {
 
         private val gerenciador = app.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         private val dono = DonoDaJanela()
-        private var visao: ComposeView? = null
+        private var visao: View? = null
+        /** O que o voltar do sistema faz na etapa atual (null = nada; o evento segue adiante). */
+        private var voltar: (() -> Unit)? = null
         private val parametros = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -115,9 +120,6 @@ object PopupDeTransacao {
         fun adicionar(): Boolean {
             dono.iniciar()
             val tela = ComposeView(ContextThemeWrapper(app, R.style.Theme_FinanceAPP)).apply {
-                setViewTreeLifecycleOwner(dono)
-                setViewTreeViewModelStoreOwner(dono)
-                setViewTreeSavedStateRegistryOwner(dono)
                 setContent {
                     FinanceAPPTheme(darkTheme = temaEscuro()) {
                         ProvideResponsiveDensity {
@@ -126,15 +128,33 @@ object PopupDeTransacao {
                                 nomeBanco = nomeBanco,
                                 aoPrecisarTeclado = ::alternarTeclado,
                                 aoResolver = { resolvido = true },
-                                aoRemover = ::remover
+                                aoRemover = ::remover,
+                                aoExpirar = { if (!invisivel) notificarTransacao(app, detectada, nomeBanco) },
+                                aoMudarVoltar = { voltar = it }
                             )
                         }
                     }
                 }
             }
-            visao = tela
+            // O Compose só recebe teclas num campo com foco; o voltar é tratado antes, na raiz da janela
+            val raiz = object : FrameLayout(app) {
+                override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+                    val acao = voltar
+                    if (event.keyCode == KeyEvent.KEYCODE_BACK && acao != null) {
+                        if (event.action == KeyEvent.ACTION_UP) acao()
+                        return true
+                    }
+                    return super.dispatchKeyEvent(event)
+                }
+            }
+            raiz.addView(tela)
+            // Os donos ficam na raiz: o Compose procura o recompositor a partir da raiz da janela
+            raiz.setViewTreeLifecycleOwner(dono)
+            raiz.setViewTreeViewModelStoreOwner(dono)
+            raiz.setViewTreeSavedStateRegistryOwner(dono)
+            visao = raiz
             return try {
-                gerenciador.addView(tela, parametros)
+                gerenciador.addView(raiz, parametros)
                 true
             } catch (e: RuntimeException) { // WindowManager.BadTokenException, SecurityException
                 Log.w("PopupDeTransacao", "Janela flutuante recusada", e)

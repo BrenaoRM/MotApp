@@ -18,12 +18,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowDownward
-import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.DropdownMenuItem
@@ -46,9 +44,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -150,15 +145,15 @@ fun ExtratoScreen(
         passaTipo && passaCategoria && passaBusca && passaPeriodo(t)
     }.sortedBy { it.data }
 
-    val totalReceitas = transacoesFiltradas
-        .filter { it.tipo == TipoTransacao.RECEITA }
-        .sumOf { it.valor }
-    val totalDespesas = transacoesFiltradas
-        .filter { it.tipo == TipoTransacao.DESPESA }
-        .sumOf { it.valor }
+    // Crédito já comprado, mas com a fatura ainda não paga: fica separado do que tem data futura
+    val hoje = LocalDate.now()
+    val (naFaturaEmAberto, proximos) = futurosFiltrados.partition {
+        it.formaPagamento == FormaPagamento.CARTAO_CREDITO && it.cartaoId != null && !it.data.isAfter(hoje)
+    }
 
     val gruposRealizados = transacoesFiltradas.groupBy { it.data }.entries.toList()
-    val gruposFuturos = futurosFiltrados.groupBy { it.data }.entries.toList()
+    val gruposFatura = naFaturaEmAberto.sortedByDescending { it.data }.groupBy { it.data }.entries.toList()
+    val gruposFuturos = proximos.groupBy { it.data }.entries.toList()
 
     LazyColumn(
         modifier = Modifier
@@ -209,20 +204,6 @@ fun ExtratoScreen(
             }
         }
 
-        // ---------- Resumo ----------
-        if (transacoesFiltradas.isNotEmpty()) {
-            item(key = "resumo") {
-                Spacer(modifier = Modifier.height(20.dp))
-                ResumoExtratoCard(
-                    saldo = totalReceitas - totalDespesas,
-                    receitas = totalReceitas,
-                    despesas = totalDespesas,
-                    quantidade = transacoesFiltradas.size,
-                    formato = formato
-                )
-            }
-        }
-
         // ---------- Lançamentos realizados ----------
         item(key = "titulo-realizados") {
             Spacer(modifier = Modifier.height(28.dp))
@@ -254,13 +235,37 @@ fun ExtratoScreen(
             )
         }
 
-        // ---------- Futuros / pendentes ----------
-        if (futurosFiltrados.isNotEmpty()) {
+        // ---------- Crédito com a fatura em aberto ----------
+        if (naFaturaEmAberto.isNotEmpty()) {
+            item(key = "titulo-fatura") {
+                Spacer(modifier = Modifier.height(36.dp))
+                TituloSecao(
+                    titulo = "Na fatura em aberto",
+                    quantidade = naFaturaEmAberto.size,
+                    icone = Icons.Outlined.CreditCard
+                )
+            }
+
+            items(gruposFatura, key = { "a-${it.key}" }) { grupo ->
+                GrupoDia(
+                    data = grupo.key,
+                    transacoes = grupo.value,
+                    categorias = categorias,
+                    cartoes = cartoes,
+                    formato = formato,
+                    pendente = true,
+                    aoClicar = { transacaoEmEdicaoId = it.id }
+                )
+            }
+        }
+
+        // ---------- Futuros (data depois de hoje) ----------
+        if (proximos.isNotEmpty()) {
             item(key = "titulo-futuros") {
                 Spacer(modifier = Modifier.height(36.dp))
                 TituloSecao(
                     titulo = "Próximos lançamentos",
-                    quantidade = futurosFiltrados.size,
+                    quantidade = proximos.size,
                     icone = Icons.Outlined.Schedule
                 )
             }
@@ -402,114 +407,6 @@ private fun ChipFiltroAtivo(texto: String, aoRemover: () -> Unit) {
         },
         shape = RoundedCornerShape(12.dp)
     )
-}
-
-@Composable
-private fun ResumoExtratoCard(
-    saldo: Double,
-    receitas: Double,
-    despesas: Double,
-    quantidade: Int,
-    formato: NumberFormat
-) {
-    val primary = MaterialTheme.colorScheme.primary
-    val onPrimary = MaterialTheme.colorScheme.onPrimary
-    val gradiente = Brush.linearGradient(
-        colors = listOf(primary, lerp(primary, Color.Black, 0.35f))
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(26.dp))
-            .background(gradiente)
-            .padding(20.dp)
-    ) {
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "Saldo do extrato",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = onPrimary.copy(alpha = 0.80f)
-                )
-                Text(
-                    if (quantidade == 1) "1 lançamento" else "$quantidade lançamentos",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = onPrimary.copy(alpha = 0.80f)
-                )
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                formato.format(saldo),
-                style = MaterialTheme.typography.displayMedium,
-                fontWeight = FontWeight.Bold,
-                color = onPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(18.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                ResumoMini(
-                    modifier = Modifier.weight(1f),
-                    rotulo = "Ganhos",
-                    valor = formato.format(receitas),
-                    icone = Icons.Outlined.ArrowUpward
-                )
-                ResumoMini(
-                    modifier = Modifier.weight(1f),
-                    rotulo = "Gastos",
-                    valor = formato.format(despesas),
-                    icone = Icons.Outlined.ArrowDownward
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ResumoMini(
-    modifier: Modifier,
-    rotulo: String,
-    valor: String,
-    icone: ImageVector
-) {
-    val onPrimary = MaterialTheme.colorScheme.onPrimary
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(18.dp))
-            .background(onPrimary.copy(alpha = 0.14f))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(30.dp)
-                .background(onPrimary.copy(alpha = 0.20f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(icone, contentDescription = null, tint = onPrimary, modifier = Modifier.size(Tamanho.iconePequeno))
-        }
-        Spacer(modifier = Modifier.width(10.dp))
-        Column {
-            Text(
-                rotulo,
-                style = MaterialTheme.typography.labelSmall,
-                color = onPrimary.copy(alpha = 0.80f)
-            )
-            Text(
-                valor,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = onPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
 }
 
 @Composable
