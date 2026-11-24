@@ -18,6 +18,8 @@ private val REGEX_ESTABELECIMENTO_INTER = Regex(
     """(?:débito|crédito|debito|credito)\s+no\s+(.+?)\s+o valor de""",
     RegexOption.IGNORE_CASE
 )
+// Inter: "Fulano de Tal te enviou um Pix de R$ ..." (o nome vem antes do valor)
+private val REGEX_REMETENTE_ANTES = Regex("""^\s*(.+?)\s+te\s+enviou\b""", RegexOption.IGNORE_CASE)
 private val REGEX_DESTINO = Regex("""^\s*(?:em|para|de)\s+(.+?)(?=[.,;!]|\s+via\s|$)""", RegexOption.IGNORE_CASE)
 
 // Vem antes das de gasto: "Fulano te enviou um Pix ... creditado na sua conta" (Inter) tem "enviou" e é ganho
@@ -55,6 +57,7 @@ fun lerNotificacao(textoBruto: String): TransacaoDetectada? {
     }
 
     val descricao = REGEX_ESTABELECIMENTO_INTER.find(texto)?.groupValues?.get(1)?.trim()
+        ?: REGEX_REMETENTE_ANTES.find(texto)?.groupValues?.get(1)?.trim()
         ?: REGEX_DESTINO.find(texto.substring(achado.range.last + 1))?.groupValues?.get(1)?.trim()
 
     return TransacaoDetectada(valor, tipo, descricao?.ifEmpty { null }, forma)

@@ -457,13 +457,13 @@ private fun ResumoExtratoCard(
                     modifier = Modifier.weight(1f),
                     rotulo = "Ganhos",
                     valor = formato.format(receitas),
-                    icone = Icons.Outlined.ArrowDownward
+                    icone = Icons.Outlined.ArrowUpward
                 )
                 ResumoMini(
                     modifier = Modifier.weight(1f),
                     rotulo = "Gastos",
                     valor = formato.format(despesas),
-                    icone = Icons.Outlined.ArrowUpward
+                    icone = Icons.Outlined.ArrowDownward
                 )
             }
         }

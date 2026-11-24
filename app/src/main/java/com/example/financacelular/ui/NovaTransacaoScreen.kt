@@ -29,6 +29,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalance
@@ -73,6 +74,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.financacelular.data.Categoria
 import com.example.financacelular.data.FORMATO_DATA
@@ -206,7 +208,9 @@ private fun LadrilhoDeEscolha(
                 fontWeight = if (selecionado) FontWeight.Bold else FontWeight.Medium,
                 color = if (selecionado) RoxoHero else MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
-                maxLines = 2,
+                // Uma palavra só fica em 1 linha e encolhe para caber, em vez de quebrar no meio ("Alimentaçã/o")
+                maxLines = if (' ' in texto) 2 else 1,
+                autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = MaterialTheme.typography.labelMedium.fontSize),
                 overflow = TextOverflow.Ellipsis
             )
         }

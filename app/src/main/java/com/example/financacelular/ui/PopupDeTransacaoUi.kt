@@ -82,6 +82,7 @@ import com.example.financacelular.ui.theme.Tamanho
 import com.example.financacelular.ui.theme.cores
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.text.Normalizer
 
 private const val CATEGORIAS_NA_GRADE = 7
 private const val ETAPA_VALOR = 0
@@ -168,7 +169,10 @@ fun PopupDeTransacaoConteudo(
         }
     }
     LaunchedEffect(ehCredito, cartoes) {
-        if (ehCredito && viewModel.cartaoIdSelecionado == null) cartoes.firstOrNull()?.let { viewModel.onCartaoSelecionado(it.id) }
+        if (ehCredito && viewModel.cartaoIdSelecionado == null) {
+            (cartaoDoBanco(cartoes.map { it.id to it.nome }, nomeBanco) ?: cartoes.firstOrNull()?.id)
+                ?.let { viewModel.onCartaoSelecionado(it) }
+        }
     }
     val cartaoDoLancamento = cartoes.firstOrNull { it.id == viewModel.cartaoIdSelecionado }
 
@@ -739,6 +743,19 @@ private fun TextoDeErro(texto: String) {
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
     )
 }
+
+/** Id do cartão cujo nome bate com o do banco que avisou ("Inter Black" ↔ "Inter"), sem ligar para maiúsculas e acentos. */
+internal fun cartaoDoBanco(cartoes: List<Pair<Long, String>>, nomeBanco: String): Long? {
+    val banco = semAcentoMinusculo(nomeBanco.trim())
+    if (banco.isEmpty()) return null
+    return cartoes.firstOrNull { (_, nome) ->
+        val cartao = semAcentoMinusculo(nome.trim())
+        cartao.isNotEmpty() && (cartao.contains(banco) || banco.contains(cartao))
+    }?.first
+}
+
+private fun semAcentoMinusculo(texto: String): String =
+    Normalizer.normalize(texto, Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "").lowercase()
 
 /** "1234,56" (formato do campo) -> "1.234,56". */
 private fun formatarValorDoPopup(valor: String): String {

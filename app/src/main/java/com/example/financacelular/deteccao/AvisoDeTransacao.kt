@@ -15,6 +15,8 @@ import androidx.core.content.ContextCompat
 import com.example.financacelular.MainActivity
 import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.TipoTransacao
+import com.example.financacelular.ui.LocalePtBr
+import java.text.NumberFormat
 
 private const val EXTRA_VALOR = "det_valor"
 private const val EXTRA_TIPO = "det_tipo"
@@ -85,7 +87,7 @@ fun notificarTransacao(context: Context, detectada: TransacaoDetectada, nomeBanc
     val rotulo = if (detectada.tipo == TipoTransacao.DESPESA) "Gasto" else "Ganho"
     val notificacao = NotificationCompat.Builder(context, CANAL)
         .setSmallIcon(android.R.drawable.ic_dialog_info)
-        .setContentTitle("$rotulo de R$ ${detectada.valorParaCampo()}")
+        .setContentTitle("$rotulo de ${NumberFormat.getCurrencyInstance(LocalePtBr).format(detectada.valor)}")
         .setContentText("${detectada.descricao ?: nomeBanco} · Toque para registrar")
         .setPriority(NotificationCompat.PRIORITY_HIGH)
         .setContentIntent(pendingIntent)

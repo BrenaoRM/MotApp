@@ -113,6 +113,16 @@ class LeitorNotificacaoTest {
         val lida = lerNotificacao("Fulano de Tal te enviou um Pix de R$ 1,00 creditado na sua conta final ***12345-6.")
         assertEquals(TipoTransacao.RECEITA, lida?.tipo)
         assertEquals(1.0, lida!!.valor, 0.001)
+        assertEquals("Fulano de Tal", lida.descricao)
+    }
+
+    @Test
+    fun pix_recebido_no_inter_pega_remetente_antes_do_valor() {
+        val lida = lerNotificacao("Fulano de Tal te enviou um Pix de R$ 1.250,00 creditado na sua conta final ***12345-6.")
+        assertEquals(
+            TransacaoDetectada(1250.0, TipoTransacao.RECEITA, "Fulano de Tal", FormaPagamento.DEBITO),
+            lida
+        )
     }
 
     @Test
