@@ -264,7 +264,7 @@ fun CalendarioScreen(
     val afazeresPendentes = afazeresDoDia.count { !it.concluido }
 
     val tituloDia = remember(dataSelecionada) {
-        dataSelecionada.format(DateTimeFormatter.ofPattern("EEEE, dd 'de' MMMM", LocalePtBr))
+        dataSelecionada.format(DateTimeFormatter.ofPattern("EEEE, d 'de' MMMM", LocalePtBr))
             .replaceFirstChar { it.uppercase() }
     }
 

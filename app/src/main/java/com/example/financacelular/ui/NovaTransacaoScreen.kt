@@ -371,7 +371,7 @@ private fun FolhaTodasCategorias(
     selecionadaId: Long?,
     aoEscolher: (Categoria) -> Unit,
     aoEditar: (Categoria) -> Unit,
-    aoCriar: () -> Unit,
+    aoCriar: (nomeBuscado: String) -> Unit,
     aoFechar: () -> Unit
 ) {
     var busca by rememberSaveable { mutableStateOf("") }
@@ -409,7 +409,7 @@ private fun FolhaTodasCategorias(
                 .fillMaxWidth()
                 .height(Tamanho.toque + 4.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .clickable(role = Role.Button, onClick = aoCriar),
+                .clickable(role = Role.Button) { aoCriar(busca.trim()) },
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -476,6 +476,7 @@ fun NovaTransacaoScreen(
     var mostrarTodas by rememberSaveable { mutableStateOf(false) }
     var categoriaParaEditarId by rememberSaveable { mutableStateOf<Long?>(null) }
     var criandoCategoria by rememberSaveable { mutableStateOf(false) }
+    var nomeNovaCategoria by rememberSaveable { mutableStateOf("") }
     // Nome da categoria recém-criada: quando ela chegar na lista, fica escolhida
     var escolherPorNome by rememberSaveable { mutableStateOf<String?>(null) }
     var mostrarDatePicker by rememberSaveable { mutableStateOf(false) }
@@ -840,7 +841,8 @@ fun NovaTransacaoScreen(
                     mostrarTodas = false
                     categoriaParaEditarId = it.id
                 },
-                aoCriar = {
+                aoCriar = { nomeBuscado ->
+                    nomeNovaCategoria = nomeBuscado
                     mostrarTodas = false
                     criandoCategoria = true
                 },
@@ -895,7 +897,8 @@ fun NovaTransacaoScreen(
                 },
                 aoExcluir = {},
                 aoFechar = { criandoCategoria = false },
-                cor = RoxoHero
+                cor = RoxoHero,
+                nomeInicial = nomeNovaCategoria
             )
         }
 

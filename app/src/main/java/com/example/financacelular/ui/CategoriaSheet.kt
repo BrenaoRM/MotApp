@@ -69,12 +69,14 @@ fun FolhaEditarCategoria(
     cor: Color = RoxoHero,
     /** Outras categorias do mesmo tipo; com [item] em uso e ao menos uma, a exclusão oferece "Mover para". */
     destinos: List<Categoria> = emptyList(),
-    aoMoverEExcluir: (Categoria) -> Unit = {}
+    aoMoverEExcluir: (Categoria) -> Unit = {},
+    /** Nome já preenchido ao criar (ex.: o texto buscado). */
+    nomeInicial: String = ""
 ) {
     val categoria = item?.categoria
     val tipo = categoria?.tipo ?: tipoNova
     val sistema = item?.sistema == true
-    var nome by rememberSaveable(categoria?.id) { mutableStateOf(categoria?.nome ?: "") }
+    var nome by rememberSaveable(categoria?.id) { mutableStateOf(categoria?.nome ?: nomeInicial) }
     var icone by rememberSaveable(categoria?.id) { mutableStateOf(categoria?.icone) }
     var confirmando by rememberSaveable(categoria?.id) { mutableStateOf(false) }
     var destinoId by rememberSaveable(categoria?.id) { mutableStateOf<Long?>(null) }
