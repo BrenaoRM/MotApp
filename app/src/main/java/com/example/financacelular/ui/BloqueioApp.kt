@@ -8,7 +8,8 @@ import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
 import androidx.biometric.BiometricPrompt
-import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,10 +36,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.res.painterResource
+import com.example.financacelular.R
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.fragment.app.FragmentActivity
@@ -165,13 +168,20 @@ fun TelaBloqueada(activity: FragmentActivity) {
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // Logo do app (a mesma do ícone), igual à da tela de boas-vindas
+                val formaLogo = RoundedCornerShape(21.dp)
                 Box(
                     modifier = Modifier
-                        .size(72.dp)
-                        .background(RoxoHero, RoundedCornerShape(22.dp)),
-                    contentAlignment = Alignment.Center
+                        .size(68.dp)
+                        .clip(formaLogo)
+                        .border(1.dp, MaterialTheme.colorScheme.outline, formaLogo)
                 ) {
-                    Text("M", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+                    Image(painterResource(R.drawable.ic_launcher_background), contentDescription = null, modifier = Modifier.fillMaxSize())
+                    Image(
+                        painterResource(R.drawable.ic_launcher_foreground),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize().scale(1.3f)
+                    )
                 }
                 Spacer(modifier = Modifier.height(20.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
