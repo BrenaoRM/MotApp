@@ -292,6 +292,7 @@ fun ConfiguracoesScreen(
                     // Confirma a digital antes de ligar ou desligar, para ninguém trocar sem ser o dono
                     else -> BloqueioApp.confirmar(atividade, if (ligar) "Ligar o bloqueio" else "Desligar o bloqueio") {
                         BloqueioApp.definirAtivo(context, ligar)
+                        BloqueioApp.protegerTela(atividade)
                         bloquearApp = ligar
                     }
                 }

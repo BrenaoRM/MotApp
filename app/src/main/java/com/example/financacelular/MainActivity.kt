@@ -52,6 +52,7 @@ class MainActivity : FragmentActivity() {
 
         com.example.financacelular.ui.ValoresVisiveis.iniciar(this)
         BloqueioApp.aoCriar(this)
+        BloqueioApp.protegerTela(this)
 
         // Aberto pelo aviso de transação detectada (só na criação, para não repetir ao girar a tela)
         if (savedInstanceState == null) intent.paraDetectada()?.let(PreenchimentoPendente::definir)

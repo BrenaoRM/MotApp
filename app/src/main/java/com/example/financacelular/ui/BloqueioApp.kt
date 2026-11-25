@@ -1,8 +1,10 @@
 package com.example.financacelular.ui
 
+import android.app.Activity
 import android.content.Context
 import android.os.Build
 import android.os.SystemClock
+import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
@@ -71,6 +73,20 @@ object BloqueioApp {
 
     fun definirAtivo(context: Context, ativo: Boolean) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean(CHAVE, ativo) }
+    }
+
+    /**
+     * Esconde o conteúdo do app na lista de recentes. Android 13+: só a miniatura some, sempre (prints
+     * continuam). Antes do 13 o único jeito é FLAG_SECURE, que também bloqueia prints: só com o bloqueio ligado.
+     */
+    fun protegerTela(activity: Activity) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            activity.setRecentsScreenshotEnabled(false)
+        } else if (ativo(activity)) {
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
     }
 
     /**
