@@ -1,5 +1,8 @@
 package com.example.financacelular.ui
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +14,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -27,7 +32,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.financacelular.data.ExportarLancamentos
 import com.example.financacelular.data.ExportarLancamentos.Periodo
@@ -50,6 +54,23 @@ fun FolhaExportar(onDismiss: () -> Unit) {
     }
     val hoje = remember { LocalDate.now() }
     val quantidade = datas?.count { periodo.contem(it, hoje) }
+    val podeAgir = !gerando && (quantidade ?: 0) > 0
+
+    /** Roda [acao] fora da tela principal; [aoTerminar] recebe o resultado, e falha vira mensagem de erro. */
+    fun executar(acao: suspend () -> Boolean, aoTerminar: (Boolean) -> Unit) {
+        gerando = true
+        escopo.launch {
+            val resultado = runCatching { withContext(Dispatchers.IO) { acao() } }
+            gerando = false
+            resultado.onSuccess(aoTerminar).onFailure { mensagem("Não foi possível gerar a planilha", erro = true) }
+        }
+    }
+
+    val salvarComo = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri: Uri? ->
+        if (uri != null) executar({ ExportarLancamentos.salvarEm(context, uri, periodo) }) {
+            if (it) mensagem("Planilha salva")
+        }
+    }
 
     FolhaApp(onDismiss = onDismiss) {
         CabecalhoDeFolha("Exportar lançamentos", aoFechar = onDismiss)
@@ -82,32 +103,42 @@ fun FolhaExportar(onDismiss: () -> Unit) {
         Spacer(modifier = Modifier.height(16.dp))
         BotaoPrincipal(
             texto = "Compartilhar planilha",
-            onClick = {
-                gerando = true
-                escopo.launch {
-                    val enviados = runCatching {
-                        withContext(Dispatchers.IO) { ExportarLancamentos.compartilhar(context, periodo) }
-                    }
-                    gerando = false
-                    enviados.onSuccess { if (it > 0) onDismiss() }
-                        .onFailure { mensagem("Não foi possível gerar a planilha", erro = true) }
-                }
-            },
+            onClick = { executar({ ExportarLancamentos.compartilhar(context, periodo) }) { if (it) onDismiss() } },
             modifier = Modifier.fillMaxWidth(),
             cor = RoxoHero,
             corConteudo = Color.White,
             icone = Icons.Outlined.Share,
-            enabled = !gerando && (quantidade ?: 0) > 0
+            enabled = podeAgir
         )
-        Text(
-            "Abre a lista do Android: WhatsApp, Drive, e-mail…",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp, bottom = 16.dp)
-        )
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(bottom = 16.dp)) {
+            BotaoSecundario(
+                texto = "Abrir",
+                onClick = {
+                    executar({ ExportarLancamentos.abrir(context, periodo) }) {
+                        if (!it) mensagem("Nenhum app deste celular abre planilhas", erro = true)
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                icone = Icons.Outlined.OpenInNew,
+                enabled = podeAgir
+            )
+            BotaoSecundario(
+                texto = "Salvar",
+                onClick = {
+                    if (ExportarLancamentos.salvaDireto()) {
+                        executar({ ExportarLancamentos.salvarEmDownloads(context, periodo) }) {
+                            if (it) mensagem("Salvo em Downloads")
+                        }
+                    } else {
+                        salvarComo.launch(ExportarLancamentos.nomeDoArquivo())
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                icone = Icons.Outlined.Download,
+                enabled = podeAgir
+            )
+        }
     }
 }
 

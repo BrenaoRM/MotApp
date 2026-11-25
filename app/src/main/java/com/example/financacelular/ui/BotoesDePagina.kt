@@ -48,10 +48,12 @@ fun BotaoSecundario(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     cor: Color = MaterialTheme.colorScheme.onSurface,
-    icone: ImageVector? = null
+    icone: ImageVector? = null,
+    enabled: Boolean = true
 ) {
     OutlinedButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.height(Tamanho.controle),
         shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = cor)

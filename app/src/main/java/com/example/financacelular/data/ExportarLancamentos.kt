@@ -1,7 +1,12 @@
 package com.example.financacelular.data
 
+import android.content.ActivityNotFoundException
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.flow.first
 import java.io.File
@@ -61,30 +66,80 @@ object ExportarLancamentos {
     suspend fun datas(context: Context): List<LocalDate> =
         AppDatabase.getInstance(context).transacaoDao().listarTransacoes().first().map { it.data }
 
-    /** Gera o arquivo do [periodo] e abre o compartilhar. Devolve quantos lançamentos foram. */
-    suspend fun compartilhar(context: Context, periodo: Periodo): Int {
+    /** Gera o arquivo do [periodo] na pasta de cache (só o último fica); null se o período não tem lançamentos. */
+    private suspend fun gerarArquivo(context: Context, periodo: Periodo): File? {
+        val csv = gerarCsv(context, periodo) ?: return null
+        val pasta = File(context.cacheDir, "exportacoes").apply { mkdirs() }
+        pasta.listFiles()?.forEach { it.delete() }
+        return File(pasta, nomeDoArquivo()).apply { writeText(csv, Charsets.UTF_8) }
+    }
+
+    private suspend fun gerarCsv(context: Context, periodo: Periodo): String? {
         val banco = AppDatabase.getInstance(context)
         val hoje = LocalDate.now()
         val lancamentos = banco.transacaoDao().listarTransacoes().first().filter { periodo.contem(it.data, hoje) }
-        if (lancamentos.isEmpty()) return 0
+        if (lancamentos.isEmpty()) return null
         val categorias = banco.categoriaDao().listarTodasSync().associate { it.id to it.nome }
         val cartoes = banco.cartaoDao().listarTodosSync().associate { it.id to it.nome }
+        return gerarCsv(lancamentos, categorias, cartoes)
+    }
 
-        val pasta = File(context.cacheDir, "exportacoes").apply { mkdirs() }
-        pasta.listFiles()?.forEach { it.delete() } // só o último arquivo fica guardado
-        val arquivo = File(pasta, "motapp-lancamentos-$hoje.csv")
-        arquivo.writeText(gerarCsv(lancamentos, categorias, cartoes), Charsets.UTF_8)
+    fun nomeDoArquivo(): String = "motapp-lancamentos-${LocalDate.now()}.csv"
 
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", arquivo)
+    private fun uriDoArquivo(context: Context, arquivo: File): Uri =
+        FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", arquivo)
+
+    /** Gera o arquivo do [periodo] e abre o compartilhar. Devolve se havia lançamentos. */
+    suspend fun compartilhar(context: Context, periodo: Periodo): Boolean {
+        val arquivo = gerarArquivo(context, periodo) ?: return false
         val envio = Intent(Intent.ACTION_SEND).apply {
             type = "text/csv"
-            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_STREAM, uriDoArquivo(context, arquivo))
             putExtra(Intent.EXTRA_SUBJECT, "Lançamentos do MotApp")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(
             Intent.createChooser(envio, "Compartilhar planilha").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
-        return lancamentos.size
+        return true
+    }
+
+    /** Abre a planilha num app do celular (Excel, Planilhas, Meus Arquivos). False se nenhum app abre CSV. */
+    suspend fun abrir(context: Context, periodo: Periodo): Boolean {
+        val arquivo = gerarArquivo(context, periodo) ?: return false
+        val ver = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uriDoArquivo(context, arquivo), "text/csv")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        return try {
+            context.startActivity(ver)
+            true
+        } catch (e: ActivityNotFoundException) {
+            false
+        }
+    }
+
+    /** Android 10+: grava direto em Downloads, sem pedir permissão. */
+    fun salvaDireto(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+
+    /** Grava em Downloads (Android 10+). */
+    suspend fun salvarEmDownloads(context: Context, periodo: Periodo): Boolean {
+        if (!salvaDireto()) return false
+        val csv = gerarCsv(context, periodo) ?: return false
+        val valores = ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, nomeDoArquivo())
+            put(MediaStore.Downloads.MIME_TYPE, "text/csv")
+        }
+        val resolver = context.contentResolver
+        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, valores) ?: return false
+        resolver.openOutputStream(uri)?.use { it.write(csv.toByteArray(Charsets.UTF_8)) } ?: return false
+        return true
+    }
+
+    /** Android 8 e 9: grava no lugar escolhido na janela "Salvar como" do sistema. */
+    suspend fun salvarEm(context: Context, uri: Uri, periodo: Periodo): Boolean {
+        val csv = gerarCsv(context, periodo) ?: return false
+        context.contentResolver.openOutputStream(uri)?.use { it.write(csv.toByteArray(Charsets.UTF_8)) } ?: return false
+        return true
     }
 }
