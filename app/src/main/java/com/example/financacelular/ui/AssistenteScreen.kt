@@ -2,15 +2,16 @@ package com.example.financacelular.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.financacelular.ui.theme.dimens
 
+/** Aba do assistente com IA: por enquanto só o estado vazio, a tela de verdade vem depois. */
 @Composable
-fun ContasScreen() {
+fun AssistenteScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -19,8 +20,8 @@ fun ContasScreen() {
     ) {
         Spacer(modifier = Modifier.height(LocalEspacoCabecalho.current + 16.dp))
         EstadoVazio(
-            icone = Icons.Outlined.AccountBalanceWallet,
-            mensagem = "Contas chegam em breve"
+            icone = Icons.Outlined.AutoAwesome,
+            mensagem = "Assistente chega em breve"
         )
     }
 }

@@ -7,6 +7,12 @@ import android.content.Intent
 import android.provider.Settings
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.fragment.app.FragmentActivity
+import com.example.financacelular.ui.theme.RoxoHero
 import androidx.compose.runtime.DisposableEffect
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Lifecycle
@@ -133,6 +139,9 @@ fun ConfiguracoesScreen(
     var confirmarRestauracao by remember { mutableStateOf(false) }
     var confirmarDesconexao by remember { mutableStateOf(false) }
     var mostrarBancos by remember { mutableStateOf(false) }
+    var mostrarExportar by remember { mutableStateOf(false) }
+    var bloquearApp by remember { mutableStateOf(BloqueioApp.ativo(context)) }
+    if (mostrarExportar) FolhaExportar { mostrarExportar = false }
     if (confirmarDesconexao) {
         ConfirmarAcaoSheet(
             titulo = "Desconectar o Google Drive?",
@@ -268,6 +277,44 @@ fun ConfiguracoesScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
 
+        // --- Seção: Segurança ---
+        item {
+            Text("Segurança", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            val alternarBloqueio: (Boolean) -> Unit = { ligar ->
+                val atividade = activity as? FragmentActivity
+                when {
+                    atividade == null -> Unit
+                    ligar && !BloqueioApp.suportado() ->
+                        mensagem("Disponível a partir do Android 9", erro = true)
+                    ligar && !BloqueioApp.disponivel(context) ->
+                        mensagem("Defina uma senha de tela no celular primeiro", erro = true)
+                    // Confirma a digital antes de ligar ou desligar, para ninguém trocar sem ser o dono
+                    else -> BloqueioApp.confirmar(atividade, if (ligar) "Ligar o bloqueio" else "Desligar o bloqueio") {
+                        BloqueioApp.definirAtivo(context, ligar)
+                        bloquearApp = ligar
+                    }
+                }
+            }
+            CartaoUnicoDeLinhas {
+                LinhaDePagina(
+                    inicio = { IconeDeLinha(Icons.Outlined.Lock) },
+                    titulo = "Bloquear o app",
+                    valor = "",
+                    subtitulo = "Pede a digital ou a senha do celular",
+                    fim = {
+                        Switch(
+                            checked = bloquearApp,
+                            onCheckedChange = alternarBloqueio,
+                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = RoxoHero)
+                        )
+                    },
+                    onClick = { alternarBloqueio(!bloquearApp) }
+                )
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+
         // --- Seção: Dados e nuvem ---
         item {
             Text("Dados e nuvem", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -357,6 +404,25 @@ fun ConfiguracoesScreen(
                         )
                     }
                 }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+            CartaoUnicoDeLinhas {
+                LinhaDePagina(
+                    inicio = { IconeDeLinha(Icons.Outlined.FileDownload) },
+                    titulo = "Exportar lançamentos",
+                    valor = "",
+                    subtitulo = "Planilha para Excel ou Google Planilhas",
+                    fim = {
+                        Icon(
+                            Icons.Outlined.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(Tamanho.iconeGrande)
+                        )
+                    },
+                    onClick = { mostrarExportar = true }
+                )
             }
         }
     }

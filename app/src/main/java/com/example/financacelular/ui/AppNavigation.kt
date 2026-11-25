@@ -37,8 +37,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Analytics
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Home
@@ -114,7 +114,7 @@ internal enum class DestinoPrincipal(
     INICIO("inicio", "Início", "Início", Icons.Outlined.Home, Icons.Filled.Home),
     ANALISE("analise", "Análise", "Análise", Icons.Outlined.Analytics, Icons.Filled.Analytics),
     CALENDARIO("calendario", "Calendário", "Agenda", Icons.Outlined.CalendarMonth, Icons.Filled.CalendarMonth),
-    CONTAS("contas", "Contas", "Contas", Icons.Outlined.AccountBalanceWallet, Icons.Filled.AccountBalanceWallet)
+    ASSISTENTE("assistente", "Assistente", "Assistente", Icons.Outlined.AutoAwesome, Icons.Filled.AutoAwesome)
 }
 
 // Troca de tela: a saída é curta e a entrada começa depois dela (total de 300 ms)
@@ -264,7 +264,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
         ROTA_PARCELADOS -> listaParcelados
         ROTA_METAS -> listaMetas
         ROTA_ORCAMENTO -> listaOrcamento
-        else -> null // Contas não rola
+        else -> null // Assistente não rola
     }
     val deslocamentoCabecalho = remember { Animatable(0f) }
     LaunchedEffect(listaDaAba) {
@@ -535,8 +535,8 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                             aoNovaAgendaAcionada = { acionarNovaAgenda = false }
                         )
                     }
-                    composable(DestinoPrincipal.CONTAS.rota) {
-                        ContasScreen()
+                    composable(DestinoPrincipal.ASSISTENTE.rota) {
+                        AssistenteScreen()
                     }
                     composable(ROTA_CONFIGURACOES) {
                         ConfiguracoesScreen(
@@ -657,8 +657,8 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                                 aoSeguinte = { analiseViewModel.periodoSeguinte() },
                                 aoTocarTitulo = { folhaPeriodoAberta = true }
                             )
-                            DestinoPrincipal.CONTAS.rota -> CabecalhoPadrao(
-                                titulo = "Contas",
+                            DestinoPrincipal.ASSISTENTE.rota -> CabecalhoPadrao(
+                                titulo = "Assistente",
                                 aoAbrirConfiguracoes = { navController.navigate(ROTA_CONFIGURACOES) { launchSingleTop = true } }
                             )
                             ROTA_CARTAO -> CabecalhoPadrao(

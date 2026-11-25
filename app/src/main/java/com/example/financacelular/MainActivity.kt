@@ -9,7 +9,9 @@ import com.example.financacelular.deteccao.PreenchimentoPendente
 import com.example.financacelular.deteccao.paraDetectada
 import android.os.Bundle
 import android.graphics.Color
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
+import com.example.financacelular.ui.BloqueioApp
+import com.example.financacelular.ui.TelaBloqueada
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -38,7 +40,7 @@ import com.example.financacelular.data.RestauroBanco
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,6 +51,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         com.example.financacelular.ui.ValoresVisiveis.iniciar(this)
+        BloqueioApp.aoCriar(this)
 
         // Aberto pelo aviso de transação detectada (só na criação, para não repetir ao girar a tela)
         if (savedInstanceState == null) intent.paraDetectada()?.let(PreenchimentoPendente::definir)
@@ -115,9 +118,25 @@ class MainActivity : ComponentActivity() {
             FinanceAPPTheme(darkTheme = temaEscuro) {
                 ProvideResponsiveDensity {
                     AppNavigation(configuracoesViewModel = configuracoesViewModel)
+                    if (BloqueioApp.bloqueado) TelaBloqueada(this@MainActivity)
                 }
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        BloqueioApp.aoVoltar(this)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        BloqueioApp.aoRetomar(this)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        BloqueioApp.aoSair()
     }
 
     override fun onNewIntent(intent: Intent) {
