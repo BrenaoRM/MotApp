@@ -60,6 +60,8 @@ fun FolhaApp(
     bloquearFechamento: Boolean = false,
     conteudo: @Composable ColumnScope.() -> Unit
 ) {
+    // A folha é uma janela própria e ficaria por cima da tela bloqueada: some enquanto o app está bloqueado
+    if (BloqueioApp.bloqueado) return
     val bloqueado by rememberUpdatedState(bloquearFechamento)
     ModalBottomSheet(
         onDismissRequest = onDismiss,

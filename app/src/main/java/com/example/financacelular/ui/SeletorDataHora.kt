@@ -269,6 +269,7 @@ private fun DialogoHora(
         initialMinute = inicial.minute,
         is24Hour = true
     )
+    if (BloqueioApp.bloqueado) return // janela própria, ficaria por cima da tela bloqueada
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(28.dp),
