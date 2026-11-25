@@ -42,5 +42,7 @@ data class Transacao(
     val totalParcelas: Int = 1,
     val grupoParcelamentoId: String? = null,
     // ID da assinatura/recorrente que gerou esta transação (null se foi lançamento avulso)
-    val recorrenteId: Long? = null
+    val recorrenteId: Long? = null,
+    // Dia em que a compra parcelada foi feita (cada parcela fica na data do vencimento); null nas antigas e nas avulsas
+    val dataCompra: LocalDate? = null
 )

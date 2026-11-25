@@ -88,4 +88,22 @@ class ParceladosAgrupamentoTest {
         assertFalse(compra.quitada)
         assertTrue(compra.encerrada)
     }
+
+    @Test
+    fun dataDaCompraVemDaCompraEnaoDaPrimeiraParcela() {
+        val diaDaCompra = LocalDate.of(2026, 1, 28)
+        val parcelas = (1..3).map { parcela(it, 3, 10.0, it + 1, it.toLong()).copy(dataCompra = diaDaCompra) }
+        val compra = agruparComprasParceladas(parcelas).single()
+
+        assertEquals(diaDaCompra, compra.dataCompra)
+        assertEquals(LocalDate.of(2026, 2, 10), compra.dataPrimeiraParcela)
+    }
+
+    @Test
+    fun compraAntigaSemDataDaCompraFicaComAPrimeiraParcela() {
+        val compra = agruparComprasParceladas((1..3).map { parcela(it, 3, 10.0, it, it.toLong()) }).single()
+
+        assertEquals(null, compra.dataCompra)
+        assertEquals(LocalDate.of(2026, 1, 10), compra.dataPrimeiraParcela)
+    }
 }

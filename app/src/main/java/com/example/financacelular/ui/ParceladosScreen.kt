@@ -229,7 +229,9 @@ private fun DetalheDaCompra(
         }
 
         Spacer(modifier = Modifier.height(Espaco.md))
-        LinhaDeDetalhe("Data da compra", compra.dataCompra.format(FORMATO_DATA))
+        val dataCompra = compra.dataCompra
+        if (dataCompra != null) LinhaDeDetalhe("Data da compra", dataCompra.format(FORMATO_DATA))
+        else LinhaDeDetalhe("1ª parcela", compra.dataPrimeiraParcela.format(FORMATO_DATA))
         LinhaDeDetalhe("Parcelas pagas", "${compra.parcelasPagas} de ${compra.totalParcelas}")
         LinhaDeDetalhe("Total já pago", formatoMoeda.format(compra.valorPago))
         LinhaDeDetalhe("Valor total", formatoMoeda.format(compra.valorTotal))

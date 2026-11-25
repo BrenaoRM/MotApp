@@ -168,7 +168,8 @@ class FinancaRepository(private val database: AppDatabase) {
         cartaoId: Long?,
         diaVencimento: Int,
         anoInicio: Int,
-        mesInicio: Int
+        mesInicio: Int,
+        dataCompra: LocalDate
     ) {
         val valoresParcelas =
             if (tipoCalculo == "TOTAL") dividirEmParcelas(valorTotalOuParcela, numeroParcelas)
@@ -195,7 +196,8 @@ class FinancaRepository(private val database: AppDatabase) {
                     anoMes = anoMesStr,
                     numeroParcela = i,
                     totalParcelas = numeroParcelas,
-                    grupoParcelamentoId = grupoId
+                    grupoParcelamentoId = grupoId,
+                    dataCompra = dataCompra
                 )
             )
 

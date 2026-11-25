@@ -90,3 +90,10 @@ val MIGRATION_12_13 = object : Migration(12, 13) {
         )
     }
 }
+
+/** 14 -> 15: transacoes.dataCompra, o dia real da compra parcelada (as antigas ficam sem). */
+val MIGRATION_14_15 = object : Migration(14, 15) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE transacoes ADD COLUMN dataCompra TEXT")
+    }
+}

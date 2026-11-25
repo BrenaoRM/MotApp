@@ -26,7 +26,9 @@ data class CompraParceladaAgrupada(
     val valorPago: Double,
     val valorRestante: Double,
     val transacoesPendentes: List<Transacao>,
-    val dataCompra: LocalDate,
+    /** Dia da compra; null nas compras gravadas antes da 1.0.141, que só têm a data das parcelas. */
+    val dataCompra: LocalDate?,
+    val dataPrimeiraParcela: LocalDate,
     val cartaoNome: String?
 ) {
     /** Todas as parcelas foram pagas. */
@@ -76,10 +78,11 @@ internal fun agruparComprasParceladas(
             valorPago = pagas.sumOf { it.valor },
             valorRestante = transacoesPendentes.sumOf { it.valor },
             transacoesPendentes = transacoesPendentes,
-            dataCompra = primeiraTransacao.data,
+            dataCompra = primeiraTransacao.dataCompra,
+            dataPrimeiraParcela = primeiraTransacao.data,
             cartaoNome = nomeDoCartao(primeiraTransacao.cartaoId)
         )
-    }.sortedByDescending { it.dataCompra } // Das mais recentes para as mais antigas
+    }.sortedByDescending { it.dataCompra ?: it.dataPrimeiraParcela } // Das mais recentes para as mais antigas
 }
 
 class ParceladosViewModel(application: Application) : AndroidViewModel(application) {

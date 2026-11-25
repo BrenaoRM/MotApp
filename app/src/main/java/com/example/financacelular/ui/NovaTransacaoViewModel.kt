@@ -223,7 +223,8 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
                         cartaoId = cartaoIdAsLong,
                         diaVencimento = cartao?.diaVencimento ?: data.dayOfMonth,
                         anoInicio = anoBase,
-                        mesInicio = mesBase
+                        mesInicio = mesBase,
+                        dataCompra = data
                     )
                 } else {
                     val transacao = Transacao(

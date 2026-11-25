@@ -16,7 +16,7 @@ class MigracaoBancoTest {
     @get:Rule
     val helper = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), AppDatabase::class.java)
 
-    private val todas = arrayOf(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
+    private val todas = arrayOf(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15)
 
     @Test
     fun migraDoSchema8AoAtualSemPerderDados() {
@@ -38,7 +38,7 @@ class MigracaoBancoTest {
         }
 
         // runMigrationsAndValidate compara o resultado com o schema exportado da versão atual
-        val db = helper.runMigrationsAndValidate(NOME, 14, true, *todas)
+        val db = helper.runMigrationsAndValidate(NOME, 15, true, *todas)
 
         db.query("SELECT COUNT(*), SUM(valor) FROM transacoes").use {
             it.moveToFirst()
@@ -93,6 +93,26 @@ class MigracaoBancoTest {
         db.query("SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND tbl_name = 'transacoes' AND name LIKE 'index_transacoes_%'").use {
             it.moveToFirst()
             assertEquals(5, it.getInt(0))
+        }
+    }
+
+    @Test
+    fun migraDoSchema14Para15ComDataDaCompraVazia() {
+        helper.createDatabase(NOME, 14).apply {
+            execSQL("INSERT INTO categorias (id, nome, tipo) VALUES (1, 'Mercado', 'DESPESA')")
+            execSQL(
+                "INSERT INTO transacoes (valor, data, categoriaId, tipo, descricao, formaPagamento, anoMes, numeroParcela, totalParcelas) " +
+                    "VALUES (33.34, '2026-12-10', 1, 'DESPESA', 'TV (1/3)', 'CARTAO_CREDITO', '2026-12', 1, 3)"
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(NOME, 15, true, MIGRATION_14_15)
+
+        db.query("SELECT COUNT(*), dataCompra FROM transacoes").use {
+            it.moveToFirst()
+            assertEquals(1, it.getInt(0))
+            assertEquals(true, it.isNull(1))
         }
     }
 
