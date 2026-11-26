@@ -13,10 +13,12 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Porta de entrada da IA de categorias. [iniciar] não bloqueia: lê o config e abre o modelo em I/O. Se o modelo
@@ -82,18 +84,39 @@ internal class MotorIa(
         val modelo: ModeloDeCategoria?,
     )
 
+    /** Treino em andamento de um tipo, reaproveitado por quem chegar com a mesma geração e as mesmas categorias. */
+    private class EmTreino(val geracao: Int, val assinatura: List<Pair<Long, String>>, val tarefa: Deferred<Treinado>)
+
+    // O treino roda neste escopo, não no de quem pediu: cancelar o pedido (ex.: o usuário digitou de novo) não joga fora
+    // segundos de treino, e o próximo pedido usa o mesmo resultado
+    private val escopo = CoroutineScope(SupervisorJob() + calculo)
     private val mutex = Mutex()
     private val modelos = ConcurrentHashMap<TipoTransacao, Treinado>()
+    private val emTreino = ConcurrentHashMap<TipoTransacao, EmTreino>()
+    private val geracao = AtomicInteger()
 
-    @Volatile
-    private var geracao = 0
+    /** Quantos treinos começaram (para testes). */
+    internal val treinos = AtomicInteger()
 
     fun invalidar() {
-        geracao++
+        geracao.incrementAndGet()
         modelos.clear()
     }
 
-    suspend fun sugerir(descricao: String, tipo: TipoTransacao): Probabilidade? {
+    /** Qualquer erro em tempo de execução (ONNX, memória, banco) vira "sem sugestão": a IA nunca derruba a tela. */
+    suspend fun sugerir(descricao: String, tipo: TipoTransacao): Probabilidade? = semErro(null) { sugerirOuFalhar(descricao, tipo) }
+
+    suspend fun ranking(descricao: String, tipo: TipoTransacao): List<Long> = semErro(emptyList()) { rankingOuFalhar(descricao, tipo) }
+
+    private suspend fun <T> semErro(padrao: T, bloco: suspend () -> T): T = try {
+        bloco()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Throwable) {
+        padrao
+    }
+
+    private suspend fun sugerirOuFalhar(descricao: String, tipo: TipoTransacao): Probabilidade? {
         val chave = chaveDoEstabelecimento(descricao)
         if (chave.isEmpty()) return null
         val t = treinado(tipo)
@@ -103,7 +126,7 @@ internal class MotorIa(
         return withContext(calculo) { modelo.sugerir(vetor, descricao) }
     }
 
-    suspend fun ranking(descricao: String, tipo: TipoTransacao): List<Long> {
+    private suspend fun rankingOuFalhar(descricao: String, tipo: TipoTransacao): List<Long> {
         val chave = chaveDoEstabelecimento(descricao)
         if (chave.isEmpty()) return emptyList()
         val t = treinado(tipo)
@@ -121,11 +144,22 @@ internal class MotorIa(
         return RepositorioDeVetores(banco().vetorIaDao(), vetorizador, io, calculo).vetores(listOf(texto))[texto]
     }
 
-    private suspend fun treinado(tipo: TipoTransacao): Treinado = mutex.withLock {
-        val categorias = withContext(io) { categoriasDoTipo(tipo) }
-        val assinatura = categorias.map { it.id to it.nome }
-        modelos[tipo]?.takeIf { it.assinatura == assinatura }?.let { return it }
-        val inicio = geracao
+    private suspend fun treinado(tipo: TipoTransacao): Treinado {
+        val tarefa = mutex.withLock {
+            val categorias = withContext(io) { categoriasDoTipo(tipo) }
+            val assinatura = categorias.map { it.id to it.nome }
+            modelos[tipo]?.takeIf { it.assinatura == assinatura }?.let { return it }
+            val atual = geracao.get()
+            emTreino[tipo]?.takeIf { it.geracao == atual && it.assinatura == assinatura && !it.tarefa.isCompleted }
+                ?.let { return@withLock it.tarefa }
+            escopo.async { treinar(tipo, categorias, assinatura, atual) }
+                .also { emTreino[tipo] = EmTreino(atual, assinatura, it) }
+        }
+        return tarefa.await()
+    }
+
+    private suspend fun treinar(tipo: TipoTransacao, categorias: List<Categoria>, assinatura: List<Pair<Long, String>>, inicio: Int): Treinado {
+        treinos.incrementAndGet()
         val exemplos = withContext(io) { FinancaRepository(banco()).exemplosParaIa(tipo) }
         val ids = categorias.map { it.id }.toSet()
         // O rótulo mais recente de cada estabelecimento vence (exemplos vêm do mais antigo ao mais novo)
@@ -135,8 +169,10 @@ internal class MotorIa(
             assinatura, categorias.map { chaveDoEstabelecimento(it.nome) }.toSet(), memoria, categorias.map { it.id },
             treinarModelo(exemplos, categorias, memoria),
         )
-        if (geracao == inicio) modelos[tipo] = novo
-        novo
+        // Se invalidar() rodou durante o treino (ou entre o put e a conferência), o modelo velho não fica no cache
+        modelos[tipo] = novo
+        if (geracao.get() != inicio) modelos.remove(tipo, novo)
+        return novo
     }
 
     private suspend fun treinarModelo(
