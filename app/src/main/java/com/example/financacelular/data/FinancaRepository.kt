@@ -1,6 +1,7 @@
 package com.example.financacelular.data
 
 import androidx.room.withTransaction
+import com.example.financacelular.ia.IaFinanceira
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
@@ -86,20 +87,24 @@ class FinancaRepository(private val database: AppDatabase) {
 
     suspend fun salvarTransacao(transacao: Transacao) {
         dao.inserirTransacao(transacao)
+        IaFinanceira.invalidar()
     }
 
     suspend fun atualizarTransacao(transacao: Transacao) {
         dao.atualizarTransacao(transacao)
+        IaFinanceira.invalidar()
     }
 
     suspend fun excluirTransacao(transacao: Transacao) {
         dao.excluirTransacao(transacao)
+        IaFinanceira.invalidar()
     }
 
     suspend fun excluirTransacoes(transacoes: List<Transacao>) {
         database.withTransaction {
             transacoes.forEach { dao.excluirTransacao(it) }
         }
+        IaFinanceira.invalidar()
     }
 
     // ------------------------------------------------------------------
@@ -211,6 +216,7 @@ class FinancaRepository(private val database: AppDatabase) {
             }
         }
         dao.inserirTransacoes(listaTransacoes)
+        IaFinanceira.invalidar()
     }
 
     // ------------------------------------------------------------------
@@ -371,8 +377,8 @@ class FinancaRepository(private val database: AppDatabase) {
 
     fun listarCategorias(): Flow<List<Categoria>> = categoriaDao.listarTodas()
     fun listarCategoriasPorTipo(tipo: TipoTransacao): Flow<List<Categoria>> = categoriaDao.listarPorTipo(tipo)
-    suspend fun salvarCategoria(categoria: Categoria): Long = categoriaDao.inserir(categoria)
-    suspend fun atualizarCategoria(categoria: Categoria) = categoriaDao.atualizar(categoria)
+    suspend fun salvarCategoria(categoria: Categoria): Long = categoriaDao.inserir(categoria).also { IaFinanceira.invalidar() }
+    suspend fun atualizarCategoria(categoria: Categoria) = categoriaDao.atualizar(categoria).also { IaFinanceira.invalidar() }
 
     fun contarTransacoesPorCategoria(): Flow<List<ContagemPorCategoria>> = dao.contarPorCategoria()
     fun contarRecorrentesPorCategoria(): Flow<List<ContagemPorCategoria>> = despesaRecorrenteDao.contarPorCategoria()
@@ -387,6 +393,7 @@ class FinancaRepository(private val database: AppDatabase) {
         despesaRecorrenteDao.excluirPorCategoria(categoria.id)
         estabelecimentoDao.excluirPorCategoria(categoria.id)
         categoriaDao.excluir(categoria)
+        IaFinanceira.invalidar()
     }
 
     /**
@@ -399,6 +406,7 @@ class FinancaRepository(private val database: AppDatabase) {
         despesaRecorrenteDao.moverPorCategoria(categoria.id, destino.id)
         estabelecimentoDao.moverPorCategoria(categoria.id, destino.id)
         categoriaDao.excluir(categoria)
+        IaFinanceira.invalidar()
     }
 
     /** Categoria usada da última vez para este estabelecimento detectado (null se nunca vista ou já excluída). */
@@ -407,6 +415,22 @@ class FinancaRepository(private val database: AppDatabase) {
         if (chave.isEmpty()) return null
         val id = estabelecimentoDao.buscarCategoria(chave, tipo) ?: return null
         return categoriaDao.listarTodasSync().firstOrNull { it.id == id && it.tipo == tipo }
+    }
+
+    /**
+     * Exemplos (descrição bruta, categoriaId) para a IA de categorias, do mais antigo ao mais novo. Ficam de fora:
+     * descrição vazia ou igual ao nome da categoria (o `salvar` grava o nome quando a pessoa não digita nada),
+     * pagamento de fatura, categoria "Fatura" e as cópias de parcelamento/assinatura (uma por grupo, a mais nova).
+     */
+    suspend fun exemplosParaIa(tipo: TipoTransacao): List<Pair<String, Long>> {
+        val categorias = categoriaDao.listarTodasSync()
+        val nomes = categorias.associate { it.id to chaveDoEstabelecimento(it.nome) }
+        val fatura = idDaCategoriaFatura(categorias)
+        return dao.comDescricaoParaIa(tipo)
+            .filter { it.categoriaId != fatura && chaveDoEstabelecimento(it.descricao!!) != nomes[it.categoriaId] }
+            .associateBy { it.grupoParcelamentoId ?: it.recorrenteId?.let { r -> "r$r" } ?: "t${it.id}" }
+            .values.sortedBy { it.id }
+            .map { it.descricao!! to it.categoriaId }
     }
 
     /** Guarda, sem mostrar a ninguém, a categoria escolhida para o estabelecimento detectado. */

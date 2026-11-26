@@ -37,6 +37,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.financacelular.data.AppDatabase
 import com.example.financacelular.data.FinancaRepository
 import com.example.financacelular.data.RestauroBanco
+import com.example.financacelular.ia.IaFinanceira
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -84,6 +85,8 @@ class MainActivity : FragmentActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             RestauroBanco.concluirPendente(applicationContext)
             bancoPronto.value = true
+            // IA de categorias: carrega config e modelo em segundo plano (sem modelo, só a memória exata funciona)
+            IaFinanceira.iniciar(applicationContext)
             FinancaRepository
                 .getInstance(AppDatabase.getInstance(applicationContext))
                 .gerarRecorrentesPendentes()

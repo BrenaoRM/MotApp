@@ -98,4 +98,11 @@ interface TransacaoDao {
                 "(recorrenteId = :recorrenteId OR (recorrenteId IS NULL AND descricao IN (:descricoes)))"
     )
     suspend fun excluirFuturasDaRecorrente(recorrenteId: Long, descricoes: List<String>, hoje: LocalDate)
+
+    /** Lançamentos com descrição que servem de exemplo para a IA (sem pagamento de fatura), do mais antigo ao mais novo. */
+    @Query(
+        "SELECT * FROM transacoes WHERE tipo = :tipo AND descricao IS NOT NULL AND TRIM(descricao) != '' " +
+                "AND pagaFaturaDoCartaoId IS NULL ORDER BY id"
+    )
+    suspend fun comDescricaoParaIa(tipo: TipoTransacao): List<Transacao>
 }

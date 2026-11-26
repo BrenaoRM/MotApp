@@ -46,6 +46,6 @@ object NormalizacaoTexto {
     }
 
     /** NFKD e descarta o que não é ASCII, como `.encode("ascii", "ignore")`. */
-    private fun semAcento(s: String): String =
+    internal fun semAcento(s: String): String =
         Normalizer.normalize(s, Normalizer.Form.NFKD).filter { it.code < 128 }
 }
