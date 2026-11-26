@@ -6,6 +6,10 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.financacelular.ia.AlertaDispensado
+import com.example.financacelular.ia.AlertaDispensadoDao
+import com.example.financacelular.ia.VetorIa
+import com.example.financacelular.ia.VetorIaDao
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -20,7 +24,9 @@ import kotlinx.coroutines.launch
         InvestimentoEntity::class,
         AfazerEntity::class,
         CartaoEntity::class,
-        EstabelecimentoCategoria::class
+        EstabelecimentoCategoria::class,
+        VetorIa::class,
+        AlertaDispensado::class
     ],
     version = AppDatabase.VERSAO,
     exportSchema = true
@@ -36,10 +42,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun afazerDao(): AfazerDao
     abstract fun cartaoDao(): CartaoDao
     abstract fun estabelecimentoCategoriaDao(): EstabelecimentoCategoriaDao
+    abstract fun vetorIaDao(): VetorIaDao
+    abstract fun alertaDispensadoDao(): AlertaDispensadoDao
 
     companion object {
         const val NOME_ARQUIVO_BANCO = "financa_celular.db"
-        const val VERSAO = 16
+        const val VERSAO = 17
 
         @Volatile
         private var INSTANCE: AppDatabase? = null
@@ -51,7 +59,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     NOME_ARQUIVO_BANCO
                 )
-                    .addMigrations(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16)
+                    .addMigrations(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17)
                     .addCallback(object : Callback() {
                         override fun onCreate(db: SupportSQLiteDatabase) {
                             super.onCreate(db)

@@ -48,6 +48,8 @@ class FinancaRepository(private val database: AppDatabase) {
     private val afazerDao = database.afazerDao()
     private val cartaoDao = database.cartaoDao()
     private val estabelecimentoDao = database.estabelecimentoCategoriaDao()
+    val vetorIaDao = database.vetorIaDao()
+    val alertaDispensadoDao = database.alertaDispensadoDao()
 
     // ------------------------------------------------------------------
     // Cartões

@@ -16,7 +16,7 @@ class MigracaoBancoTest {
     @get:Rule
     val helper = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), AppDatabase::class.java)
 
-    private val todas = arrayOf(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16)
+    private val todas = arrayOf(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17)
 
     @Test
     fun migraDoSchema8AoAtualSemPerderDados() {
@@ -38,7 +38,7 @@ class MigracaoBancoTest {
         }
 
         // runMigrationsAndValidate compara o resultado com o schema exportado da versão atual
-        val db = helper.runMigrationsAndValidate(NOME, 16, true, *todas)
+        val db = helper.runMigrationsAndValidate(NOME, 17, true, *todas)
 
         db.query("SELECT COUNT(*), SUM(valorCentavos) FROM transacoes").use {
             it.moveToFirst()
@@ -170,6 +170,28 @@ class MigracaoBancoTest {
         // Os ids seguem de onde estavam (AUTOINCREMENT preservado)
         db.execSQL("INSERT INTO transacoes (valorCentavos, data, categoriaId, tipo, formaPagamento, numeroParcela, totalParcelas) VALUES (1, '2026-11-11', 1, 'DESPESA', 'DEBITO', 1, 1)")
         db.query("SELECT MAX(id) FROM transacoes").use { it.moveToFirst(); assertEquals(8L, it.getLong(0)) }
+    }
+
+    @Test
+    fun migra16Para17SemPerderTransacoes() {
+        helper.createDatabase(NOME, 16).apply {
+            execSQL("INSERT INTO categorias (id, nome, tipo) VALUES (1, 'Mercado', 'DESPESA')")
+            execSQL(
+                "INSERT INTO transacoes (id, valorCentavos, data, categoriaId, tipo, descricao, formaPagamento, anoMes, numeroParcela, totalParcelas) " +
+                    "VALUES (1, 5000, '2026-11-01', 1, 'DESPESA', 'Pão', 'DEBITO', '2026-11', 1, 1)"
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(NOME, 17, true, MIGRATION_16_17)
+
+        db.query("SELECT COUNT(*), SUM(valorCentavos) FROM transacoes").use {
+            it.moveToFirst()
+            assertEquals(1, it.getInt(0))
+            assertEquals(5000L, it.getLong(1))
+        }
+        db.query("SELECT COUNT(*) FROM ia_vetor").use { it.moveToFirst(); assertEquals(0, it.getInt(0)) }
+        db.query("SELECT COUNT(*) FROM ia_alerta_dispensado").use { it.moveToFirst(); assertEquals(0, it.getInt(0)) }
     }
 
     // Caminho completo: o Room 2.8 no Robolectric compara o nome do banco com o caminho que o helper abre

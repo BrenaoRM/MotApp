@@ -197,3 +197,11 @@ val MIGRATION_15_16 = object : Migration(15, 16) {
         )
     }
 }
+
+/** 16 -> 17: cache de vetores da IA (`ia_vetor`) e alertas de atípicos dispensados (`ia_alerta_dispensado`). */
+val MIGRATION_16_17 = object : Migration(16, 17) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `ia_vetor` (`chave` TEXT NOT NULL, `vetor` BLOB NOT NULL, `versaoModelo` INTEGER NOT NULL, PRIMARY KEY(`chave`))")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `ia_alerta_dispensado` (`transacaoId` INTEGER NOT NULL, `dispensadoEm` INTEGER NOT NULL, PRIMARY KEY(`transacaoId`))")
+    }
+}
