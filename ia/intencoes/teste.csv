@@ -1,0 +1,180 @@
+intencao,frase
+RANKING_CATEGORIAS,qual categoria leva a maior parte do meu dinheiro
+RANKING_CATEGORIAS,no que eu mais gasto grana
+RANKING_CATEGORIAS,mostre as categorias mais caras
+RANKING_CATEGORIAS,para onde está indo meu dinheiro esse mês
+RANKING_CATEGORIAS,quais são as maiores categorias de despesa
+RANKING_CATEGORIAS,onde to gastando mais dinheiro ultimamente
+RANKING_CATEGORIAS,em qual área eu mais gasto
+RANKING_CATEGORIAS,quais categorias consomem mais do meu orçamento
+RANKING_CATEGORIAS,listar categorias do maior para o menor gasto
+RANKING_CATEGORIAS,meus principais gastos por categoria
+RANKING_CATEGORIAS,onde foi a maior parte da minha grana
+RANKING_CATEGORIAS,que categoria me custa mais
+GASTO_EM_CATEGORIA,quanto gastei com {cat} esse mês
+GASTO_EM_CATEGORIA,qual foi o total em {cat}
+GASTO_EM_CATEGORIA,me fala quanto foi de {cat}
+GASTO_EM_CATEGORIA,quanto já foi embora com {cat}
+GASTO_EM_CATEGORIA,qto gastei em {cat}
+GASTO_EM_CATEGORIA,quanto eu paguei em {cat} no mês
+GASTO_EM_CATEGORIA,gasto total com {cat}
+GASTO_EM_CATEGORIA,quanto foi que gastei com {cat} em outubro
+GASTO_EM_CATEGORIA,quanto foi gasto de {cat}
+GASTO_EM_CATEGORIA,diz quanto gastei com {cat}
+GASTO_EM_CATEGORIA,quanto sai por mês de {cat}
+GASTO_EM_CATEGORIA,quanto gastei em {cat} no mês passado
+TOTAL_DO_MES,quanto eu gastei esse mês todo
+TOTAL_DO_MES,qual foi o meu gasto total de novembro
+TOTAL_DO_MES,total gasto no mês
+TOTAL_DO_MES,quanto dinheiro eu gastei em outubro
+TOTAL_DO_MES,qual o valor total das despesas do mês
+TOTAL_DO_MES,quanto saiu no total esse mês
+TOTAL_DO_MES,me diz quanto gastei no mês
+TOTAL_DO_MES,quanto gastei em dezembro
+TOTAL_DO_MES,quanto foi que eu gastei até aqui
+TOTAL_DO_MES,quanto estou gastando no total
+TOTAL_DO_MES,total de despesas deste mês
+TOTAL_DO_MES,soma de tudo que gastei no mês
+COMPARAR_MES_ANTERIOR,gastei mais do que no mês passado
+COMPARAR_MES_ANTERIOR,meus gastos estão maiores que os do mês anterior
+COMPARAR_MES_ANTERIOR,como está esse mês comparado ao anterior
+COMPARAR_MES_ANTERIOR,gastei menos ou mais que antes
+COMPARAR_MES_ANTERIOR,diferença entre esse mês e o passado
+COMPARAR_MES_ANTERIOR,subiu ou desceu meu gasto desde o mês passado
+COMPARAR_MES_ANTERIOR,compare meus gastos com o mês passado
+COMPARAR_MES_ANTERIOR,esse mês gastei mais que no outro
+COMPARAR_MES_ANTERIOR,o gasto aumentou em relação ao mês anterior
+COMPARAR_MES_ANTERIOR,qual a variação em relação ao mês passado
+COMPARAR_MES_ANTERIOR,estou gastando mais que no mês passado
+COMPARAR_MES_ANTERIOR,o que subiu mais comparado com o mês passado
+MAIOR_GASTO,qual foi o meu maior gasto do mês
+MAIOR_GASTO,qual a despesa mais alta que tive
+MAIOR_GASTO,me mostra a compra mais cara
+MAIOR_GASTO,maior despesa em um único lançamento
+MAIOR_GASTO,qual foi o gasto de maior valor
+MAIOR_GASTO,qual foi a maior compra do mês
+MAIOR_GASTO,que gasto foi o mais caro de outubro
+MAIOR_GASTO,qual a maior despesa que fiz
+MAIOR_GASTO,me diz o maior gasto em {cat}
+MAIOR_GASTO,a compra mais cara que eu fiz
+MAIOR_GASTO,qual foi o gasto mais pesado do mês
+MAIOR_GASTO,maior gasto que tive em novembro
+ORCAMENTO_RESTANTE,quanto sobra do meu orçamento esse mês
+ORCAMENTO_RESTANTE,quanto ainda posso gastar do orçamento
+ORCAMENTO_RESTANTE,já estourei o limite do mês
+ORCAMENTO_RESTANTE,quanto falta do orçamento
+ORCAMENTO_RESTANTE,quanto resta no orçamento de {cat}
+ORCAMENTO_RESTANTE,estou dentro do limite
+ORCAMENTO_RESTANTE,quanto ainda tenho para gastar
+ORCAMENTO_RESTANTE,quanto do limite eu já usei
+ORCAMENTO_RESTANTE,quanto me sobra do orçamento
+ORCAMENTO_RESTANTE,como está o limite de gastos
+ORCAMENTO_RESTANTE,meu orçamento já acabou
+ORCAMENTO_RESTANTE,quanto resta pra eu gastar
+ASSINATURAS,quanto eu pago em assinaturas
+ASSINATURAS,quais assinaturas tenho ativas
+ASSINATURAS,me mostra minhas despesas recorrentes
+ASSINATURAS,quanto gasto com serviços de assinatura
+ASSINATURAS,quais são meus gastos fixos
+ASSINATURAS,total de assinaturas por mês
+ASSINATURAS,o que eu pago de mensalidade
+ASSINATURAS,lista das minhas contas recorrentes
+ASSINATURAS,quanto vai de assinatura todo mês
+ASSINATURAS,quais cobranças mensais eu tenho
+ASSINATURAS,tenho assinaturas demais
+ASSINATURAS,quanto pago de gastos fixos
+POUPANCA,quanto eu consegui poupar esse mês
+POUPANCA,quanto sobrou da minha renda
+POUPANCA,estou conseguindo guardar dinheiro
+POUPANCA,qual é a minha taxa de economia
+POUPANCA,sobrou dinheiro no fim do mês
+POUPANCA,quanto guardei esse mês
+POUPANCA,quanto da renda sobra depois das despesas
+POUPANCA,fechei o mês no positivo
+POUPANCA,quanto poupei em novembro
+POUPANCA,meu saldo no fim do mês
+POUPANCA,gastei mais do que recebi
+POUPANCA,quanto fica no bolso depois das contas
+RECEITAS,quanto eu recebi esse mês
+RECEITAS,qual foi minha receita do mês
+RECEITAS,quanto entrou na minha conta
+RECEITAS,total que ganhei no mês
+RECEITAS,de onde vem meu dinheiro
+RECEITAS,quanto foi meu salário
+RECEITAS,quais receitas tive em outubro
+RECEITAS,quanto dinheiro eu ganhei
+RECEITAS,qual a minha renda mensal
+RECEITAS,quanto recebi de entradas
+RECEITAS,soma das minhas receitas
+RECEITAS,quanto caiu de salário no mês
+MEDIA_MENSAL,quanto gasto por mês em média
+MEDIA_MENSAL,qual a média das minhas despesas mensais
+MEDIA_MENSAL,qual meu gasto médio por mês
+MEDIA_MENSAL,quanto costumo gastar mensalmente
+MEDIA_MENSAL,média mensal do que gasto
+MEDIA_MENSAL,em média quanto sai por mês
+MEDIA_MENSAL,gasto médio mensal com {cat}
+MEDIA_MENSAL,quanto gasto em média por mês com {cat}
+MEDIA_MENSAL,quanto gasto normalmente em um mês
+MEDIA_MENSAL,qual é a média dos meus gastos mensais
+MEDIA_MENSAL,quanto eu gasto mensalmente
+MEDIA_MENSAL,média de gastos dos últimos meses
+ATIPICOS,tem algum gasto fora do normal
+ATIPICOS,teve alguma cobrança estranha
+ATIPICOS,me mostra os gastos atípicos
+ATIPICOS,algum gasto suspeito esse mês
+ATIPICOS,tem alguma compra duplicada
+ATIPICOS,teve gasto muito acima do comum
+ATIPICOS,existe algum lançamento fora do padrão
+ATIPICOS,algo diferente do que costumo gastar
+ATIPICOS,teve cobrança repetida
+ATIPICOS,tem gasto anormal nos meus lançamentos
+ATIPICOS,vê se tem alguma cobrança errada
+ATIPICOS,algum gasto inesperado em outubro
+COMO_ECONOMIZAR,como eu faço para economizar
+COMO_ECONOMIZAR,onde posso gastar menos
+COMO_ECONOMIZAR,me dê dicas de como economizar
+COMO_ECONOMIZAR,o que devo cortar dos gastos
+COMO_ECONOMIZAR,como reduzir meus gastos
+COMO_ECONOMIZAR,quais despesas posso reduzir
+COMO_ECONOMIZAR,tem alguma sugestão para eu poupar mais
+COMO_ECONOMIZAR,como sobrar mais dinheiro
+COMO_ECONOMIZAR,o que você sugere para eu gastar menos
+COMO_ECONOMIZAR,como melhorar meu controle financeiro
+COMO_ECONOMIZAR,onde dá para cortar custos
+COMO_ECONOMIZAR,me ajuda a gastar menos
+DESCONHECIDA,qual a capital da França
+DESCONHECIDA,me conta uma piada
+DESCONHECIDA,como está o tempo hoje
+DESCONHECIDA,quem ganhou o jogo ontem
+DESCONHECIDA,qual a receita de bolo de cenoura
+DESCONHECIDA,quantos anos tem a lua
+DESCONHECIDA,como faço para trocar o pneu do carro
+DESCONHECIDA,me recomenda um filme
+DESCONHECIDA,quem descobriu o Brasil
+DESCONHECIDA,traduz bom dia para inglês
+DESCONHECIDA,qual o sentido da vida
+DESCONHECIDA,que horas são agora
+DESCONHECIDA,como faço um currículo
+DESCONHECIDA,quanto é dois mais dois
+DESCONHECIDA,qual o melhor time do Brasil
+DESCONHECIDA,como aprender violão
+DESCONHECIDA,me fala sobre o sistema solar
+DESCONHECIDA,qual a distância da Terra até o Sol
+DESCONHECIDA,como plantar tomate em casa
+DESCONHECIDA,escreve um poema de amor
+DESCONHECIDA,qual a senha do meu wifi
+DESCONHECIDA,quantos habitantes tem São Paulo
+DESCONHECIDA,como emagrecer rápido
+DESCONHECIDA,oi tudo bem
+DESCONHECIDA,quem é o presidente
+DESCONHECIDA,como instalar um aplicativo no celular
+DESCONHECIDA,qual a previsão para amanhã
+DESCONHECIDA,me ensina a fazer café
+DESCONHECIDA,como chego na rodoviária
+DESCONHECIDA,qual a cotação do dólar hoje
+DESCONHECIDA,me indica uma música para ouvir
+DESCONHECIDA,quando é o próximo feriado
+DESCONHECIDA,quem inventou a lâmpada
+DESCONHECIDA,como faço para investir na bolsa
+DESCONHECIDA,qual o melhor celular para comprar

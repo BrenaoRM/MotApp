@@ -1,0 +1,340 @@
+intencao,frase
+RANKING_CATEGORIAS,onde estou gastando mais
+RANKING_CATEGORIAS,onde to gastando mais
+RANKING_CATEGORIAS,em que eu mais gasto
+RANKING_CATEGORIAS,qual categoria pesa mais no meu bolso
+RANKING_CATEGORIAS,quais as categorias que mais gastei
+RANKING_CATEGORIAS,com o que gastei mais esse mês
+RANKING_CATEGORIAS,me mostra o ranking de gastos por categoria
+RANKING_CATEGORIAS,top categorias de gasto
+RANKING_CATEGORIAS,qual a categoria mais cara do mês
+RANKING_CATEGORIAS,pra onde vai meu dinheiro
+RANKING_CATEGORIAS,onde meu dinheiro vai embora
+RANKING_CATEGORIAS,quais são meus maiores gastos por categoria
+RANKING_CATEGORIAS,em qual categoria gastei mais
+RANKING_CATEGORIAS,o que mais pesa nas minhas despesas
+RANKING_CATEGORIAS,onde gastei mais dinheiro no mês passado
+RANKING_CATEGORIAS,categoria que mais consome minha grana
+RANKING_CATEGORIAS,onde to torrando mais grana
+RANKING_CATEGORIAS,quais categorias lideram meus gastos
+RANKING_CATEGORIAS,ordem de gastos por categoria
+RANKING_CATEGORIAS,mostra pra onde foi meu dinheiro em outubro
+RANKING_CATEGORIAS,em que categoria eu gasto mais
+RANKING_CATEGORIAS,qual o meu maior grupo de despesa
+RANKING_CATEGORIAS,onde estou gastano mais
+RANKING_CATEGORIAS,me fala as categorias onde mais gasto
+RANKING_CATEGORIAS,onde gasto mais dinheiro
+RANKING_CATEGORIAS,que tipo de gasto domina meu mês
+RANKING_CATEGORIAS,divisão dos meus gastos por categoria
+RANKING_CATEGORIAS,onde mais saiu dinheiro nesse mês
+GASTO_EM_CATEGORIA,quanto gastei com {cat}
+GASTO_EM_CATEGORIA,quanto eu gastei em {cat}
+GASTO_EM_CATEGORIA,qto gastei c/ {cat}
+GASTO_EM_CATEGORIA,quanto foi gasto em {cat} esse mês
+GASTO_EM_CATEGORIA,qual o total de {cat}
+GASTO_EM_CATEGORIA,quanto saiu de {cat}
+GASTO_EM_CATEGORIA,quanto gastei de {cat} no mês passado
+GASTO_EM_CATEGORIA,me diz o gasto com {cat}
+GASTO_EM_CATEGORIA,total gasto em {cat}
+GASTO_EM_CATEGORIA,quanto to gastando com {cat}
+GASTO_EM_CATEGORIA,quanto já gastei em {cat}
+GASTO_EM_CATEGORIA,gastos de {cat} em outubro
+GASTO_EM_CATEGORIA,quanto deu {cat} nesse mês
+GASTO_EM_CATEGORIA,quanto desembolsei com {cat}
+GASTO_EM_CATEGORIA,quanto foi {cat} este mês
+GASTO_EM_CATEGORIA,quanto paguei de {cat}
+GASTO_EM_CATEGORIA,qual foi meu gasto com {cat}
+GASTO_EM_CATEGORIA,valor gasto em {cat}
+GASTO_EM_CATEGORIA,quanto gastei com {cat} em setembro
+GASTO_EM_CATEGORIA,quanto gastamos em {cat}
+GASTO_EM_CATEGORIA,quanto gstei com {cat}
+GASTO_EM_CATEGORIA,quanto vai embora em {cat}
+GASTO_EM_CATEGORIA,quanto tirei do bolso com {cat}
+GASTO_EM_CATEGORIA,total de despesas em {cat}
+GASTO_EM_CATEGORIA,quanto eu to gastando de {cat}
+GASTO_EM_CATEGORIA,me mostra quanto gastei em {cat}
+GASTO_EM_CATEGORIA,{cat} quanto gastei
+GASTO_EM_CATEGORIA,quanto custou {cat} pra mim no mês
+TOTAL_DO_MES,quanto gastei esse mês
+TOTAL_DO_MES,quanto gastei em novembro
+TOTAL_DO_MES,qual o total de gastos do mês
+TOTAL_DO_MES,quanto eu gastei no total
+TOTAL_DO_MES,quanto saiu da minha conta esse mês
+TOTAL_DO_MES,total das minhas despesas
+TOTAL_DO_MES,qto gastei no mês
+TOTAL_DO_MES,quanto gastei em outubro
+TOTAL_DO_MES,me diz o total gasto no mês
+TOTAL_DO_MES,quanto foi meu gasto total
+TOTAL_DO_MES,quanto eu já gastei esse mês
+TOTAL_DO_MES,quanto gastei no mês passado
+TOTAL_DO_MES,qual meu gasto do mês
+TOTAL_DO_MES,soma dos gastos do mês
+TOTAL_DO_MES,quanto gastei ao todo
+TOTAL_DO_MES,quanto já saiu de dinheiro nesse mês
+TOTAL_DO_MES,quanto to gastando no mês
+TOTAL_DO_MES,gastos totais de setembro
+TOTAL_DO_MES,quanto eu gastei em tudo
+TOTAL_DO_MES,quanto foi o gasto geral do mês
+TOTAL_DO_MES,total gasto este mês
+TOTAL_DO_MES,quanto gastei de tudo no mês
+TOTAL_DO_MES,quanto despendi no mês
+TOTAL_DO_MES,quanto já foi gasto até agora
+TOTAL_DO_MES,quanto gasto por mês no total
+TOTAL_DO_MES,quanto desembolsei esse mês
+TOTAL_DO_MES,quanto gastei em agosto
+TOTAL_DO_MES,quanto gastei ate agora
+COMPARAR_MES_ANTERIOR,gastei mais ou menos que no mês passado
+COMPARAR_MES_ANTERIOR,comparado com o mês passado como estou
+COMPARAR_MES_ANTERIOR,comparar com o mês anterior
+COMPARAR_MES_ANTERIOR,gastei mais esse mês do que no anterior
+COMPARAR_MES_ANTERIOR,como estou em relação ao mês passado
+COMPARAR_MES_ANTERIOR,meus gastos subiram em relação ao mês passado
+COMPARAR_MES_ANTERIOR,gastei menos que mês passado
+COMPARAR_MES_ANTERIOR,diferença de gastos para o mês anterior
+COMPARAR_MES_ANTERIOR,esse mês foi pior que o passado
+COMPARAR_MES_ANTERIOR,esse mês gastei mais que o anterior
+COMPARAR_MES_ANTERIOR,quanto a mais gastei que no mês passado
+COMPARAR_MES_ANTERIOR,compara esse mês com o outro
+COMPARAR_MES_ANTERIOR,comparação com outubro
+COMPARAR_MES_ANTERIOR,gastei mais q mes passado
+COMPARAR_MES_ANTERIOR,meus gastos aumentaram ou diminuíram
+COMPARAR_MES_ANTERIOR,qual categoria subiu mais em relação ao mês passado
+COMPARAR_MES_ANTERIOR,melhorei ou piorei comparado ao mês passado
+COMPARAR_MES_ANTERIOR,variação dos gastos do mês
+COMPARAR_MES_ANTERIOR,estou gastando mais que antes
+COMPARAR_MES_ANTERIOR,como foi esse mês frente ao anterior
+COMPARAR_MES_ANTERIOR,aumentou meu gasto desde o mês passado
+COMPARAR_MES_ANTERIOR,gastei a mais ou a menos que antes
+COMPARAR_MES_ANTERIOR,versus mês passado
+COMPARAR_MES_ANTERIOR,esse mês vs mês passado
+COMPARAR_MES_ANTERIOR,o que mudou nos gastos em relação ao último mês
+COMPARAR_MES_ANTERIOR,em que gastei a mais que no mês anterior
+COMPARAR_MES_ANTERIOR,diferença entre este mês e o passado
+COMPARAR_MES_ANTERIOR,gasto desse mês contra o do mês passado
+MAIOR_GASTO,qual foi meu maior gasto
+MAIOR_GASTO,qual a maior despesa do mês
+MAIOR_GASTO,qual foi a compra mais cara
+MAIOR_GASTO,maior gasto do mês
+MAIOR_GASTO,qual foi o gasto mais alto
+MAIOR_GASTO,qual a minha maior compra
+MAIOR_GASTO,onde gastei o maior valor de uma vez
+MAIOR_GASTO,qual a despesa mais cara que tive
+MAIOR_GASTO,me mostra o maior gasto de novembro
+MAIOR_GASTO,qual foi o maior lançamento de despesa
+MAIOR_GASTO,maior gasto individual
+MAIOR_GASTO,o gasto mais caro do mês
+MAIOR_GASTO,qual foi a maior saída de dinheiro
+MAIOR_GASTO,qual foi minha compra mais cara em {cat}
+MAIOR_GASTO,maior gasto em {cat}
+MAIOR_GASTO,qual a compra mais cara
+MAIOR_GASTO,maior despesa em outubro
+MAIOR_GASTO,qual foi o maior pagamento que fiz
+MAIOR_GASTO,maior gasto isolado do mês
+MAIOR_GASTO,qual foi o meu gasto mais pesado
+MAIOR_GASTO,qual foi a conta mais cara
+MAIOR_GASTO,maior gasto q fiz
+MAIOR_GASTO,me fala a maior despesa
+MAIOR_GASTO,que compra foi a mais cara
+MAIOR_GASTO,qual item custou mais caro
+MAIOR_GASTO,qual foi o maior valor que paguei
+MAIOR_GASTO,qual foi meu maior gasto em setembro
+MAIOR_GASTO,maior gasto único
+ORCAMENTO_RESTANTE,quanto ainda posso gastar
+ORCAMENTO_RESTANTE,quanto resta do meu orçamento
+ORCAMENTO_RESTANTE,quanto sobrou do orçamento
+ORCAMENTO_RESTANTE,quanto falta pra estourar o orçamento
+ORCAMENTO_RESTANTE,como está meu orçamento
+ORCAMENTO_RESTANTE,quanto ainda tenho de orçamento
+ORCAMENTO_RESTANTE,estourei o orçamento
+ORCAMENTO_RESTANTE,quanto resta de orçamento em {cat}
+ORCAMENTO_RESTANTE,quanto posso gastar ainda em {cat}
+ORCAMENTO_RESTANTE,já passei do limite
+ORCAMENTO_RESTANTE,quanto falta do limite do mês
+ORCAMENTO_RESTANTE,quanto me resta pra gastar
+ORCAMENTO_RESTANTE,meu orçamento ainda aguenta
+ORCAMENTO_RESTANTE,qto resta do orçamento
+ORCAMENTO_RESTANTE,quanto do orçamento já usei
+ORCAMENTO_RESTANTE,quanto tenho disponível pra gastar
+ORCAMENTO_RESTANTE,estou dentro do orçamento
+ORCAMENTO_RESTANTE,quanto sobra do limite de {cat}
+ORCAMENTO_RESTANTE,quanto falta pro teto de gastos
+ORCAMENTO_RESTANTE,posso gastar mais esse mês
+ORCAMENTO_RESTANTE,quanto resta do que planejei gastar
+ORCAMENTO_RESTANTE,quanto da meta de gastos ainda tenho
+ORCAMENTO_RESTANTE,o orçamento do mês está estourado
+ORCAMENTO_RESTANTE,quanto falta pra bater o limite
+ORCAMENTO_RESTANTE,quanto ainda cabe no orçamento
+ORCAMENTO_RESTANTE,saldo do orçamento
+ORCAMENTO_RESTANTE,quanto resta pra gastar esse mês
+ORCAMENTO_RESTANTE,quanto ainda posso gastar com {cat}
+ASSINATURAS,quais são minhas assinaturas
+ASSINATURAS,quanto gasto com assinaturas
+ASSINATURAS,quais despesas recorrentes eu tenho
+ASSINATURAS,lista minhas assinaturas
+ASSINATURAS,quanto pago por mês em assinaturas
+ASSINATURAS,que assinaturas eu tenho
+ASSINATURAS,quanto pago de assinatura
+ASSINATURAS,quais contas fixas eu tenho
+ASSINATURAS,minhas despesas fixas
+ASSINATURAS,quanto de gasto fixo por mês
+ASSINATURAS,quais serviços eu pago todo mês
+ASSINATURAS,total das assinaturas
+ASSINATURAS,quais são meus gastos recorrentes
+ASSINATURAS,assinaturas mensais que pago
+ASSINATURAS,o que eu pago todo mês
+ASSINATURAS,quanto vai em assinaturas
+ASSINATURAS,me mostra as assinaturas
+ASSINATURAS,tenho muitas assinaturas
+ASSINATURAS,quais cobranças automáticas eu tenho
+ASSINATURAS,soma das contas recorrentes
+ASSINATURAS,quanto custam minhas assinaturas
+ASSINATURAS,quais mensalidades eu pago
+ASSINATURAS,gastos fixos mensais
+ASSINATURAS,quais as recorrências do mês
+ASSINATURAS,quanto pago de assinatura por mês
+ASSINATURAS,assinaturas ativas
+ASSINATURAS,quais debitos recorrentes tenho
+ASSINATURAS,qtas assinaturas eu tenho
+POUPANCA,quanto sobrou esse mês
+POUPANCA,quanto consegui guardar
+POUPANCA,quanto estou poupando
+POUPANCA,quanto sobra do meu salário
+POUPANCA,estou guardando dinheiro
+POUPANCA,qual minha taxa de poupança
+POUPANCA,quanto eu poupei em outubro
+POUPANCA,sobrou algum dinheiro no mês
+POUPANCA,quanto da renda eu guardo
+POUPANCA,quanto sobrou depois das contas
+POUPANCA,consegui economizar esse mês
+POUPANCA,quanto sobra no fim do mês
+POUPANCA,estou poupando o suficiente
+POUPANCA,quanto fiquei no positivo
+POUPANCA,qual o percentual que eu guardo
+POUPANCA,quanto sobrou do que ganhei
+POUPANCA,gasto mais do que ganho
+POUPANCA,fechei o mês no azul ou no vermelho
+POUPANCA,meu saldo do mês
+POUPANCA,quanto guardei do que recebi
+POUPANCA,sobra de dinheiro no mês
+POUPANCA,quanto sobrou da minha renda
+POUPANCA,to conseguindo guardar grana
+POUPANCA,quanto poupei no mês passado
+POUPANCA,quanto da minha renda sobra
+POUPANCA,qto sobrou no mês
+POUPANCA,fiquei no vermelho esse mês
+POUPANCA,estou no azul
+POUPANCA,quanto economizei
+RECEITAS,quanto recebi esse mês
+RECEITAS,qual foi minha renda
+RECEITAS,quanto eu ganhei no mês
+RECEITAS,quais foram minhas receitas
+RECEITAS,quanto entrou de dinheiro
+RECEITAS,quanto recebi em outubro
+RECEITAS,total de receitas do mês
+RECEITAS,qual foi meu ganho do mês
+RECEITAS,quanto caiu na minha conta
+RECEITAS,qto recebi no mês
+RECEITAS,minha entrada de dinheiro
+RECEITAS,de onde veio meu dinheiro
+RECEITAS,qual minha maior fonte de renda
+RECEITAS,quanto ganhei de salário
+RECEITAS,quanto entrou esse mês
+RECEITAS,quais entradas tive no mês
+RECEITAS,me mostra minhas receitas
+RECEITAS,quanto de salário recebi
+RECEITAS,quanto recebi de renda extra
+RECEITAS,soma dos meus ganhos
+RECEITAS,qual o total que eu recebi
+RECEITAS,quanto dinheiro entrou no mês passado
+RECEITAS,quanto faturei esse mês
+RECEITAS,meus rendimentos do mês
+RECEITAS,quanto me pagaram esse mês
+RECEITAS,quanto ganhei ao todo
+RECEITAS,receita total de setembro
+RECEITAS,quanto recebi de grana
+MEDIA_MENSAL,qual minha média de gastos por mês
+MEDIA_MENSAL,quanto gasto em média por mês
+MEDIA_MENSAL,média mensal de gastos
+MEDIA_MENSAL,em média quanto eu gasto
+MEDIA_MENSAL,quanto costumo gastar por mês
+MEDIA_MENSAL,qual meu gasto médio mensal
+MEDIA_MENSAL,gasto médio com {cat} por mês
+MEDIA_MENSAL,quanto gasto normalmente por mês
+MEDIA_MENSAL,média dos meus gastos
+MEDIA_MENSAL,qual a média de gasto dos últimos meses
+MEDIA_MENSAL,quanto gasto em média com {cat}
+MEDIA_MENSAL,quanto eu gasto geralmente no mês
+MEDIA_MENSAL,qual é o meu gasto típico mensal
+MEDIA_MENSAL,media de gastos mensal
+MEDIA_MENSAL,quanto gasto por mes em media
+MEDIA_MENSAL,quanto gasto de {cat} por mês em média
+MEDIA_MENSAL,gasto médio dos últimos seis meses
+MEDIA_MENSAL,quanto em média sai por mês
+MEDIA_MENSAL,qual o valor médio das minhas despesas
+MEDIA_MENSAL,quanto gasto mensalmente em média
+MEDIA_MENSAL,meu gasto médio
+MEDIA_MENSAL,quanto costumo gastar em um mês normal
+MEDIA_MENSAL,qual meu padrão de gasto mensal
+MEDIA_MENSAL,média mensal de despesas
+MEDIA_MENSAL,quanto gasto habitualmente por mês
+MEDIA_MENSAL,qto gasto em media
+MEDIA_MENSAL,quanto é a média de {cat} por mês
+MEDIA_MENSAL,média de quanto gasto
+ATIPICOS,tem algum gasto estranho
+ATIPICOS,teve alguma cobrança diferente do normal
+ATIPICOS,tem gasto fora do padrão
+ATIPICOS,algum gasto suspeito
+ATIPICOS,cobrança duplicada
+ATIPICOS,me mostra gastos incomuns
+ATIPICOS,tem alguma compra fora do comum
+ATIPICOS,teve algum gasto anormal esse mês
+ATIPICOS,algum gasto que chama atenção
+ATIPICOS,gastos atípicos do mês
+ATIPICOS,vi uma cobrança estranha
+ATIPICOS,tem lançamento repetido
+ATIPICOS,algum valor muito acima do normal
+ATIPICOS,teve compra duplicada
+ATIPICOS,tem algo estranho nos meus gastos
+ATIPICOS,gasto fora da curva
+ATIPICOS,alguma despesa que não é a minha cara
+ATIPICOS,me avisa de gastos diferentes do habitual
+ATIPICOS,teve cobrança em dobro
+ATIPICOS,algum gasto inesperado
+ATIPICOS,valores fora do padrão
+ATIPICOS,tem alguma anomalia nos gastos
+ATIPICOS,compras diferentes do que costumo fazer
+ATIPICOS,algum gasto esquisito
+ATIPICOS,tem gasto muito alto fora do normal
+ATIPICOS,existe cobrança suspeita
+ATIPICOS,vê se tem gasto errado
+ATIPICOS,gastos incomuns de outubro
+ATIPICOS,me mostra os outliers
+COMO_ECONOMIZAR,como posso economizar
+COMO_ECONOMIZAR,onde posso cortar gastos
+COMO_ECONOMIZAR,me dá dicas para gastar menos
+COMO_ECONOMIZAR,como economizar mais dinheiro
+COMO_ECONOMIZAR,o que eu posso reduzir
+COMO_ECONOMIZAR,dicas de economia
+COMO_ECONOMIZAR,como gastar menos
+COMO_ECONOMIZAR,onde dá pra economizar
+COMO_ECONOMIZAR,o que cortar pra sobrar mais
+COMO_ECONOMIZAR,me ajuda a economizar
+COMO_ECONOMIZAR,quais gastos posso diminuir
+COMO_ECONOMIZAR,como guardar mais dinheiro
+COMO_ECONOMIZAR,tem alguma recomendação pra mim
+COMO_ECONOMIZAR,como melhorar minhas finanças
+COMO_ECONOMIZAR,o que fazer pra gastar menos
+COMO_ECONOMIZAR,sugestões pra economizar
+COMO_ECONOMIZAR,onde eu poderia gastar menos
+COMO_ECONOMIZAR,como faço pra economizar
+COMO_ECONOMIZAR,me dá um conselho sobre meus gastos
+COMO_ECONOMIZAR,qual gasto devo cortar primeiro
+COMO_ECONOMIZAR,como sobrar mais dinheiro no mês
+COMO_ECONOMIZAR,tem como eu gastar menos
+COMO_ECONOMIZAR,o que você recomenda pra economizar
+COMO_ECONOMIZAR,como reduzir minhas despesas
+COMO_ECONOMIZAR,dicas pra poupar mais
+COMO_ECONOMIZAR,onde estou gastando demais
+COMO_ECONOMIZAR,como controlar melhor meus gastos
+COMO_ECONOMIZAR,me dá ideias pra cortar custos
+COMO_ECONOMIZAR,como economizar dinheiro todo mês

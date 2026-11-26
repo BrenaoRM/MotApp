@@ -13,6 +13,8 @@ data class ConfigIa(
     val atipicos: ConfigAtipicos,
     /** Termo (já em `normalizar_para_modelo`) → nome da categoria genérica (em [ConfigGenerico.nomes]). */
     val lexico: Map<String, String>,
+    /** Intenções das perguntas ao Assistente; ausente no JSON = [ConfigIntencoes.VAZIA] (toda pergunta é desconhecida). */
+    val intencoes: ConfigIntencoes = ConfigIntencoes.VAZIA,
 ) {
     companion object {
         fun deJson(json: String): ConfigIa {
@@ -25,6 +27,7 @@ data class ConfigIa(
                 generico = ConfigGenerico.deJson(o.getJSONObject("generico")),
                 atipicos = ConfigAtipicos.deJson(o.getJSONObject("atipicos")),
                 lexico = lexicoDeJson(o.getJSONObject("lexico")),
+                intencoes = o.optJSONObject("intencoes")?.let(ConfigIntencoes::deJson) ?: ConfigIntencoes.VAZIA,
             )
         }
 
@@ -109,6 +112,39 @@ data class ConfigAtipicos(
             pisoMad = o.getDouble("pisoMad").toFloat(),
             mesesHistorico = o.getInt("mesesHistorico"),
         )
+    }
+}
+
+/**
+ * RL softmax sobre o embedding da pergunta (`softmax(pesos · v + vieses)`, uma linha por [nomes]). Abaixo de [limiar]
+ * de confiança a pergunta é desconhecida; o mesmo vale para a que fica longe de todos os [centroides] (cosseno máximo
+ * abaixo de [similaridadeMinima]), pois a confiança só compara intenções entre si. [similaridadeCategoria] é o cosseno
+ * mínimo entre a pergunta e o nome de uma categoria para tomá-la como a citada. Sem centroides a porta fica desligada.
+ */
+data class ConfigIntencoes(
+    val nomes: List<String>,
+    val pesos: List<FloatArray>,
+    val vieses: FloatArray,
+    val limiar: Float,
+    val similaridadeCategoria: Float,
+    val centroides: List<FloatArray> = emptyList(),
+    val similaridadeMinima: Float = 0f,
+) {
+    companion object {
+        val VAZIA = ConfigIntencoes(emptyList(), emptyList(), FloatArray(0), 1f, 1f)
+
+        internal fun deJson(o: JSONObject): ConfigIntencoes {
+            val nomes = o.getJSONArray("nomes")
+            return ConfigIntencoes(
+                nomes = List(nomes.length()) { nomes.getString(it) },
+                pesos = matriz(o.getJSONArray("pesos")),
+                vieses = floats(o.getJSONArray("vieses")),
+                limiar = o.getDouble("limiar").toFloat(),
+                similaridadeCategoria = o.getDouble("similaridadeCategoria").toFloat(),
+                centroides = o.optJSONArray("centroides")?.let(::matriz).orEmpty(),
+                similaridadeMinima = o.optDouble("similaridadeMinima", 0.0).toFloat(),
+            )
+        }
     }
 }
 
