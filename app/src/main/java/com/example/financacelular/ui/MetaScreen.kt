@@ -1,5 +1,7 @@
 package com.example.financacelular.ui
 
+import com.example.financacelular.data.somaEmReais
+import com.example.financacelular.data.reaisEmCentavos
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.animateFloatAsState
@@ -87,8 +89,8 @@ fun MetaScreen(
     var novoNome by rememberSaveable { mutableStateOf("") }
     var novoValorAlvo by rememberSaveable { mutableStateOf("") }
 
-    val totalAcumulado = metas.sumOf { it.valorAtual }
-    val totalAlvo = metas.sumOf { it.valorAlvo }
+    val totalAcumulado = metas.somaEmReais { it.valorAtualCentavos }
+    val totalAlvo = metas.somaEmReais { it.valorAlvoCentavos }
 
     LaunchedEffect(acionarNovaMetaExterna) {
         if (acionarNovaMetaExterna) {
@@ -121,7 +123,7 @@ fun MetaScreen(
             item {
                 val metasConcluidas = metas.count { it.valorAlvo > 0 && it.valorAtual >= it.valorAlvo }
                 // Cada meta contribui no máximo com o próprio alvo: meta acima de 100% não infla o progresso das outras
-                val acumuladoLimitado = metas.sumOf { minOf(it.valorAtual, it.valorAlvo) }
+                val acumuladoLimitado = metas.somaEmReais { minOf(it.valorAtualCentavos, it.valorAlvoCentavos) }
                 val progressoGeral = if (totalAlvo > 0) (acumuladoLimitado / totalAlvo).toFloat() else 0f
                 CartaoHeroDePagina(RoxoMeta) {
                     Text(
@@ -268,7 +270,7 @@ fun MetaScreen(
                                             if (metaParaEditar == null) {
                                                 viewModel.criar(novoNome, valorDouble)
                                             } else {
-                                                viewModel.atualizar(metaParaEditar.copy(nome = novoNome, valorAlvo = valorDouble))
+                                                viewModel.atualizar(metaParaEditar.copy(nome = novoNome, valorAlvoCentavos = reaisEmCentavos(valorDouble)))
                                             }
                                             mostrarSheetNovaMeta = false
                                         }

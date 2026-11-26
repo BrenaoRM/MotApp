@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import com.example.financacelular.data.somaEmReais
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -81,7 +82,7 @@ class CartaoViewModel(application: Application) : AndroidViewModel(application) 
     val podePagarFatura: StateFlow<Boolean> = combine(
         _naPaginaAdicionar, _cartaoSelecionadoId, transacoesFatura, faturaPaga
     ) { naPaginaAdicionar, cartaoId, transacoes, paga ->
-        !naPaginaAdicionar && cartaoId != null && (paga || (transacoes?.sumOf { it.valor } ?: 0.0) > 0.0)
+        !naPaginaAdicionar && cartaoId != null && (paga || (transacoes?.somaEmReais { it.valorCentavos } ?: 0.0) > 0.0)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -98,7 +99,7 @@ class CartaoViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             if (_naPaginaAdicionar.value) return@launch
             val anoMesStr = _mesSelecionado.value.format(FORMATO_ANO_MES)
-            val valor = transacoesFatura.value?.sumOf { it.valor } ?: 0.0
+            val valor = transacoesFatura.value?.somaEmReais { it.valorCentavos } ?: 0.0
             val cartaoId = _cartaoSelecionadoId.value ?: return@launch
             if (valor > 0.0) {
                 repository.pagarFaturaCartao(cartaoId, anoMesStr, valor)

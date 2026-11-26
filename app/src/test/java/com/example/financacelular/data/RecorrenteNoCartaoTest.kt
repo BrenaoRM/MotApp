@@ -40,7 +40,7 @@ class RecorrenteNoCartaoTest {
 
     private fun cobranca(id: Long, data: LocalDate, anoMes: String, recorrenteId: Long? = 7L, cartaoId: Long? = 1L) =
         Transacao(
-            id = id, valor = 10.0, data = data, categoriaId = 1L, tipo = TipoTransacao.DESPESA,
+            id = id, valorCentavos = reaisEmCentavos(10.0), data = data, categoriaId = 1L, tipo = TipoTransacao.DESPESA,
             formaPagamento = FormaPagamento.CARTAO_CREDITO, cartaoId = cartaoId, anoMes = anoMes,
             recorrenteId = recorrenteId
         )

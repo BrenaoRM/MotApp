@@ -9,7 +9,9 @@ import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 
-data class GastoCategoria(val categoriaId: Long, val total: Double)
+data class GastoCategoria(val categoriaId: Long, val totalCentavos: Long) {
+    val total: Double get() = centavosEmReais(totalCentavos)
+}
 
 /** Quantos registros usam cada categoria (lançamentos ou recorrências). */
 data class ContagemPorCategoria(val categoriaId: Long, val total: Int)
@@ -30,7 +32,7 @@ interface TransacaoDao {
     fun listarTransacoesFatura(cartaoId: Long, anoMes: String): Flow<List<Transacao>>
 
     /** Pagamentos de fatura (de qualquer cartão) registrados em um mês. */
-    @Query("SELECT * FROM transacoes WHERE anoMes = :anoMes AND cartaoId IS NULL AND descricao LIKE 'Pagamento de Fatura - %'")
+    @Query("SELECT * FROM transacoes WHERE anoMes = :anoMes AND pagaFaturaDoCartaoId IS NOT NULL")
     suspend fun pagamentosDeFaturaDoMes(anoMes: String): List<Transacao>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -45,7 +47,7 @@ interface TransacaoDao {
     @Delete
     suspend fun excluirTransacao(transacao: Transacao)
 
-    @Query("SELECT categoriaId, SUM(valor) as total FROM transacoes WHERE anoMes = :anoMes AND tipo = 'DESPESA' GROUP BY categoriaId")
+    @Query("SELECT categoriaId, SUM(valorCentavos) as totalCentavos FROM transacoes WHERE anoMes = :anoMes AND tipo = 'DESPESA' GROUP BY categoriaId")
     fun gastoPorCategoriaNoMes(anoMes: String): Flow<List<GastoCategoria>>
 
     @Query("SELECT categoriaId, COUNT(*) AS total FROM transacoes GROUP BY categoriaId")
@@ -80,7 +82,7 @@ interface TransacaoDao {
     suspend fun cobrancasDeRecorrenteNoCartaoDesde(hoje: LocalDate): List<Transacao>
 
     /** Pagamentos de fatura de qualquer mês (para saber quais faturas estão pagas). */
-    @Query("SELECT * FROM transacoes WHERE cartaoId IS NULL AND descricao LIKE 'Pagamento de Fatura - %'")
+    @Query("SELECT * FROM transacoes WHERE pagaFaturaDoCartaoId IS NOT NULL")
     suspend fun todosPagamentosDeFatura(): List<Transacao>
 
     /** Apaga todas as compras/cobranças lançadas em um cartão (os pagamentos de fatura não têm cartaoId e ficam). */

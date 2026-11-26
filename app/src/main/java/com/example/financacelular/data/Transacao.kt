@@ -30,7 +30,7 @@ enum class FormaPagamento { DINHEIRO, DEBITO, CARTAO_CREDITO }
 data class Transacao(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0L,
-    val valor: Double,
+    val valorCentavos: Long,
     val data: LocalDate,
     val categoriaId: Long,
     val tipo: TipoTransacao,
@@ -44,5 +44,9 @@ data class Transacao(
     // ID da assinatura/recorrente que gerou esta transação (null se foi lançamento avulso)
     val recorrenteId: Long? = null,
     // Dia em que a compra parcelada foi feita (cada parcela fica na data do vencimento); null nas antigas e nas avulsas
-    val dataCompra: LocalDate? = null
-)
+    val dataCompra: LocalDate? = null,
+    // Se este lançamento é o pagamento de uma fatura: o cartão dela (o mês é [anoMes]). Null nos demais.
+    val pagaFaturaDoCartaoId: Long? = null
+) {
+    val valor: Double get() = centavosEmReais(valorCentavos)
+}

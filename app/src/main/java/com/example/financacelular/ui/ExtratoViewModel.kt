@@ -97,7 +97,7 @@ class ExtratoViewModel(application: Application) : AndroidViewModel(application)
             } else if (!jaLancada && (ehReceita || !faturaDesteMesPaga)) {
                 Transacao(
                     id = -1,
-                    valor = recorrente.valor,
+                    valorCentavos = recorrente.valorCentavos,
                     data = dataPrevista,
                     tipo = recorrente.tipo,
                     categoriaId = recorrente.categoriaId,

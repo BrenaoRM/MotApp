@@ -16,7 +16,7 @@ class MigracaoBancoTest {
     @get:Rule
     val helper = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), AppDatabase::class.java)
 
-    private val todas = arrayOf(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15)
+    private val todas = arrayOf(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16)
 
     @Test
     fun migraDoSchema8AoAtualSemPerderDados() {
@@ -38,12 +38,12 @@ class MigracaoBancoTest {
         }
 
         // runMigrationsAndValidate compara o resultado com o schema exportado da versão atual
-        val db = helper.runMigrationsAndValidate(NOME, 15, true, *todas)
+        val db = helper.runMigrationsAndValidate(NOME, 16, true, *todas)
 
-        db.query("SELECT COUNT(*), SUM(valor) FROM transacoes").use {
+        db.query("SELECT COUNT(*), SUM(valorCentavos) FROM transacoes").use {
             it.moveToFirst()
             assertEquals(2, it.getInt(0))
-            assertEquals(90.0, it.getDouble(1), 0.001)
+            assertEquals(9000L, it.getLong(1))
         }
         // 8 -> 9 vincula a cobrança da assinatura antiga à recorrência
         db.query("SELECT recorrenteId FROM transacoes WHERE descricao = 'Netflix (Assinatura)'").use {
@@ -114,6 +114,62 @@ class MigracaoBancoTest {
             assertEquals(1, it.getInt(0))
             assertEquals(true, it.isNull(1))
         }
+    }
+
+    @Test
+    fun migraDoSchema15Para16EmCentavosEComPagamentoDeFaturaPeloCampo() {
+        helper.createDatabase(NOME, 15).apply {
+            execSQL("INSERT INTO categorias (id, nome, tipo) VALUES (1, 'Mercado', 'DESPESA')")
+            fun transacao(id: Int, valor: String, descricao: String, cartaoId: String = "NULL", anoMes: String = "'2026-11'") = execSQL(
+                "INSERT INTO transacoes (id, valor, data, categoriaId, tipo, descricao, formaPagamento, cartaoId, anoMes, numeroParcela, totalParcelas) " +
+                    "VALUES ($id, $valor, '2026-11-10', 1, 'DESPESA', '$descricao', 'DINHEIRO', $cartaoId, $anoMes, 1, 1)"
+            )
+            transacao(1, "0.1", "Bala")
+            transacao(2, "33.34", "TV (1/3)", cartaoId = "1")
+            transacao(3, "1234.56", "Pagamento de Fatura - 2026-10")
+            transacao(4, "99.99", "Pagamento de Fatura - 2026-11 - 7")
+            transacao(5, "10.0", "Pagamento de Fatura do aluguel")
+            transacao(6, "10.0", "Pagamento de Fatura - 2026-11 - x")
+            transacao(7, "10.0", "Pagamento de Fatura - 2026-11", cartaoId = "1")
+            execSQL(
+                "INSERT INTO despesas_recorrentes (id, nome, valor, categoriaId, diaDoMes, tipo, dataCriacao, formaPagamento) " +
+                    "VALUES (1, 'Netflix', 39.9, 1, 5, 'DESPESA', '2026-01-05', 'DEBITO')"
+            )
+            execSQL("INSERT INTO investimentos (id, nome, categoria, valorInvestido, data, anoMes) VALUES (1, 'CDB', 'Renda Fixa', 0.7, '2026-11-01', '2026-11')")
+            execSQL("INSERT INTO metas (id, nome, valorAlvo, valorAtual) VALUES (1, 'Viagem', 5000.0, 1250.55)")
+            execSQL("INSERT INTO orcamentos (id, categoriaId, anoMes, valorLimite) VALUES (1, 1, '2026-11', 800.0)")
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(NOME, 16, true, MIGRATION_15_16)
+
+        db.query("SELECT id, valorCentavos, pagaFaturaDoCartaoId, anoMes FROM transacoes ORDER BY id").use {
+            val esperado = listOf(
+                listOf(1L, 10L, null, "2026-11"),
+                listOf(2L, 3334L, null, "2026-11"),
+                listOf(3L, 123456L, 1L, "2026-10"), // cartão padrão; o mês vem da descrição
+                listOf(4L, 9999L, 7L, "2026-11"),
+                listOf(5L, 1000L, null, "2026-11"), // só começa com o texto: não é pagamento
+                listOf(6L, 1000L, null, "2026-11"),
+                listOf(7L, 1000L, null, "2026-11") // compra no cartão nunca é pagamento
+            )
+            val lido = mutableListOf<List<Any?>>()
+            while (it.moveToNext()) {
+                lido += listOf(it.getLong(0), it.getLong(1), if (it.isNull(2)) null else it.getLong(2), it.getString(3))
+            }
+            assertEquals(esperado, lido)
+        }
+        db.query("SELECT valorCentavos FROM despesas_recorrentes").use { it.moveToFirst(); assertEquals(3990L, it.getLong(0)) }
+        db.query("SELECT valorInvestidoCentavos FROM investimentos").use { it.moveToFirst(); assertEquals(70L, it.getLong(0)) }
+        db.query("SELECT valorAlvoCentavos, valorAtualCentavos FROM metas").use {
+            it.moveToFirst()
+            assertEquals(500000L, it.getLong(0))
+            assertEquals(125055L, it.getLong(1))
+        }
+        db.query("SELECT valorLimiteCentavos FROM orcamentos").use { it.moveToFirst(); assertEquals(80000L, it.getLong(0)) }
+        // Os ids seguem de onde estavam (AUTOINCREMENT preservado)
+        db.execSQL("INSERT INTO transacoes (valorCentavos, data, categoriaId, tipo, formaPagamento, numeroParcela, totalParcelas) VALUES (1, '2026-11-11', 1, 'DESPESA', 'DEBITO', 1, 1)")
+        db.query("SELECT MAX(id) FROM transacoes").use { it.moveToFirst(); assertEquals(8L, it.getLong(0)) }
     }
 
     // Caminho completo: o Room 2.8 no Robolectric compara o nome do banco com o caminho que o helper abre

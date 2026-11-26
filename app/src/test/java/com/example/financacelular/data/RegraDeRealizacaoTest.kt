@@ -12,7 +12,7 @@ class RegraDeRealizacaoTest {
     private val hoje = LocalDate.of(2026, 11, 24)
 
     private fun debito(data: LocalDate, recorrenteId: Long? = null) = Transacao(
-        valor = 10.0, data = data, categoriaId = 5L, tipo = TipoTransacao.DESPESA,
+        valorCentavos = reaisEmCentavos(10.0), data = data, categoriaId = 5L, tipo = TipoTransacao.DESPESA,
         formaPagamento = FormaPagamento.DEBITO, recorrenteId = recorrenteId
     )
 
@@ -24,14 +24,14 @@ class RegraDeRealizacaoTest {
         totalParcelas: Int = 1,
         recorrenteId: Long? = null
     ) = Transacao(
-        valor = 10.0, data = data, categoriaId = 5L, tipo = TipoTransacao.DESPESA,
+        valorCentavos = reaisEmCentavos(10.0), data = data, categoriaId = 5L, tipo = TipoTransacao.DESPESA,
         formaPagamento = FormaPagamento.CARTAO_CREDITO, cartaoId = cartaoId, anoMes = anoMes,
         numeroParcela = numeroParcela, totalParcelas = totalParcelas, recorrenteId = recorrenteId
     )
 
     private fun pagamento(cartaoId: Long, anoMes: String, data: LocalDate = hoje) = Transacao(
-        valor = 100.0, data = data, categoriaId = 5L, tipo = TipoTransacao.DESPESA,
-        descricao = descricaoPagamentoFatura(cartaoId, anoMes)
+        valorCentavos = reaisEmCentavos(100.0), data = data, categoriaId = 5L, tipo = TipoTransacao.DESPESA,
+        descricao = descricaoPagamentoFatura(cartaoId, anoMes), anoMes = anoMes, pagaFaturaDoCartaoId = cartaoId
     )
 
     // ---------- Débito / dinheiro: depende só da data ----------
@@ -170,15 +170,15 @@ class RegraDeRealizacaoTest {
     }
 
     @Test
-    fun pagamento_de_fatura_exige_formato_exato_e_sem_cartao() {
-        fun lanc(descricao: String, cartaoId: Long? = null) = Transacao(
-            valor = 10.0, data = hoje, categoriaId = 5L, tipo = TipoTransacao.DESPESA,
-            descricao = descricao, cartaoId = cartaoId
+    fun pagamento_de_fatura_vem_do_campo_e_nao_da_descricao() {
+        fun lanc(descricao: String, pagaFatura: Long? = null) = Transacao(
+            valorCentavos = reaisEmCentavos(10.0), data = hoje, categoriaId = 5L, tipo = TipoTransacao.DESPESA,
+            descricao = descricao, anoMes = "2026-11", pagaFaturaDoCartaoId = pagaFatura
         )
-        assertFalse(lanc("Pagamento de Fatura do aluguel").ehPagamentoDeFatura())
-        assertTrue(lanc("Pagamento de Fatura - 2026-11").ehPagamentoDeFatura())
-        assertTrue(lanc("Pagamento de Fatura - 2026-11 - 3").ehPagamentoDeFatura())
-        assertFalse(lanc("Pagamento de Fatura - 2026-11", cartaoId = 1L).ehPagamentoDeFatura())
+        // Digitado à mão com o texto igual ao do app: não é pagamento
+        assertFalse(lanc("Pagamento de Fatura - 2026-11").ehPagamentoDeFatura())
+        // Descrição editada continua sendo pagamento, da fatura certa
+        assertEquals(FaturaChave(3L, "2026-11"), lanc("Fatura do Nubank", pagaFatura = 3L).faturaQuitadaPorEstePagamento())
     }
 
     @Test

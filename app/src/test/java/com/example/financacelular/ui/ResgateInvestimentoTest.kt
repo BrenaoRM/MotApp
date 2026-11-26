@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import com.example.financacelular.data.reaisEmCentavos
 import com.example.financacelular.data.InvestimentoEntity
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -8,7 +9,7 @@ import org.junit.Test
 class ResgateInvestimentoTest {
 
     private fun aporte(id: Long, valor: Double, dia: Int) =
-        InvestimentoEntity(id = id, nome = "Ativo", categoria = "Renda Fixa", valorInvestido = valor, data = LocalDate.of(2026, 11, dia))
+        InvestimentoEntity(id = id, nome = "Ativo", categoria = "Renda Fixa", valorInvestidoCentavos = reaisEmCentavos(valor), data = LocalDate.of(2026, 11, dia))
 
     @Test
     fun resgateTotalComSomaImpreciaApagaTudo() {

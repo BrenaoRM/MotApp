@@ -133,7 +133,7 @@ class FinancaRepository(private val database: AppDatabase) {
 
             dao.inserirTransacao(
                 Transacao(
-                    valor = valorTotal,
+                    valorCentavos = reaisEmCentavos(valorTotal),
                     data = dataPagamento,
                     categoriaId = catId,
                     tipo = TipoTransacao.DESPESA,
@@ -142,7 +142,8 @@ class FinancaRepository(private val database: AppDatabase) {
                     cartaoId = null,
                     anoMes = anoMes,
                     numeroParcela = 1,
-                    totalParcelas = 1
+                    totalParcelas = 1,
+                    pagaFaturaDoCartaoId = cartaoId
                 )
             )
         }
@@ -186,7 +187,7 @@ class FinancaRepository(private val database: AppDatabase) {
 
             listaTransacoes.add(
                 Transacao(
-                    valor = valoresParcelas[i - 1],
+                    valorCentavos = reaisEmCentavos(valoresParcelas[i - 1]),
                     data = dataTransacao,
                     categoriaId = categoriaId,
                     tipo = TipoTransacao.DESPESA,
@@ -240,7 +241,7 @@ class FinancaRepository(private val database: AppDatabase) {
                 val anoMes = anoMesDaCobrancaRecorrente(data, diaFechamento)
                 novas.add(
                     Transacao(
-                        valor = recorrente.valor,
+                        valorCentavos = recorrente.valorCentavos,
                         data = data,
                         categoriaId = recorrente.categoriaId,
                         tipo = recorrente.tipo,
@@ -279,7 +280,7 @@ class FinancaRepository(private val database: AppDatabase) {
         database.withTransaction {
             val recorrente = DespesaRecorrente(
                 nome = nome,
-                valor = valor,
+                valorCentavos = reaisEmCentavos(valor),
                 categoriaId = categoriaId,
                 diaDoMes = diaDoMes,
                 tipo = tipo,

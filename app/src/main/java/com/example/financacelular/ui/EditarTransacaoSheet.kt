@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import com.example.financacelular.data.reaisEmCentavos
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.tween
@@ -220,7 +221,7 @@ internal fun BottomSheetEditarTransacao(
                             }
                             onSalvar(
                                 transacao.copy(
-                                    valor = valorDouble,
+                                    valorCentavos = reaisEmCentavos(valorDouble),
                                     categoriaId = categoria.id,
                                     descricao = descricao.ifBlank { null },
                                     data = dataSelecionada,

@@ -10,29 +10,25 @@ import java.time.YearMonth
 const val ID_CARTAO_PADRAO = 1L
 
 private const val PREFIXO_PAGAMENTO = "Pagamento de Fatura"
-private val REGEX_PAGAMENTO = Regex("""^Pagamento de Fatura - (\d{4}-\d{2})(?: - (\d+))?$""")
 
 /** Identifica uma fatura: um cartão em um mês ("yyyy-MM"). */
 data class FaturaChave(val cartaoId: Long, val anoMes: String)
 
-/** Descrição gravada na transação de pagamento (o cartão padrão mantém o formato antigo). */
+/**
+ * Descrição gravada na transação de pagamento, só para mostrar (o cartão padrão mantém o formato antigo).
+ * Quem identifica o pagamento é [Transacao.pagaFaturaDoCartaoId], não o texto.
+ */
 fun descricaoPagamentoFatura(cartaoId: Long, anoMes: String): String =
     if (cartaoId == ID_CARTAO_PADRAO) "$PREFIXO_PAGAMENTO - $anoMes"
     else "$PREFIXO_PAGAMENTO - $anoMes - $cartaoId"
 
-/**
- * True para transação de pagamento de fatura (de qualquer cartão): exige cartaoId nulo e a descrição
- * no formato exato de [descricaoPagamentoFatura]. Lançamento digitado que só começa com
- * "Pagamento de Fatura" não conta.
- */
+/** True para transação de pagamento de fatura (de qualquer cartão), pelo campo próprio; a descrição não conta. */
 fun Transacao.ehPagamentoDeFatura(): Boolean = faturaQuitadaPorEstePagamento() != null
 
 /** Se esta transação é um pagamento de fatura, devolve qual fatura (cartão + mês) ela quita. */
 fun Transacao.faturaQuitadaPorEstePagamento(): FaturaChave? {
-    if (cartaoId != null) return null
-    val match = REGEX_PAGAMENTO.matchEntire(descricao ?: return null) ?: return null
-    val cartao = match.groupValues[2].toLongOrNull() ?: ID_CARTAO_PADRAO
-    return FaturaChave(cartao, match.groupValues[1])
+    val cartao = pagaFaturaDoCartaoId ?: return null
+    return FaturaChave(cartao, anoMes ?: return null)
 }
 
 /** Fatura (cartão + mês) em que esta compra cai; null se não for compra de cartão. */
@@ -124,11 +120,11 @@ fun faturasProximasDoVencimento(
 ): List<FaturaAVencer> {
     if (cartoes.isEmpty()) return emptyList()
     val pagas = conjuntoFaturasPagas(transacoes)
-    val totais = HashMap<FaturaChave, Double>()
+    val totais = HashMap<FaturaChave, Long>()
     for (t in transacoes) {
         if (t.formaPagamento != FormaPagamento.CARTAO_CREDITO) continue
         val chave = t.chaveFatura() ?: continue
-        totais[chave] = (totais[chave] ?: 0.0) + t.valor
+        totais[chave] = (totais[chave] ?: 0L) + t.valorCentavos
     }
 
     val mesAtual = YearMonth.from(hoje)
@@ -138,11 +134,11 @@ fun faturasProximasDoVencimento(
             val anoMes = ym.format(FORMATO_ANO_MES)
             val chave = FaturaChave(cartao.id, anoMes)
             if (chave in pagas) continue
-            val total = totais[chave] ?: 0.0
-            if (total <= 0.0) continue
+            val total = totais[chave] ?: 0L
+            if (total <= 0L) continue
             val vencimento = calcularVencimentoFatura(ym, cartao.diaVencimento, cartao.diaFechamento)
             if (hoje in vencimento.minusDays(diasAntes)..vencimento) {
-                resultado.add(FaturaAVencer(cartao, anoMes, vencimento, total))
+                resultado.add(FaturaAVencer(cartao, anoMes, vencimento, centavosEmReais(total)))
             }
         }
     }

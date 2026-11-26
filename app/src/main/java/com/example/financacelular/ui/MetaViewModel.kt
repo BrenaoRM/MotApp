@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import com.example.financacelular.data.reaisEmCentavos
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -22,7 +23,7 @@ class MetaViewModel(application: Application) : AndroidViewModel(application) {
     fun criar(nome: String, valorAlvo: Double) {
         if (nome.isBlank() || valorAlvo <= 0) return
         viewModelScope.launch {
-            repository.salvarMeta(Meta(nome = nome, valorAlvo = valorAlvo))
+            repository.salvarMeta(Meta(nome = nome, valorAlvoCentavos = reaisEmCentavos(valorAlvo)))
         }
     }
 
@@ -35,7 +36,7 @@ class MetaViewModel(application: Application) : AndroidViewModel(application) {
 
     fun adicionarValor(meta: Meta, valor: Double) {
         viewModelScope.launch {
-            repository.atualizarMeta(meta.copy(valorAtual = meta.valorAtual + valor))
+            repository.atualizarMeta(meta.copy(valorAtualCentavos = meta.valorAtualCentavos + reaisEmCentavos(valor)))
         }
     }
 

@@ -1,5 +1,7 @@
 package com.example.financacelular.ui
 
+import com.example.financacelular.data.somaEmReais
+import com.example.financacelular.data.reaisEmCentavos
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -32,10 +34,10 @@ class InvestimentoViewModel(application: Application) : AndroidViewModel(applica
     // Agrupa os investimentos pelo nome somando os valores e calculando % da carteira
     val investimentosAgrupados: StateFlow<List<InvestimentoAgrupado>?> = investimentos.map { lista ->
         if (lista == null) return@map null
-        val patrimonioTotal = lista.sumOf { it.valorInvestido }
+        val patrimonioTotal = lista.somaEmReais { it.valorInvestidoCentavos }
         lista.groupBy { it.nome.trim().lowercase() }.map { (_, grupo) ->
             val primeiro = grupo.first()
-            val totalAtivo = grupo.sumOf { it.valorInvestido }
+            val totalAtivo = grupo.somaEmReais { it.valorInvestidoCentavos }
             val percentual = if (patrimonioTotal > 0) (totalAtivo / patrimonioTotal).toFloat() else 0f
             InvestimentoAgrupado(
                 nome = primeiro.nome,
@@ -54,7 +56,7 @@ class InvestimentoViewModel(application: Application) : AndroidViewModel(applica
                 InvestimentoEntity(
                     nome = nome,
                     categoria = categoria,
-                    valorInvestido = valor,
+                    valorInvestidoCentavos = reaisEmCentavos(valor),
                     data = dataAporte,
                     anoMes = anoMesStr
                 )
@@ -77,7 +79,7 @@ class InvestimentoViewModel(application: Application) : AndroidViewModel(applica
                     is AcaoResgate.Atualizar -> {
                         val aporte = acao.aporte
                         val anoMesStr = String.format(Locale.ROOT, "%04d-%02d", aporte.data.year, aporte.data.monthValue)
-                        repository.atualizarInvestimento(aporte.copy(valorInvestido = acao.novoValor, anoMes = anoMesStr))
+                        repository.atualizarInvestimento(aporte.copy(valorInvestidoCentavos = reaisEmCentavos(acao.novoValor), anoMes = anoMesStr))
                     }
                 }
             }

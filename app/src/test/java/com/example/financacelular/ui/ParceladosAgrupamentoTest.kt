@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import com.example.financacelular.data.reaisEmCentavos
 import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.data.Transacao
@@ -13,7 +14,7 @@ class ParceladosAgrupamentoTest {
 
     private fun parcela(numero: Int, total: Int, valor: Double, mes: Int, id: Long) = Transacao(
         id = id,
-        valor = valor,
+        valorCentavos = reaisEmCentavos(valor),
         data = LocalDate.of(2026, mes, 10),
         categoriaId = 1L,
         tipo = TipoTransacao.DESPESA,
@@ -29,11 +30,13 @@ class ParceladosAgrupamentoTest {
     /** Pagamento da fatura do cartão padrão (id 1) no mês dado. */
     private fun pagamentoDaFatura(mes: Int) = Transacao(
         id = 1000L + mes,
-        valor = 1.0,
+        valorCentavos = reaisEmCentavos(1.0),
         data = LocalDate.of(2026, mes, 20),
         categoriaId = 1L,
         tipo = TipoTransacao.DESPESA,
-        descricao = "Pagamento de Fatura - 2026-%02d".format(mes)
+        descricao = "Pagamento de Fatura - 2026-%02d".format(mes),
+        anoMes = "2026-%02d".format(mes),
+        pagaFaturaDoCartaoId = 1L
     )
 
     @Test

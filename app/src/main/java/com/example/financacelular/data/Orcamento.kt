@@ -21,5 +21,7 @@ data class Orcamento(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val categoriaId: Long,
     val anoMes: String, // formato "2026-09"
-    val valorLimite: Double
-)
+    val valorLimiteCentavos: Long
+) {
+    val valorLimite: Double get() = centavosEmReais(valorLimiteCentavos)
+}

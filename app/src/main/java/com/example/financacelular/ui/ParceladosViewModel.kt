@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import com.example.financacelular.data.somaEmReais
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -74,9 +75,9 @@ internal fun agruparComprasParceladas(
             valorParcela = primeiraTransacao.valor,
             parcelasPagas = pagas.size,
             parcelasRestantes = transacoesPendentes.size,
-            valorTotal = lista.sumOf { it.valor },
-            valorPago = pagas.sumOf { it.valor },
-            valorRestante = transacoesPendentes.sumOf { it.valor },
+            valorTotal = lista.somaEmReais { it.valorCentavos },
+            valorPago = pagas.somaEmReais { it.valorCentavos },
+            valorRestante = transacoesPendentes.somaEmReais { it.valorCentavos },
             transacoesPendentes = transacoesPendentes,
             dataCompra = primeiraTransacao.dataCompra,
             dataPrimeiraParcela = primeiraTransacao.data,

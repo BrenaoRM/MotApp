@@ -7,6 +7,9 @@ import androidx.room.PrimaryKey
 data class Meta(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val nome: String,
-    val valorAlvo: Double,
-    val valorAtual: Double = 0.0
-)
+    val valorAlvoCentavos: Long,
+    val valorAtualCentavos: Long = 0L
+) {
+    val valorAlvo: Double get() = centavosEmReais(valorAlvoCentavos)
+    val valorAtual: Double get() = centavosEmReais(valorAtualCentavos)
+}

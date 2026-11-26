@@ -22,7 +22,7 @@ import java.time.LocalDate
 data class DespesaRecorrente(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val nome: String,
-    val valor: Double,
+    val valorCentavos: Long,
     val categoriaId: Long,
     val diaDoMes: Int,
     val tipo: TipoTransacao = TipoTransacao.DESPESA,
@@ -33,6 +33,8 @@ data class DespesaRecorrente(
     @ColumnInfo(defaultValue = "'CARTAO_CREDITO'")
     val formaPagamento: FormaPagamento = FormaPagamento.CARTAO_CREDITO
 ) {
+    val valor: Double get() = centavosEmReais(valorCentavos)
+
     /** Entra direto no saldo (receita ou despesa no débito), sem cartão e sem fatura. */
     val semCartao: Boolean
         get() = tipo == TipoTransacao.RECEITA || formaPagamento == FormaPagamento.DEBITO

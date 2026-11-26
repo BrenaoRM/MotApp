@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import com.example.financacelular.data.somaEmReais
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.tween
@@ -62,8 +63,8 @@ fun RecorrenteScreen(
 
     val receitasRecorrentes = recorrentes.filter { it.tipo == TipoTransacao.RECEITA }
     val despesasRecorrentes = recorrentes.filter { it.tipo == TipoTransacao.DESPESA }
-    val totalCobrancas = despesasRecorrentes.sumOf { it.valor }
-    val totalGanhosFixos = receitasRecorrentes.sumOf { it.valor }
+    val totalCobrancas = despesasRecorrentes.somaEmReais { it.valorCentavos }
+    val totalGanhosFixos = receitasRecorrentes.somaEmReais { it.valorCentavos }
 
     // A lista mostra um tipo por vez, como as Categorias da Início; o padrão é Cobranças
     var tipoLista by rememberSaveable { mutableStateOf(TipoTransacao.DESPESA) }

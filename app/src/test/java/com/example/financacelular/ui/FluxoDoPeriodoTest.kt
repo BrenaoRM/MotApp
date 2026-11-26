@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import com.example.financacelular.data.reaisEmCentavos
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.data.Transacao
 import java.time.LocalDate
@@ -13,7 +14,7 @@ import org.junit.Test
 class FluxoDoPeriodoTest {
 
     private fun lancamento(tipo: TipoTransacao, valor: Double, ano: Int, mes: Int, dia: Int) =
-        Transacao(valor = valor, data = LocalDate.of(ano, mes, dia), categoriaId = 1L, tipo = tipo)
+        Transacao(valorCentavos = reaisEmCentavos(valor), data = LocalDate.of(ano, mes, dia), categoriaId = 1L, tipo = tipo)
 
     private fun ganho(valor: Double, dia: Int, mes: Int = 11) = lancamento(TipoTransacao.RECEITA, valor, 2026, mes, dia)
     private fun gasto(valor: Double, dia: Int, mes: Int = 11) = lancamento(TipoTransacao.DESPESA, valor, 2026, mes, dia)

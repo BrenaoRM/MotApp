@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import com.example.financacelular.data.somaEmReais
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.data.Transacao
 import kotlin.math.roundToInt
@@ -62,10 +63,10 @@ fun calcularFluxo(
         barras = trechos.mapIndexed { i, trecho ->
             BarraDeFluxo(trecho.rotulo, trecho.subrotulo, trecho.mostrarRotulo, trecho.descricao, ganhos[i], gastos[i])
         },
-        ganhos = transacoes.filter { it.tipo == TipoTransacao.RECEITA }.sumOf { it.valor },
-        gastos = transacoes.filter { it.tipo == TipoTransacao.DESPESA }.sumOf { it.valor },
-        ganhosAnterior = transacoesAnteriores.filter { it.tipo == TipoTransacao.RECEITA }.sumOf { it.valor },
-        gastosAnterior = transacoesAnteriores.filter { it.tipo == TipoTransacao.DESPESA }.sumOf { it.valor },
+        ganhos = transacoes.filter { it.tipo == TipoTransacao.RECEITA }.somaEmReais { it.valorCentavos },
+        gastos = transacoes.filter { it.tipo == TipoTransacao.DESPESA }.somaEmReais { it.valorCentavos },
+        ganhosAnterior = transacoesAnteriores.filter { it.tipo == TipoTransacao.RECEITA }.somaEmReais { it.valorCentavos },
+        gastosAnterior = transacoesAnteriores.filter { it.tipo == TipoTransacao.DESPESA }.somaEmReais { it.valorCentavos },
         rotuloAnterior = rotuloDoPeriodoAnterior(periodo)
     )
 }

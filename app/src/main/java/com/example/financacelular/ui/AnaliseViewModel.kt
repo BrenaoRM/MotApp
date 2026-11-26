@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import com.example.financacelular.data.somaEmReais
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -80,7 +81,7 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
             .groupBy { it.categoriaId }
             .map { (catId, lista) ->
                 val cat = categorias.find { it.id == catId }
-                ItemGastoCategoria(cat?.nome ?: "Sem categoria", lista.sumOf { it.valor }, cat?.icone)
+                ItemGastoCategoria(cat?.nome ?: "Sem categoria", lista.somaEmReais { it.valorCentavos }, cat?.icone)
             }.sortedByDescending { it.total }
     }.flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -91,17 +92,17 @@ class AnaliseViewModel(application: Application) : AndroidViewModel(application)
             .groupBy { it.categoriaId }
             .map { (catId, lista) ->
                 val cat = categorias.find { it.id == catId }
-                ItemGastoCategoria(cat?.nome ?: "Sem categoria", lista.sumOf { it.valor }, cat?.icone)
+                ItemGastoCategoria(cat?.nome ?: "Sem categoria", lista.somaEmReais { it.valorCentavos }, cat?.icone)
             }.sortedByDescending { it.total }
     }.flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val totalDespesasPeriodo: StateFlow<Double> = transacoesValidasDoPeriodo.map { transacoes ->
-        transacoes.filter { it.tipo == TipoTransacao.DESPESA }.sumOf { it.valor }
+        transacoes.filter { it.tipo == TipoTransacao.DESPESA }.somaEmReais { it.valorCentavos }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
     val totalReceitasPeriodo: StateFlow<Double> = transacoesValidasDoPeriodo.map { transacoes ->
-        transacoes.filter { it.tipo == TipoTransacao.RECEITA }.sumOf { it.valor }
+        transacoes.filter { it.tipo == TipoTransacao.RECEITA }.somaEmReais { it.valorCentavos }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
     /** Fluxo de caixa do período escolhido na tela, com o período anterior do mesmo tamanho para a variação; `null` enquanto carrega. */

@@ -35,7 +35,7 @@ class CategoriaRepositoryTest {
 
     private suspend fun gasto(categoria: Categoria, descricao: String) = repo.salvarTransacao(
         Transacao(
-            valor = 10.0, data = LocalDate.of(2026, 11, 1), categoriaId = categoria.id, tipo = categoria.tipo,
+            valorCentavos = reaisEmCentavos(10.0), data = LocalDate.of(2026, 11, 1), categoriaId = categoria.id, tipo = categoria.tipo,
             descricao = descricao, anoMes = "2026-11"
         )
     )
@@ -50,7 +50,7 @@ class CategoriaRepositoryTest {
         gasto(lazer, "Cinema")
         gasto(lazer, "Parque")
         banco.despesaRecorrenteDao().inserir(
-            DespesaRecorrente(nome = "Streaming", valor = 30.0, categoriaId = lazer.id, diaDoMes = 3, formaPagamento = FormaPagamento.DEBITO)
+            DespesaRecorrente(nome = "Streaming", valorCentavos = reaisEmCentavos(30.0), categoriaId = lazer.id, diaDoMes = 3, formaPagamento = FormaPagamento.DEBITO)
         )
         repo.lembrarCategoria("Cinema Centro", TipoTransacao.DESPESA, lazer.id)
 

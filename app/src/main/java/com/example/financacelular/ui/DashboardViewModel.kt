@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import com.example.financacelular.data.somaEmReais
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -89,12 +90,12 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val totalDespesas: StateFlow<Double> = transacoesFiltradasDoMes
-        .map { lista -> lista.filter { it.tipo == TipoTransacao.DESPESA }.sumOf { it.valor } }
+        .map { lista -> lista.filter { it.tipo == TipoTransacao.DESPESA }.somaEmReais { it.valorCentavos } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val totalReceitas: StateFlow<Double> = transacoesFiltradasDoMes
-        .map { lista -> lista.filter { it.tipo == TipoTransacao.RECEITA }.sumOf { it.valor } }
+        .map { lista -> lista.filter { it.tipo == TipoTransacao.RECEITA }.somaEmReais { it.valorCentavos } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
     /** Acumulado por dia (índice 0 = dia 1) até [ultimoDia]; o último valor é igual ao total exibido. */
@@ -132,7 +133,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         _mesSelecionado,
         repository.listarInvestimentos()
     ) { mes, investimentos ->
-        val totaisPorMes = investimentos.groupBy { it.anoMes }.mapValues { (_, invs) -> invs.sumOf { it.valorInvestido } }
+        val totaisPorMes = investimentos.groupBy { it.anoMes }.mapValues { (_, invs) -> invs.somaEmReais { it.valorInvestidoCentavos } }
         (5 downTo 0).map { atras ->
             val anoMes = mes.minusMonths(atras.toLong()).format(FORMATO_ANO_MES)
             TotalMensalInvestimento(anoMes, totaisPorMes[anoMes] ?: 0.0)
@@ -158,7 +159,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 titulo = nomeCategoria,
                 categoriaId = categoriaId,
                 tipo = tipo,
-                total = lista.sumOf { it.valor },
+                total = lista.somaEmReais { it.valorCentavos },
                 transacoes = lista,
                 icone = categoriaDoResumo?.icone
             )

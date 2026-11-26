@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import com.example.financacelular.data.reaisEmCentavos
 import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -228,7 +229,7 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
                     )
                 } else {
                     val transacao = Transacao(
-                        valor = valorNumerico,
+                        valorCentavos = reaisEmCentavos(valorNumerico),
                         data = data,
                         categoriaId = catId,
                         tipo = tipo,

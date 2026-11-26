@@ -97,3 +97,103 @@ val MIGRATION_14_15 = object : Migration(14, 15) {
         db.execSQL("ALTER TABLE transacoes ADD COLUMN dataCompra TEXT")
     }
 }
+
+/**
+ * Recria [tabela] com o SQL novo ([criar], com o nome `<tabela>_nova`), copiando as colunas: [colunas] são
+ * as que vão iguais e [centavos] mapeia coluna nova -> coluna antiga em reais (REAL), gravada em centavos.
+ */
+private fun SupportSQLiteDatabase.recriarEmCentavos(
+    tabela: String,
+    criar: String,
+    colunas: List<String>,
+    centavos: Map<String, String>,
+    indices: List<String> = emptyList()
+) {
+    execSQL(criar)
+    val destino = (colunas + centavos.keys).joinToString(", ") { "`$it`" }
+    val origem = (colunas.map { "`$it`" } + centavos.values.map { "CAST(ROUND(`$it` * 100) AS INTEGER)" }).joinToString(", ")
+    execSQL("INSERT INTO `${tabela}_nova` ($destino) SELECT $origem FROM `$tabela`")
+    execSQL("DROP TABLE `$tabela`")
+    execSQL("ALTER TABLE `${tabela}_nova` RENAME TO `$tabela`")
+    indices.forEach { execSQL(it) }
+}
+
+/**
+ * 15 -> 16: dinheiro em centavos (INTEGER) nas cinco tabelas com valor, e transacoes.pagaFaturaDoCartaoId,
+ * que passa a identificar o pagamento de fatura. Os pagamentos antigos são reconhecidos pela descrição
+ * ("Pagamento de Fatura - yyyy-MM" = cartão padrão; "... - yyyy-MM - id" = outro cartão), como antes.
+ */
+val MIGRATION_15_16 = object : Migration(15, 16) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.recriarEmCentavos(
+            tabela = "transacoes",
+            criar = "CREATE TABLE IF NOT EXISTS `transacoes_nova` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`valorCentavos` INTEGER NOT NULL, `data` TEXT NOT NULL, `categoriaId` INTEGER NOT NULL, `tipo` TEXT NOT NULL, " +
+                "`descricao` TEXT, `formaPagamento` TEXT NOT NULL, `cartaoId` INTEGER, `anoMes` TEXT, " +
+                "`numeroParcela` INTEGER NOT NULL, `totalParcelas` INTEGER NOT NULL, `grupoParcelamentoId` TEXT, " +
+                "`recorrenteId` INTEGER, `dataCompra` TEXT, `pagaFaturaDoCartaoId` INTEGER, " +
+                "FOREIGN KEY(`categoriaId`) REFERENCES `categorias`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+            colunas = listOf(
+                "id", "data", "categoriaId", "tipo", "descricao", "formaPagamento", "cartaoId", "anoMes",
+                "numeroParcela", "totalParcelas", "grupoParcelamentoId", "recorrenteId", "dataCompra"
+            ),
+            centavos = mapOf("valorCentavos" to "valor"),
+            indices = listOf(
+                "CREATE INDEX IF NOT EXISTS `index_transacoes_anoMes` ON `transacoes` (`anoMes`)",
+                "CREATE INDEX IF NOT EXISTS `index_transacoes_data` ON `transacoes` (`data`)",
+                "CREATE INDEX IF NOT EXISTS `index_transacoes_categoriaId` ON `transacoes` (`categoriaId`)",
+                "CREATE INDEX IF NOT EXISTS `index_transacoes_cartaoId` ON `transacoes` (`cartaoId`)",
+                "CREATE INDEX IF NOT EXISTS `index_transacoes_recorrenteId` ON `transacoes` (`recorrenteId`)"
+            )
+        )
+        // "Pagamento de Fatura - " tem 22 letras: o mês vai da 23ª à 29ª, e o id do cartão (se houver) começa na 33ª
+        val mes = "'Pagamento de Fatura - [0-9][0-9][0-9][0-9]-[0-9][0-9]'"
+        db.execSQL(
+            "UPDATE transacoes SET pagaFaturaDoCartaoId = $ID_CARTAO_PADRAO, anoMes = substr(descricao, 23, 7) " +
+                "WHERE cartaoId IS NULL AND descricao GLOB $mes"
+        )
+        db.execSQL(
+            "UPDATE transacoes SET pagaFaturaDoCartaoId = CAST(substr(descricao, 33) AS INTEGER), " +
+                "anoMes = substr(descricao, 23, 7) " +
+                "WHERE cartaoId IS NULL AND descricao GLOB ${mes.dropLast(1)} - [0-9]*' " +
+                "AND substr(descricao, 33) NOT GLOB '*[^0-9]*'"
+        )
+        db.recriarEmCentavos(
+            tabela = "despesas_recorrentes",
+            criar = "CREATE TABLE IF NOT EXISTS `despesas_recorrentes_nova` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`nome` TEXT NOT NULL, `valorCentavos` INTEGER NOT NULL, `categoriaId` INTEGER NOT NULL, " +
+                "`diaDoMes` INTEGER NOT NULL, `tipo` TEXT NOT NULL, `dataCriacao` TEXT NOT NULL, `cartaoId` INTEGER, " +
+                "`formaPagamento` TEXT NOT NULL DEFAULT 'CARTAO_CREDITO', " +
+                "FOREIGN KEY(`categoriaId`) REFERENCES `categorias`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+            colunas = listOf("id", "nome", "categoriaId", "diaDoMes", "tipo", "dataCriacao", "cartaoId", "formaPagamento"),
+            centavos = mapOf("valorCentavos" to "valor"),
+            indices = listOf(
+                "CREATE INDEX IF NOT EXISTS `index_despesas_recorrentes_categoriaId` ON `despesas_recorrentes` (`categoriaId`)"
+            )
+        )
+        db.recriarEmCentavos(
+            tabela = "investimentos",
+            criar = "CREATE TABLE IF NOT EXISTS `investimentos_nova` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`nome` TEXT NOT NULL, `categoria` TEXT NOT NULL, `valorInvestidoCentavos` INTEGER NOT NULL, " +
+                "`data` TEXT NOT NULL, `anoMes` TEXT NOT NULL)",
+            colunas = listOf("id", "nome", "categoria", "data", "anoMes"),
+            centavos = mapOf("valorInvestidoCentavos" to "valorInvestido")
+        )
+        db.recriarEmCentavos(
+            tabela = "metas",
+            criar = "CREATE TABLE IF NOT EXISTS `metas_nova` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`nome` TEXT NOT NULL, `valorAlvoCentavos` INTEGER NOT NULL, `valorAtualCentavos` INTEGER NOT NULL)",
+            colunas = listOf("id", "nome"),
+            centavos = mapOf("valorAlvoCentavos" to "valorAlvo", "valorAtualCentavos" to "valorAtual")
+        )
+        db.recriarEmCentavos(
+            tabela = "orcamentos",
+            criar = "CREATE TABLE IF NOT EXISTS `orcamentos_nova` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`categoriaId` INTEGER NOT NULL, `anoMes` TEXT NOT NULL, `valorLimiteCentavos` INTEGER NOT NULL, " +
+                "FOREIGN KEY(`categoriaId`) REFERENCES `categorias`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+            colunas = listOf("id", "categoriaId", "anoMes"),
+            centavos = mapOf("valorLimiteCentavos" to "valorLimite"),
+            indices = listOf("CREATE INDEX IF NOT EXISTS `index_orcamentos_categoriaId` ON `orcamentos` (`categoriaId`)")
+        )
+    }
+}

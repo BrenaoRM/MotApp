@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import com.example.financacelular.data.somaEmReais
 import com.example.financacelular.data.InvestimentoEntity
 import java.time.LocalDate
 import java.time.YearMonth
@@ -130,7 +131,7 @@ internal fun dividirPeriodo(periodo: Periodo): List<TrechoDoPeriodo> = when (gra
 fun calcularAportes(investimentos: List<InvestimentoEntity>, periodo: Periodo): AportesDoPeriodo {
     val doPeriodo = somaDoIntervalo(investimentos, periodo.inicio, periodo.fim)
     val tipos = montarTipos(
-        doPeriodo.groupBy { it.categoria.trim() }.map { (categoria, lista) -> categoria to lista.sumOf { it.valorInvestido } }
+        doPeriodo.groupBy { it.categoria.trim() }.map { (categoria, lista) -> categoria to lista.somaEmReais { it.valorInvestidoCentavos } }
     )
     val indicePorCategoria = tipos.withIndex().flatMap { (i, tipo) -> tipo.categorias.map { it to i } }.toMap()
 
@@ -146,12 +147,12 @@ fun calcularAportes(investimentos: List<InvestimentoEntity>, periodo: Periodo): 
     val barras = dividirPeriodo(periodo).map { barra(it.rotulo, it.subrotulo, it.mostrarRotulo, it.descricao, it.inicio, it.fim) }
 
     val anterior = periodo.deslocar(-1)
-    val totalAnterior = somaDoIntervalo(investimentos, anterior.inicio, anterior.fim).sumOf { it.valorInvestido }
+    val totalAnterior = somaDoIntervalo(investimentos, anterior.inicio, anterior.fim).somaEmReais { it.valorInvestidoCentavos }
     return AportesDoPeriodo(
         granularidade = granularidade,
         tipos = tipos,
         barras = barras,
-        total = doPeriodo.sumOf { it.valorInvestido },
+        total = doPeriodo.somaEmReais { it.valorInvestidoCentavos },
         totalAnterior = totalAnterior,
         rotuloAnterior = rotuloDoPeriodoAnterior(periodo)
     )

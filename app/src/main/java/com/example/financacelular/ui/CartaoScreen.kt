@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import com.example.financacelular.data.somaEmReais
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
@@ -107,7 +108,7 @@ fun CartaoScreen(
     val cartaoParaEditar = listaCartoes.firstOrNull { it.id == cartaoParaEditarId }
     var confirmandoExclusao by rememberSaveable { mutableStateOf(false) }
 
-    val valorTotalFatura = transacoesFatura.sumOf { it.valor }
+    val valorTotalFatura = transacoesFatura.somaEmReais { it.valorCentavos }
     val naPaginaAdicionar = listaCartoes.isEmpty() || pagerState.currentPage >= listaCartoes.size
 
     // Avisa o ViewModel quando o carrossel está na página "Adicionar cartão" (a barra inferior troca o botão)
@@ -237,7 +238,7 @@ fun CartaoScreen(
                             lancamentosPorDia.entries.forEachIndexed { indiceDia, (dia, lancamentos) ->
                                 DiaDaFatura(
                                     titulo = formatarDiaAmigavel(dia),
-                                    total = formatoMoeda.format(lancamentos.sumOf { it.valor }),
+                                    total = formatoMoeda.format(lancamentos.somaEmReais { it.valorCentavos }),
                                     primeiro = indiceDia == 0
                                 )
                                 lancamentos.forEachIndexed { indice, transacao ->

@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import com.example.financacelular.data.reaisEmCentavos
 import com.example.financacelular.data.InvestimentoEntity
 import java.time.LocalDate
 import java.time.YearMonth
@@ -12,7 +13,7 @@ import org.junit.Test
 class AportesDoPeriodoTest {
 
     private fun aporte(categoria: String, valor: Double, ano: Int, mes: Int, dia: Int) =
-        InvestimentoEntity(nome = "Ativo $categoria", categoria = categoria, valorInvestido = valor, data = LocalDate.of(ano, mes, dia))
+        InvestimentoEntity(nome = "Ativo $categoria", categoria = categoria, valorInvestidoCentavos = reaisEmCentavos(valor), data = LocalDate.of(ano, mes, dia))
 
     private val novembro = Periodo.mes(YearMonth.of(2026, 11))
 

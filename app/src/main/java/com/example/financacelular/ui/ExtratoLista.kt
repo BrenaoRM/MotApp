@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import com.example.financacelular.data.somaEmReais
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -65,7 +66,7 @@ internal fun GrupoDia(
     pendente: Boolean,
     aoClicar: (Transacao) -> Unit
 ) {
-    val saldoDia = transacoes.sumOf { if (it.tipo == TipoTransacao.DESPESA) -it.valor else it.valor }.arredondadoACentavos()
+    val saldoDia = transacoes.somaEmReais { if (it.tipo == TipoTransacao.DESPESA) -it.valorCentavos else it.valorCentavos }.arredondadoACentavos()
 
     Column(
         modifier = Modifier

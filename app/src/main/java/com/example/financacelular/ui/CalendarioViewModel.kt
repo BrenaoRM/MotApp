@@ -103,20 +103,20 @@ private fun montarItensCalendario(
     }
 
     // 2) Faturas em aberto: um item virtual no dia do vencimento de cada fatura não paga
-    val totais = HashMap<FaturaChave, Double>()
+    val totais = HashMap<FaturaChave, Long>()
     for (t in transacoes) {
         if (!t.ehCompraNoCartao()) continue
         val chave = t.chaveFatura() ?: continue
-        totais[chave] = (totais[chave] ?: 0.0) + t.valor
+        totais[chave] = (totais[chave] ?: 0L) + t.valorCentavos
     }
     for ((chave, total) in totais) {
-        if (total <= 0.0 || chave in pagas) continue
+        if (total <= 0L || chave in pagas) continue
         val cartao = cartoesPorId[chave.cartaoId] ?: continue
         val mes = runCatching { YearMonth.parse(chave.anoMes) }.getOrNull() ?: continue
         val vencimento = calcularVencimentoFatura(mes, cartao.diaVencimento, cartao.diaFechamento)
         itens += ItemCalendario(
             transacao = Transacao(
-                valor = total,
+                valorCentavos = total,
                 data = vencimento,
                 categoriaId = categoriaFaturaId ?: 0L, // item virtual: o nome exibido vem de categoriaNome
                 tipo = TipoTransacao.DESPESA,

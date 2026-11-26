@@ -1,5 +1,6 @@
 package com.example.financacelular.deteccao
 
+import com.example.financacelular.data.reaisEmCentavos
 import com.example.financacelular.data.FormaPagamento
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.data.Transacao
@@ -36,7 +37,7 @@ class DuplicatasTest {
     private val hoje = LocalDate.of(2026, 11, 18)
     private val detectada = TransacaoDetectada(6.0, TipoTransacao.DESPESA, "MP *MAISSABOR", FormaPagamento.DEBITO)
     private val lancada = Transacao(
-        valor = 6.0, data = hoje, categoriaId = 1L, tipo = TipoTransacao.DESPESA, descricao = "maissabor"
+        valorCentavos = reaisEmCentavos(6.0), data = hoje, categoriaId = 1L, tipo = TipoTransacao.DESPESA, descricao = "maissabor"
     )
 
     @Test
@@ -46,7 +47,7 @@ class DuplicatasTest {
 
     @Test
     fun valor_diferente_nao_e_lancada() {
-        assertFalse(jaLancada(detectada, hoje, listOf(lancada.copy(valor = 7.0))))
+        assertFalse(jaLancada(detectada, hoje, listOf(lancada.copy(valorCentavos = reaisEmCentavos(7.0)))))
     }
 
     @Test

@@ -11,7 +11,9 @@ data class InvestimentoEntity(
     val id: Long = 0L,
     val nome: String,
     val categoria: String,
-    val valorInvestido: Double,
+    val valorInvestidoCentavos: Long,
     val data: LocalDate = LocalDate.now(),
     val anoMes: String = String.format(Locale.ROOT, "%04d-%02d", data.year, data.monthValue)
-)
+) {
+    val valorInvestido: Double get() = centavosEmReais(valorInvestidoCentavos)
+}

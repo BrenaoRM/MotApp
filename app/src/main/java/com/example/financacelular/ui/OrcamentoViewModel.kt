@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import com.example.financacelular.data.reaisEmCentavos
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -97,7 +98,7 @@ class OrcamentoViewModel(application: Application) : AndroidViewModel(applicatio
                     id = existente?.id ?: 0,
                     categoriaId = categoria.id,
                     anoMes = anoMesAtual,
-                    valorLimite = valor
+                    valorLimiteCentavos = reaisEmCentavos(valor)
                 )
             )
         }

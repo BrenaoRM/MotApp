@@ -1,5 +1,6 @@
 package com.example.financacelular.ui
 
+import com.example.financacelular.data.somaEmReais
 import androidx.compose.foundation.BorderStroke
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -257,10 +258,10 @@ fun CalendarioScreen(
     // Pagamentos de fatura e faturas em aberto não entram nas somas: o valor já está nas compras do cartão
     val gastoDoDia = transacoesDoDia
         .filter { it.contaNosTotais && it.transacao.tipo == TipoTransacao.DESPESA }
-        .sumOf { it.transacao.valor }
+        .somaEmReais { it.transacao.valorCentavos }
     val ganhoDoDia = transacoesDoDia
         .filter { it.contaNosTotais && it.transacao.tipo == TipoTransacao.RECEITA }
-        .sumOf { it.transacao.valor }
+        .somaEmReais { it.transacao.valorCentavos }
     val afazeresPendentes = afazeresDoDia.count { !it.concluido }
 
     val tituloDia = remember(dataSelecionada) {
