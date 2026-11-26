@@ -11,14 +11,18 @@ from texto import _sem_acento, normalizar_para_modelo
 from usuarios_sinteticos import GENERICAS, MERCHANTS_PET
 
 N_DOBRAS = 5
-_ARQ_VETORES = CACHE / "vetores_t2.npz"
+_ARQ_VETORES = None  # ia/.cache/vetores_t2_<hash do modelo.onnx>.npz (cache velho não vale para outro modelo)
 _vetorizar = None
 _cache = None
 
 
 def vetores(textos_normalizados):
-    """Embeddings do modelo do app (int8 podado + Viterbi), com cache em `ia/.cache/vetores_t2.npz`."""
-    global _vetorizar, _cache
+    """Embeddings do modelo do app (int8 podado + Viterbi), com cache em `ia/.cache/` por hash do modelo."""
+    global _vetorizar, _cache, _ARQ_VETORES
+    if _ARQ_VETORES is None:
+        import hashlib
+        h = hashlib.sha256((ASSETS / "modelo.onnx").read_bytes()).hexdigest()[:12]
+        _ARQ_VETORES = CACHE / f"vetores_t2_{h}.npz"
     if _cache is None:
         _cache = {}
         if _ARQ_VETORES.exists():
@@ -56,10 +60,11 @@ def texto_do_lexico(desc):
 
 
 def generica_do_lexico(desc, lex, nomes=GENERICAS):
-    """Índice (em `nomes`) da categoria do léxico, ou None. Regra: casam os termos que são substring de
-    `sem_acento(normalizar_para_modelo(desc))`; vence a categoria de menor índice em `nomes`."""
-    t = texto_do_lexico(desc)
-    achadas = [nomes.index(c) for termo, c in lex.items() if termo in t]
+    """Índice (em `nomes`) da categoria do léxico, ou None. Regra: casam os termos que aparecem como palavras
+    inteiras em `sem_acento(normalizar_para_modelo(desc))` (" " + termo + " " dentro de " " + t + " ");
+    vence a categoria de menor índice em `nomes`."""
+    t = " " + texto_do_lexico(desc) + " "
+    achadas = [nomes.index(c) for termo, c in lex.items() if " " + termo + " " in t]
     return min(achadas) if achadas else None
 
 

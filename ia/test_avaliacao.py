@@ -51,3 +51,49 @@ def test_avaliacao(cfg):
     assert r["app"]["n=20"]["acuracia"] > r["memoria"]["n=20"]["acuracia"]  # IA supera o app atual
     assert r["app"]["n=0"]["esquema_d"]["acuracia"] > 0.30                  # zero-shot funciona
     assert 0.0 < cfg["classificador"]["limiarSugestao"] < 1.0
+
+
+def test_lexico_por_palavra():
+    from treinar_prior import generica_do_lexico
+    from usuarios_sinteticos import GENERICAS
+    lex = {"prime": "Lazer e Assinaturas", "smart fit": "Saúde"}
+    assert generica_do_lexico("AMAZON PRIME VIDEO", lex) == GENERICAS.index("Lazer e Assinaturas")
+    assert generica_do_lexico("PRIMEIRO MERCADO", lex) is None          # palavra inteira, não substring
+    assert generica_do_lexico("SMART FIT ACADEMIA", lex) == GENERICAS.index("Saúde")
+    assert generica_do_lexico("SMARTFIT", lex) is None
+
+
+def _golden_entradas(n):
+    from avaliar_categorias import chave_do_estabelecimento
+    from gerar_golden_classificador import CLASSIFICADOR, LEXICO, montar
+    g = montar()
+    caso = next(c for c in g["casos"] if c["n"] == n)
+    V = np.array([c["vetorNome"] for c in g["categorias"]])
+    ex = caso["exemplos"]
+    con = caso["consultas"]
+    return (CLASSIFICADOR, g["generico"], LEXICO, V, np.array([e["x"] for e in ex]).reshape(n, g["dimensao"]),
+            np.array([e["categoria"] for e in ex], dtype=int), [chave_do_estabelecimento(e["descricao"]) for e in ex],
+            np.array([c["x"] for c in con]), [c["descricao"] for c in con],
+            [chave_do_estabelecimento(c["descricao"]) for c in con])
+
+
+def test_memoria_vence_lexico():
+    """n=5: a pessoa rotulou "UBER TRIP" como Trabalho (2); o léxico diz Transporte (categoria 0 é a mapeada nela)."""
+    from avaliar_categorias import modelo_app
+    cc, cg, lex, V, exX, exy, exk, X, descs, chaves = _golden_entradas(5)
+    sem_memoria = modelo_app(cc, cg, lex, V, exX, exy, ["?"] * 5, X, descs, chaves)
+    assert sem_memoria["genericaLexico"][0] == cg["nomes"].index("Transporte") and sem_memoria["mapa"][0] == 2
+    assert sem_memoria["pFinal"][0].argmax() != 2          # sem a precedência, o rótulo da pessoa perderia
+    out = modelo_app(cc, cg, lex, V, exX, exy, exk, X, descs, chaves)
+    assert out["rotuloMemoria"][0] == 2 and out["sugestao"][0] == 2 and out["sugestao"][1] == 2
+    assert np.allclose(out["pFinal"][0], [0, 0, 1, 0])
+
+
+def test_golden_classificador():
+    from gerar_golden_classificador import SAIDA, montar
+    salvo = json.loads(SAIDA.read_text(encoding="utf-8"))
+    novo = json.loads(json.dumps(montar(), ensure_ascii=False))
+    for cs, cn in zip(salvo["casos"], novo["casos"]):
+        for k in cs["esperado"]:
+            assert np.allclose(np.asarray(cs["esperado"][k], dtype=float), np.asarray(cn["esperado"][k], dtype=float),
+                               atol=1e-9), k

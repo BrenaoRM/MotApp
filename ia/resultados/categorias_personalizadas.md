@@ -21,9 +21,9 @@ do FinIA (sem os estabelecimentos Pet) → 9 genéricas. GroupKFold(5) por merch
 | Prior | Acurácia (estabelecimento novo) |
 |---|---|
 | Só embeddings | 0,441 |
-| Prior + léxico do FinIA | 0,778 |
+| Prior + léxico do FinIA | 0,782 |
 
-O léxico casa em 0,677 dos gastos e acerta 0,988
+O léxico casa em 0,666 dos gastos e acerta 0,998
 quando casa. **Número otimista:** o léxico contém nomes de estabelecimentos do próprio conjunto de teste
 (netflix, spotify, uber, ifood, steam, shopee…), o que é vazamento no GroupKFold. O número honesto do
 prior aprendido é o só-embeddings.
@@ -38,17 +38,17 @@ critério: acurácia média do modelo do app em n ∈ {5,10,20,50,100}.
 | pesoPrototipo | alfaK | lambdaL2 | epocas | acurácia validação |
 |---|---|---|---|---|
 | 1 | 10 | 0.0001 | 300 | 0,685 |
-| 1 | 10 | 0.001 | 300 | 0,683 |
-| 1 | 20 | 0.0001 | 300 | 0,681 |
-| 1 | 20 | 0.001 | 300 | 0,678 |
-| 3 | 10 | 0.0001 | 300 | 0,674 |
+| 1 | 10 | 0.001 | 300 | 0,684 |
+| 1 | 20 | 0.0001 | 300 | 0,682 |
+| 1 | 20 | 0.001 | 300 | 0,680 |
+| 3 | 10 | 0.0001 | 300 | 0,675 |
 
-Padrão do brief (3, 10, 1e-3, 150): 0,645. Escolhido: `pesoPrototipo`=1,
+Padrão do brief (3, 10, 1e-3, 150): 0,647. Escolhido: `pesoPrototipo`=1,
 `alfaK`=10, `lambdaL2`=0.0001, `epocas`=300.
 
 **`limiarSugestao` = 0,420**: menor limiar (passo 0,01) em que a precisão das sugestões
 feitas é ≥ 0,85 na validação (todas as n juntas). Na validação: precisão 0,850,
-cobertura 0,507 (fração dos lançamentos que recebe pré-seleção).
+cobertura 0,510 (fração dos lançamentos que recebe pré-seleção).
 
 Mapeamento categoria → genérica (cos ≥ 0,5 com o vetor do nome genérico):
 
@@ -64,7 +64,7 @@ Mercado → Compras, Comida fora → Alimentação, Carro → Transporte, Casa �
 | (2) TF-IDF n-gramas + RL pessoal | 0,000 | 0,296 | 0,371 | 0,514 | 0,743 | 0,849 |
 | (3) kNN k=5 (embeddings) | 0,000 | 0,211 | 0,299 | 0,397 | 0,500 | 0,689 |
 | (4) Só protótipos (zero-shot) | 0,352 | 0,354 | 0,353 | 0,353 | 0,349 | 0,354 |
-| (5) Modelo do app | 0,530 | 0,568 | 0,605 | 0,659 | 0,755 | 0,791 |
+| (5) Modelo do app | 0,530 | 0,569 | 0,608 | 0,662 | 0,756 | 0,793 |
 
 ### F1 macro × n
 
@@ -74,7 +74,7 @@ Mercado → Compras, Comida fora → Alimentação, Carro → Transporte, Casa �
 | (2) TF-IDF n-gramas + RL pessoal | 0,000 | 0,154 | 0,238 | 0,376 | 0,613 | 0,748 |
 | (3) kNN k=5 (embeddings) | 0,000 | 0,053 | 0,149 | 0,244 | 0,358 | 0,536 |
 | (4) Só protótipos (zero-shot) | 0,324 | 0,326 | 0,325 | 0,325 | 0,319 | 0,330 |
-| (5) Modelo do app | 0,488 | 0,517 | 0,550 | 0,589 | 0,650 | 0,648 |
+| (5) Modelo do app | 0,488 | 0,519 | 0,553 | 0,592 | 0,650 | 0,651 |
 
 ### Acurácia por esquema (modelo × n × esquema)
 
@@ -105,11 +105,11 @@ Mercado → Compras, Comida fora → Alimentação, Carro → Transporte, Casa �
 | (4) Só protótipos (zero-shot) | 50 | 0,235 | 0,370 | 0,389 | 0,418 |
 | (4) Só protótipos (zero-shot) | 100 | 0,243 | 0,382 | 0,385 | 0,425 |
 | (5) Modelo do app | 0 | 0,718 | 0,561 | 0,393 | 0,419 |
-| (5) Modelo do app | 5 | 0,700 | 0,600 | 0,453 | 0,500 |
-| (5) Modelo do app | 10 | 0,668 | 0,636 | 0,546 | 0,560 |
-| (5) Modelo do app | 20 | 0,674 | 0,682 | 0,650 | 0,621 |
-| (5) Modelo do app | 50 | 0,754 | 0,778 | 0,768 | 0,708 |
-| (5) Modelo do app | 100 | 0,773 | 0,812 | 0,815 | 0,754 |
+| (5) Modelo do app | 5 | 0,700 | 0,600 | 0,458 | 0,500 |
+| (5) Modelo do app | 10 | 0,676 | 0,636 | 0,546 | 0,560 |
+| (5) Modelo do app | 20 | 0,682 | 0,682 | 0,651 | 0,621 |
+| (5) Modelo do app | 50 | 0,755 | 0,781 | 0,768 | 0,708 |
+| (5) Modelo do app | 100 | 0,775 | 0,814 | 0,817 | 0,754 |
 
 ### Estabelecimento já visto / novo (acurácia)
 
@@ -119,19 +119,19 @@ Mercado → Compras, Comida fora → Alimentação, Carro → Transporte, Casa �
 | (2) TF-IDF n-gramas + RL pessoal | 0,983 / 0,193 | 0,984 / 0,186 | 0,990 / 0,191 | 0,998 / 0,151 | 0,996 / 0,161 |
 | (3) kNN k=5 (embeddings) | 0,497 / 0,168 | 0,587 / 0,211 | 0,602 / 0,256 | 0,646 / 0,154 | 0,805 / 0,148 |
 | (4) Só protótipos (zero-shot) | 0,321 / 0,355 | 0,380 / 0,342 | 0,354 / 0,348 | 0,369 / 0,305 | 0,362 / 0,338 |
-| (5) Modelo do app | 0,864 / 0,521 | 0,944 / 0,502 | 0,954 / 0,461 | 0,942 / 0,324 | 0,914 / 0,225 |
+| (5) Modelo do app | 0,864 / 0,522 | 0,944 / 0,505 | 0,954 / 0,465 | 0,944 / 0,324 | 0,916 / 0,225 |
 
 ### Sugestões no teste (limiar 0,420)
 
 | n | cobertura | precisão |
 |---|---|---|
-| 0 | 0,621 | 0,732 |
-| 5 | 0,448 | 0,786 |
-| 10 | 0,434 | 0,840 |
-| 20 | 0,539 | 0,864 |
-| 50 | 0,604 | 0,931 |
-| 100 | 0,658 | 0,959 |
-| todas | 0,541 | 0,843 |
+| 0 | 0,622 | 0,732 |
+| 5 | 0,450 | 0,786 |
+| 10 | 0,439 | 0,842 |
+| 20 | 0,543 | 0,865 |
+| 50 | 0,609 | 0,935 |
+| 100 | 0,669 | 0,960 |
+| todas | 0,545 | 0,844 |
 
 ![curva](curva_aprendizado.png)
 
@@ -146,6 +146,10 @@ Mercado → Compras, Comida fora → Alimentação, Carro → Transporte, Casa �
 - O melhor ponto da grade ficou na borda (pesoPrototipo=1, lambdaL2=1e-4, epocas=300): o modelo pessoal ainda está
   subajustado; a grade é a do plano e não foi estendida.
 - O limiar é um só para todos os n; em n=0 a precisão das sugestões fica abaixo de 0,85.
+- Os números do app em n=0 incluem o léxico, montado com nomes de estabelecimentos do próprio FinIA: são otimistas
+  (ver a seção do prior, embeddings sem léxico).
+- A vantagem sobre a memória exata depende do ruído das descrições sintéticas do FinIA; num extrato real com
+  descrições estáveis a memória acertaria bem mais (e agora tem precedência no modelo do app).
 
 ## Especificação do modelo do app (a T5 replica exatamente)
 
@@ -157,8 +161,12 @@ exemplos rotulados `(x_i, y_i)` (só de categorias que ainda existem; `n` = quan
    `W = 0 (C×384)`, `b = 0`. Por `epocas` épocas, lote completo, `taxa`:
    `P = softmax(X·Wᵀ + b)` (por linha, subtraindo o máximo); `G_ic = peso_i · (P_ic − 1[y_i=c]) / Σ peso`;
    `W ← W − taxa · (Gᵀ·X + lambdaL2 · W)`; `b ← b − taxa · Σ_i G_i` (viés sem L2). `p_pessoal = softmax(W·x + b)`.
-2. **Distribuição genérica `s` (9).** Léxico: `t = sem_acento(normalizar_para_modelo(descricao))` (NFD, remove
-   marcas); casam os termos de `lexico` que são **substring** de `t`; se algum casa, `g*` = a categoria de **menor
+2. **Distribuição genérica `s` (9).** Léxico: `t = sem_acento(normalizar_para_modelo(descricao))`, onde
+   `normalizar_para_modelo` (NFKC, minúsculas, `[\d\W_]` → espaço) já tirou as sequências de cidades e as palavras de
+   BOILERPLATE antes do match, e `sem_acento(u) = NFKD(u)` codificado em ASCII **descartando** o que não for ASCII
+   (`unicodedata.normalize("NFKD", u).encode("ascii", "ignore")`: ø, ß e símbolos somem, não viram letra). Um termo
+   casa se aparece como **palavra(s) inteira(s)**: `(" " + termo + " ")` contido em `(" " + t + " ")` (termos de duas
+   palavras, como "smart fit", casam a sequência; "prime" não casa "primeiro"). Se algum casa, `g*` = a categoria de **menor
    índice em `generico.nomes`** entre as que casaram (é a ordem "1º acerto vence" do FinIA) e
    `s_g = (1 − confiancaLexico)/9 + confiancaLexico · 1[g = g*]`. Se nenhum casa, `s = softmax(pesos·x + vieses)`.
 3. **Mapeamento.** `g(c) = argmax_g cos(vetorNome_c, vetoresNomes_g)` se esse máximo ≥ `similaridadeMinimaMapeamento`;
@@ -167,8 +175,15 @@ exemplos rotulados `(x_i, y_i)` (só de categorias que ainda existem; `n` = quan
    dividem igualmente `Σ s_g` das genéricas que nenhuma categoria pegou. `q ← q / Σ q` (se `Σ q = 0`, uniforme).
    `z_c = softmax_c(cos(x, vetorNome_c) / temperaturaPrior)`. `prior = 0,5·q + 0,5·z`.
 5. **Mistura.** `α = n / (n + alfaK)`; `p_final = α·p_pessoal + (1 − α)·prior` (soma 1).
-6. **Sugestão.** `c* = argmax p_final`; sugere se `p_final[c*] ≥ limiarSugestao` **e** (`c*` tem ≥ `minimoExemplos`
-   exemplos rotulados **ou** `c*` é mapeada). O léxico só entra no prior genérico: nunca vence diretamente um rótulo
-   da pessoa (o peso dele cai com `α`).
+6. **Precedência da memória exata.** Se a chave do estabelecimento da transação (`chaveDoEstabelecimento`: NFD, tira
+   `\p{M}`, minúsculas, espaços colapsados, trim) já foi rotulada pela pessoa (o rótulo mais recente vale), esse
+   rótulo vence antes de qualquer modelo: `p_final` vira one-hot nele e ele é sempre sugerido (ignora limiar e
+   `minimoExemplos`). Assim o léxico nunca sobrepõe um rótulo da pessoa para o mesmo estabelecimento.
+7. **Sugestão.** Sem memória: `c* = argmax p_final`; sugere se `p_final[c*] ≥ limiarSugestao` **e** (`c*` tem
+   ≥ `minimoExemplos` exemplos rotulados **ou** `c*` é mapeada).
+
+Referência numérica para a T5: `app/src/test/resources/ia/golden_classificador.json` (gerado por
+`python gerar_golden_classificador.py` com `modelo_app`): entradas pequenas e todos os intermediários (`mapa`, `genericaLexico`,
+`s`, `prior`, `pPessoal`, `alfa`, `rotuloMemoria`, `pFinal`, `sugestao`).
 
 Python usa float64; em Float (Kotlin) as probabilidades devem bater em ~1e-4.

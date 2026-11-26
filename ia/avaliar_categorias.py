@@ -126,6 +126,48 @@ def mistura(p_pessoal, prior, n, alfaK):
     return a * p_pessoal + (1 - a) * prior
 
 
+def memoria_exata(chaves, y):
+    """chave do estabelecimento → último rótulo dado pela pessoa (o mais recente vence)."""
+    return {k: int(c) for k, c in zip(chaves, y)}
+
+
+def aplicar_memoria(p, rotulo_memoria):
+    """Precedência: se a chave exata já foi rotulada pela pessoa, esse rótulo vence qualquer modelo
+    (p vira one-hot nele). `rotulo_memoria` = -1 onde não há memória."""
+    p = p.copy()
+    hit = np.asarray(rotulo_memoria) >= 0
+    p[hit] = 0.0
+    p[hit, np.asarray(rotulo_memoria)[hit]] = 1.0
+    return p, hit
+
+
+def modelo_app(cc, cg, lex, V, ex_X, ex_y, ex_chaves, X, descs, chaves):
+    """Modelo do app completo para consultas (X, descs, chaves), com os intermediários (golden da T5).
+    cc = classificador, cg = generico (nomes, pesos, vieses, vetoresNomes, ...), V = vetorNome das categorias."""
+    C, n = len(V), len(ex_y)
+    Xtr = np.vstack([ex_X, V]) if n else V
+    ytr = np.concatenate([ex_y, np.arange(C)]).astype(int)
+    w = np.concatenate([np.ones(n), np.full(C, cc["pesoPrototipo"])])
+    W, b = treinar_pessoal(Xtr, ytr, w, C, cc["lambdaL2"], cc["taxa"], [cc["epocas"]])[cc["epocas"]]
+    p_pessoal = softmax(X @ W.T + b)
+    nomes = cg["nomes"]
+    lex_idx = np.array([(lambda g: -1 if g is None else g)(generica_do_lexico(d, lex, nomes)) for d in descs])
+    s_emb = softmax(X @ np.asarray(cg["pesos"]).T + np.asarray(cg["vieses"]))
+    s = distribuicao_generica(s_emb, lex_idx, cg["confiancaLexico"])
+    mapa, _ = mapear_genericas(V, np.asarray(cg["vetoresNomes"]), cg["similaridadeMinimaMapeamento"])
+    prior = prior_do_app(X, V, s, mapa, cc["temperaturaPrior"])
+    alfa = n / (n + cc["alfaK"])
+    memo = memoria_exata(ex_chaves, ex_y)
+    rot = np.array([memo.get(k, -1) for k in chaves])
+    p_final, hit = aplicar_memoria(mistura(p_pessoal, prior, n, cc["alfaK"]), rot)
+    pred = p_final.argmax(axis=1)
+    cont = np.bincount(np.asarray(ex_y, dtype=int), minlength=C)
+    sugere = hit | ((p_final.max(axis=1) >= cc["limiarSugestao"])
+                    & ((cont[pred] >= cc["minimoExemplos"]) | (mapa[pred] >= 0)))
+    return {"mapa": mapa, "genericaLexico": lex_idx, "s": s, "prior": prior, "pPessoal": p_pessoal,
+            "alfa": alfa, "rotuloMemoria": rot, "pFinal": p_final, "sugestao": np.where(sugere, pred, -1)}
+
+
 # ---------------------------------------------------------------- dados por usuário
 
 class DadosUsuario:
@@ -226,15 +268,16 @@ def avaliar_usuarios(dados, cfg):
             if n >= len(d.y):
                 continue
             resto, prior, pp = prever_app(d, n, cc)
-            p = mistura(pp[cc["epocas"]], prior, n, cc["alfaK"])
+            memo = prever_memoria(d, n, resto)
+            p, hit = aplicar_memoria(mistura(pp[cc["epocas"]], prior, n, cc["alfaK"]), memo)
             y = d.y[resto]
             visto = np.isin(d.merchants[resto], d.merchants[:n])
-            preds = {"memoria": prever_memoria(d, n, resto), "tfidf_rl": prever_tfidf(d, n, resto),
+            preds = {"memoria": memo, "tfidf_rl": prever_tfidf(d, n, resto),
                      "knn": prever_knn(d, n, resto), "prototipos": prever_prototipos(d, n, resto),
                      "app": p.argmax(axis=1)}
             for m in MODELOS:
                 por[m][n].append((d.u.esquema, _metricas(y, np.asarray(preds[m]), visto)))
-            sugestoes.append((n, p.max(axis=1), preds["app"] == y, pode_sugerir(d, n, preds["app"])))
+            sugestoes.append((n, p.max(axis=1), preds["app"] == y, pode_sugerir(d, n, preds["app"]) | hit))
     r = {}
     for m in MODELOS:
         r[m] = {}
@@ -296,10 +339,11 @@ def ajustar(dados, cfg):
                 c2 = dict(cc, pesoPrototipo=peso, lambdaL2=lam)
                 resto, prior, pp = prever_app(d, n, c2, GRADE["epocas"])
                 y = d.y[resto]
+                memo = prever_memoria(d, n, resto)
                 for ep, pe in pp.items():
                     for a in GRADE["alfaK"]:
                         k = (peso, a, lam, ep)
-                        acc = float((mistura(pe, prior, n, a).argmax(axis=1) == y).mean())
+                        acc = float((aplicar_memoria(mistura(pe, prior, n, a), memo)[0].argmax(axis=1) == y).mean())
                         soma[k] = soma.get(k, 0.0) + acc
                         conta[k] = conta.get(k, 0) + 1
     medias = {k: soma[k] / conta[k] for k in soma}
@@ -460,10 +504,14 @@ LEITURA = """## Leitura
   Alimentação, Diversão → Outros, Rolê → Moradia, Essenciais → Saúde); é o que mais derruba os esquemas (b)–(d) em n=0.
 - O melhor ponto da grade ficou na borda (pesoPrototipo=1, lambdaL2=1e-4, epocas=300): o modelo pessoal ainda está
   subajustado; a grade é a do plano e não foi estendida.
-- O limiar é um só para todos os n; em n=0 a precisão das sugestões fica abaixo de 0,85."""
+- O limiar é um só para todos os n; em n=0 a precisão das sugestões fica abaixo de 0,85.
+- Os números do app em n=0 incluem o léxico, montado com nomes de estabelecimentos do próprio FinIA: são otimistas
+  (ver a seção do prior, embeddings sem léxico).
+- A vantagem sobre a memória exata depende do ruído das descrições sintéticas do FinIA; num extrato real com
+  descrições estáveis a memória acertaria bem mais (e agora tem precedência no modelo do app)."""
 
 
-ESPEC = """## Especificação do modelo do app (a T5 replica exatamente)
+ESPEC = r"""## Especificação do modelo do app (a T5 replica exatamente)
 
 Entradas: categorias da pessoa `c = 0..C-1` com `vetorNome_c = vetorizar(normalizar_para_modelo(nome_c))`;
 exemplos rotulados `(x_i, y_i)` (só de categorias que ainda existem; `n` = quantos são);
@@ -473,8 +521,12 @@ exemplos rotulados `(x_i, y_i)` (só de categorias que ainda existem; `n` = quan
    `W = 0 (C×384)`, `b = 0`. Por `epocas` épocas, lote completo, `taxa`:
    `P = softmax(X·Wᵀ + b)` (por linha, subtraindo o máximo); `G_ic = peso_i · (P_ic − 1[y_i=c]) / Σ peso`;
    `W ← W − taxa · (Gᵀ·X + lambdaL2 · W)`; `b ← b − taxa · Σ_i G_i` (viés sem L2). `p_pessoal = softmax(W·x + b)`.
-2. **Distribuição genérica `s` (9).** Léxico: `t = sem_acento(normalizar_para_modelo(descricao))` (NFD, remove
-   marcas); casam os termos de `lexico` que são **substring** de `t`; se algum casa, `g*` = a categoria de **menor
+2. **Distribuição genérica `s` (9).** Léxico: `t = sem_acento(normalizar_para_modelo(descricao))`, onde
+   `normalizar_para_modelo` (NFKC, minúsculas, `[\d\W_]` → espaço) já tirou as sequências de cidades e as palavras de
+   BOILERPLATE antes do match, e `sem_acento(u) = NFKD(u)` codificado em ASCII **descartando** o que não for ASCII
+   (`unicodedata.normalize("NFKD", u).encode("ascii", "ignore")`: ø, ß e símbolos somem, não viram letra). Um termo
+   casa se aparece como **palavra(s) inteira(s)**: `(" " + termo + " ")` contido em `(" " + t + " ")` (termos de duas
+   palavras, como "smart fit", casam a sequência; "prime" não casa "primeiro"). Se algum casa, `g*` = a categoria de **menor
    índice em `generico.nomes`** entre as que casaram (é a ordem "1º acerto vence" do FinIA) e
    `s_g = (1 − confiancaLexico)/9 + confiancaLexico · 1[g = g*]`. Se nenhum casa, `s = softmax(pesos·x + vieses)`.
 3. **Mapeamento.** `g(c) = argmax_g cos(vetorNome_c, vetoresNomes_g)` se esse máximo ≥ `similaridadeMinimaMapeamento`;
@@ -483,9 +535,16 @@ exemplos rotulados `(x_i, y_i)` (só de categorias que ainda existem; `n` = quan
    dividem igualmente `Σ s_g` das genéricas que nenhuma categoria pegou. `q ← q / Σ q` (se `Σ q = 0`, uniforme).
    `z_c = softmax_c(cos(x, vetorNome_c) / temperaturaPrior)`. `prior = 0,5·q + 0,5·z`.
 5. **Mistura.** `α = n / (n + alfaK)`; `p_final = α·p_pessoal + (1 − α)·prior` (soma 1).
-6. **Sugestão.** `c* = argmax p_final`; sugere se `p_final[c*] ≥ limiarSugestao` **e** (`c*` tem ≥ `minimoExemplos`
-   exemplos rotulados **ou** `c*` é mapeada). O léxico só entra no prior genérico: nunca vence diretamente um rótulo
-   da pessoa (o peso dele cai com `α`).
+6. **Precedência da memória exata.** Se a chave do estabelecimento da transação (`chaveDoEstabelecimento`: NFD, tira
+   `\p{M}`, minúsculas, espaços colapsados, trim) já foi rotulada pela pessoa (o rótulo mais recente vale), esse
+   rótulo vence antes de qualquer modelo: `p_final` vira one-hot nele e ele é sempre sugerido (ignora limiar e
+   `minimoExemplos`). Assim o léxico nunca sobrepõe um rótulo da pessoa para o mesmo estabelecimento.
+7. **Sugestão.** Sem memória: `c* = argmax p_final`; sugere se `p_final[c*] ≥ limiarSugestao` **e** (`c*` tem
+   ≥ `minimoExemplos` exemplos rotulados **ou** `c*` é mapeada).
+
+Referência numérica para a T5: `app/src/test/resources/ia/golden_classificador.json` (gerado por
+`python gerar_golden_classificador.py` com `modelo_app`): entradas pequenas e todos os intermediários (`mapa`, `genericaLexico`,
+`s`, `prior`, `pPessoal`, `alfa`, `rotuloMemoria`, `pFinal`, `sugestao`).
 
 Python usa float64; em Float (Kotlin) as probabilidades devem bater em ~1e-4."""
 
