@@ -74,8 +74,12 @@ android {
             // --- ATRIBUI A ASSINATURA À RELEASE ---
             signingConfig = signingConfigs.getByName("release")
 
+            // R8: encolhe e otimiza o código; regras para o Drive e o login em proguard-rules.pro
             optimization {
-                enable = false
+                enable = true
+                keepRules {
+                    files.add(file("proguard-rules.pro"))
+                }
             }
         }
     }
