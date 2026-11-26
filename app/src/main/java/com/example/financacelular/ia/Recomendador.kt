@@ -180,8 +180,7 @@ object Recomendador {
         val janela = c.meses.takeLast(JANELA_ORCAMENTO)
         return c.e.orcamentos.map { it.categoriaId }.distinct().sorted().mapNotNull { id ->
             val excessos = janela.mapNotNull { mes ->
-                val limite = c.e.orcamentos.filter { it.categoriaId == id && it.anoMes == mes.toString() }
-                    .maxByOrNull { it.id }?.valorLimiteCentavos ?: return@mapNotNull null
+                val limite = limiteDoMes(c.e.orcamentos, id, mes) ?: return@mapNotNull null
                 ((c.e.despesas[mes]?.get(id) ?: 0L) - limite).takeIf { it > 0 }
             }
             if (excessos.size < MINIMO_ESTOUROS) return@mapNotNull null
@@ -196,6 +195,15 @@ object Recomendador {
             )
         }
     }
+
+    /**
+     * Limite vigente da categoria no mês, como `OrcamentoViewModel.itens`: vale o orçamento mais recente com
+     * `anoMes <= mes` (o limite é herdado dos meses seguintes) e limite 0 significa "sem orçamento".
+     */
+    private fun limiteDoMes(orcamentos: List<Orcamento>, categoriaId: Long, mes: YearMonth): Long? =
+        orcamentos.filter { it.categoriaId == categoriaId && it.anoMes <= mes.toString() }
+            .maxWithOrNull(compareBy({ it.anoMes }, { it.id }))
+            ?.valorLimiteCentavos?.takeIf { it > 0 }
 
     private fun atipicos(c: Contexto): List<Recomendacao> {
         if (c.e.atipicos.isEmpty()) return emptyList()

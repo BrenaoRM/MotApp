@@ -214,23 +214,46 @@ class RecomendadorTest {
 
     @Test
     fun ordenaPorSeveridadeEEconomia() {
-        // Poupança (ALTA, R$ 200), atípicos (ALTA, R$ 100), excesso de Restaurantes (MEDIA, R$ 160) e 6 assinaturas (MEDIA, R$ 70)
+        // Em cada severidade, a regra que vem depois na concatenação tem a maior economia:
+        // ALTA: poupança R$ 200 (antes) < atípicos R$ 300 (depois); MEDIA: excesso R$ 60 (antes) < assinaturas R$ 100 (depois)
         val e = entrada(
             renda = 2000,
-            gastos = mapOf(restaurantes to 400, mercado to 1600),
-            recorrentes = List(6) { recorrente(it, 35) },
-            atipicos = listOf(atipico(600)),
+            gastos = mapOf(restaurantes to 300, mercado to 1700),
+            recorrentes = List(6) { recorrente(it, 50) },
+            atipicos = listOf(atipico(1800)),
         )
         val r = Recomendador.recomendar(e)
         assertEquals(
             listOf(
-                CodigoRecomendacao.POUPANCA_BAIXA, CodigoRecomendacao.GASTOS_ATIPICOS,
-                CodigoRecomendacao.EXCESSO_CATEGORIA, CodigoRecomendacao.ASSINATURAS,
+                CodigoRecomendacao.GASTOS_ATIPICOS, CodigoRecomendacao.POUPANCA_BAIXA,
+                CodigoRecomendacao.ASSINATURAS, CodigoRecomendacao.EXCESSO_CATEGORIA,
             ),
             r.codigos(),
         )
-        assertEquals(listOf(Severidade.ALTA, Severidade.ALTA, Severidade.MEDIA, Severidade.MEDIA), r.map { it.severidade })
-        assertEquals(r.map { it.economiaMensalCentavos }.take(2), r.take(2).map { it.economiaMensalCentavos }.sortedDescending())
+        assertEquals(listOf(30000L, 20000L, 10000L, 6000L), r.map { it.economiaMensalCentavos })
+    }
+
+    @Test
+    fun orcamentoDefinidoUmaVezMesesAntesAindaVale() {
+        val ms = meses(6)
+        val e = entrada(
+            series = mapOf(mercado to listOf(100L, 100, 100, 500, 500, 500)),
+            orcamentos = listOf(orc(ms[0], 300)), // só no 1º mês; os seguintes herdam
+        )
+        val r = Recomendador.recomendar(e).single()
+        assertEquals(CodigoRecomendacao.ORCAMENTO_ESTOURADO, r.codigo)
+        assertEquals("Excedeu em 3 dos últimos 3 meses, em média R$ 200.", r.detalhe)
+    }
+
+    @Test
+    fun orcamentoMaisRecenteSubstituiOAnteriorELimiteZeroNuncaEstoura() {
+        val ms = meses(6)
+        val gastos = mapOf(mercado to listOf(500L, 500, 500, 500, 500, 500))
+        // Orçamento novo e folgado a partir do 4º mês: só o 1º dos 3 últimos... nenhum estoura
+        assertTrue(Recomendador.recomendar(entrada(series = gastos, orcamentos = listOf(orc(ms[0], 300), orc(ms[3], 900)))).isEmpty())
+        // Limite 0 = sem orçamento (também quando é o mais recente, anulando o anterior)
+        assertTrue(Recomendador.recomendar(entrada(series = gastos, orcamentos = listOf(orc(ms[0], 0)))).isEmpty())
+        assertTrue(Recomendador.recomendar(entrada(series = gastos, orcamentos = listOf(orc(ms[0], 300), orc(ms[3], 0)))).isEmpty())
     }
 
     @Test
