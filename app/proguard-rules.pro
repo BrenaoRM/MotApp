@@ -21,3 +21,6 @@
 # Mantém nomes de linha nos relatórios de erro
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
+
+# ONNX Runtime: o JNI procura classes e métodos pelo nome
+-keep class ai.onnxruntime.** { *; }

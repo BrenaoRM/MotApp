@@ -67,6 +67,11 @@ android {
         versionCode = resolverVersionCode(versionName!!)
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // ONNX Runtime só no arm64 (celulares atuais); em outras ABIs o modelo não abre e a IA desliga sozinha
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
     }
 
     buildTypes {
@@ -98,7 +103,13 @@ android {
     // (o Robolectric lê os assets do app; a release não leva os schemas)
     sourceSets {
         getByName("debug").assets.directories.add("$projectDir/schemas")
+        // Golden da IA (tokens e vetores do Python) também visível nos testes no aparelho
+        getByName("androidTest").resources.directories.add("$projectDir/src/test/resources")
     }
+}
+
+configurations.named("testImplementation") {
+    exclude(group = "com.microsoft.onnxruntime", module = "onnxruntime-android")
 }
 
 ksp {
@@ -140,7 +151,13 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.biometric:biometric:1.1.0")
 
+    // IA offline: embeddings de descrições (modelo em assets/ia)
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.31.0")
+
     testImplementation(libs.junit)
+    // Nos testes JVM o org.json do android.jar é só um stub, e o ONNX Runtime precisa da versão desktop
+    testImplementation("org.json:json:20250517")
+    testImplementation("com.microsoft.onnxruntime:onnxruntime:1.31.0")
     testImplementation("org.robolectric:robolectric:4.16")
     testImplementation("androidx.test:core:1.6.1")
     testImplementation(libs.androidx.junit)
