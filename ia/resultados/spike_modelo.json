@@ -1,0 +1,32 @@
+[
+  {
+    "candidato": "e5",
+    "modelo": "intfloat/multilingual-e5-small",
+    "vocab_original": 250002,
+    "vocab_podado": 36939,
+    "mb_onnx_int8": 34.81217575073242,
+    "mb_tokenizador": 1.1316709518432617,
+    "cos_medio": 0.996874213218689,
+    "cos_min": 0.9841357469558716,
+    "acuracia_knn_podado_int8": 0.33994460823729117,
+    "acuracia_hibrido_lexico_podado_int8": 0.7544894130259984,
+    "acuracia_knn_original_fp32": 0.3677298311444653,
+    "viterbi_igual_hf": 1.0,
+    "n_viterbi": 6319
+  },
+  {
+    "candidato": "minilm",
+    "modelo": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "vocab_original": 250002,
+    "vocab_podado": 36939,
+    "mb_onnx_int8": 34.81217575073242,
+    "mb_tokenizador": 1.1316919326782227,
+    "cos_medio": 0.9903924465179443,
+    "cos_min": 0.9503486752510071,
+    "acuracia_knn_podado_int8": 0.389082462253194,
+    "acuracia_hibrido_lexico_podado_int8": 0.7492182614133833,
+    "acuracia_knn_original_fp32": 0.3510229607790583,
+    "viterbi_igual_hf": 1.0,
+    "n_viterbi": 6319
+  }
+]
