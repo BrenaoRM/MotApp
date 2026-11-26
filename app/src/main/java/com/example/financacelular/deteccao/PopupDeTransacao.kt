@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.PixelFormat
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -13,6 +14,7 @@ import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
+import android.window.OnBackInvokedDispatcher
 import android.widget.FrameLayout
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.Lifecycle
@@ -157,6 +159,12 @@ object PopupDeTransacao {
             visao = raiz
             return try {
                 gerenciador.addView(raiz, parametros)
+                // Android 16 com target 36 não entrega mais o voltar como tecla: chega por aqui
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    raiz.findOnBackInvokedDispatcher()?.registerOnBackInvokedCallback(
+                        OnBackInvokedDispatcher.PRIORITY_DEFAULT
+                    ) { voltar?.invoke() }
+                }
                 true
             } catch (e: RuntimeException) { // WindowManager.BadTokenException, SecurityException
                 Log.w("PopupDeTransacao", "Janela flutuante recusada", e)

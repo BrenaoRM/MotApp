@@ -62,7 +62,7 @@ android {
     defaultConfig {
         applicationId = "com.example.financacelular"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 36
         versionName = resolverVersionName()
         versionCode = resolverVersionCode(versionName!!)
 
@@ -141,7 +141,7 @@ dependencies {
     implementation("androidx.biometric:biometric:1.1.0")
 
     testImplementation(libs.junit)
-    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("org.robolectric:robolectric:4.16")
     testImplementation("androidx.test:core:1.6.1")
     testImplementation(libs.androidx.junit)
     testImplementation("androidx.room:room-testing:2.8.5")

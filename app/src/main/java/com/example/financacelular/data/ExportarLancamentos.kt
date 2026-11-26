@@ -55,7 +55,7 @@ object ExportarLancamentos {
                 if (t.totalParcelas > 1) "${t.numeroParcela}/${t.totalParcelas}" else ""
             )
         }
-        return "﻿" +linhas.joinToString("\r\n") { linha -> linha.joinToString(";") { campo(it) } } + "\r\n"
+        return "\uFEFF" + linhas.joinToString("\r\n") { linha -> linha.joinToString(";") { campo(it) } } + "\r\n"
     }
 
     private fun campo(texto: String): String =
