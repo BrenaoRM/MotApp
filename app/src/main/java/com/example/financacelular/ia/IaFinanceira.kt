@@ -13,6 +13,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -59,6 +60,12 @@ object IaFinanceira {
     suspend fun ranking(descricao: String, tipo: TipoTransacao): List<Long> =
         pronto?.await()?.ranking(descricao, tipo).orEmpty()
 
+    /** Treina em segundo plano o modelo do tipo (se faltar), para o próximo [sugerir] não esperar. Não bloqueia. */
+    fun aquecer(tipo: TipoTransacao) {
+        val iniciando = pronto ?: return
+        escopo.launch { iniciando.await().aquecer(tipo) }
+    }
+
     /** Descarta os modelos; o próximo [sugerir] treina de novo com os lançamentos e categorias atuais. */
     fun invalidar() {
         motor?.invalidar()
@@ -102,6 +109,8 @@ internal class MotorIa(
         geracao.incrementAndGet()
         modelos.clear()
     }
+
+    suspend fun aquecer(tipo: TipoTransacao) = semErro(Unit) { treinado(tipo); Unit }
 
     /** Qualquer erro em tempo de execução (ONNX, memória, banco) vira "sem sugestão": a IA nunca derruba a tela. */
     suspend fun sugerir(descricao: String, tipo: TipoTransacao): Probabilidade? = semErro(null) { sugerirOuFalhar(descricao, tipo) }

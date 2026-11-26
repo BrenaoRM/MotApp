@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -61,7 +62,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -183,13 +186,24 @@ private fun LadrilhoDeEscolha(
     icone: ImageVector,
     selecionado: Boolean,
     aoClicar: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    sugeridaPelaIa: Boolean = false
 ) {
     BlocoDeEscolha(
         selecionado = selecionado,
         onClick = aoClicar,
         modifier = modifier.height(76.dp)
     ) {
+      Box(modifier = Modifier.fillMaxSize()) {
+        // ✦ no canto de cima à direita do ladrilho (5dp do topo, 6dp da direita; o bloco já tem 9dp e 12dp de respiro)
+        if (sugeridaPelaIa) {
+            Icon(
+                imageVector = EstrelaSugerida,
+                contentDescription = "Sugerida",
+                tint = RoxoHero,
+                modifier = Modifier.align(Alignment.TopEnd).offset(x = 6.dp, y = (-4).dp).size(12.dp)
+            )
+        }
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -214,8 +228,19 @@ private fun LadrilhoDeEscolha(
                 overflow = TextOverflow.Ellipsis
             )
         }
+      }
     }
 }
+
+/** Estrela de 4 pontas (✦) que marca a categoria sugerida pela IA. */
+private val EstrelaSugerida: ImageVector = ImageVector.Builder(
+    defaultWidth = 12.dp, defaultHeight = 12.dp, viewportWidth = 24f, viewportHeight = 24f
+).apply {
+    path(fill = SolidColor(Color.Black)) {
+        moveTo(12f, 2f); lineTo(14.4f, 9.6f); lineTo(22f, 12f); lineTo(14.4f, 14.4f)
+        lineTo(12f, 22f); lineTo(9.6f, 14.4f); lineTo(2f, 12f); lineTo(9.6f, 9.6f); close()
+    }
+}.build()
 
 /** Linha de escolha com ícone e texto lado a lado (forma de pagamento, cartão). */
 @Composable
@@ -510,10 +535,17 @@ fun NovaTransacaoScreen(
 
     // Grade: as mais usadas (sem a "Fatura", que é do sistema); a escolhida sempre aparece
     val usoPorCategoria = itensCategoria.orEmpty().associate { it.categoria.id to it.lancamentos }
-    val naGrade = remember(categoriasDoTipo, usoPorCategoria, viewModel.categoriaSelecionada) {
+    val rankingIa = viewModel.rankingIa
+    val naGrade = remember(categoriasDoTipo, usoPorCategoria, viewModel.categoriaSelecionada, rankingIa) {
+        // Com sugestão da IA, as mais prováveis vêm primeiro; o resto segue o critério de sempre (uso, nome)
+        val posicaoNaIa = rankingIa.withIndex().associate { it.value to it.index }
         val ranking = categoriasDoTipo
             .filterNot { it.nome.equals("Fatura", ignoreCase = true) }
-            .sortedWith(compareByDescending<Categoria> { usoPorCategoria[it.id] ?: 0 }.thenBy { it.nome.lowercase() })
+            .sortedWith(
+                compareBy<Categoria> { posicaoNaIa[it.id] ?: Int.MAX_VALUE }
+                    .thenByDescending { usoPorCategoria[it.id] ?: 0 }
+                    .thenBy { it.nome.lowercase() }
+            )
             .take(CATEGORIAS_NA_GRADE)
         val escolhida = viewModel.categoriaSelecionada
         if (escolhida == null || ranking.any { it.id == escolhida.id } || categoriasDoTipo.none { it.id == escolhida.id }) {
@@ -619,6 +651,7 @@ fun NovaTransacaoScreen(
                                                 texto = categoria.nome,
                                                 icone = iconeParaCategoria(categoria.nome, categoria.icone),
                                                 selecionado = viewModel.categoriaSelecionada?.id == categoria.id,
+                                                sugeridaPelaIa = viewModel.sugeridaPelaIaId == categoria.id,
                                                 aoClicar = { viewModel.onCategoriaChange(categoria) },
                                                 modifier = Modifier.weight(1f)
                                             )

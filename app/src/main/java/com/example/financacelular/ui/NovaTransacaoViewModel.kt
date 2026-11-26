@@ -15,7 +15,14 @@ import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.data.mesDaFaturaDaCompra
 import com.example.financacelular.data.Transacao
 import com.example.financacelular.deteccao.TransacaoDetectada
+import com.example.financacelular.data.chaveDoEstabelecimento
 import com.example.financacelular.deteccao.valorParaCampo
+import com.example.financacelular.ia.IaFinanceira
+import com.example.financacelular.ia.Probabilidade
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -24,12 +31,25 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.util.Locale
 
+/** Espera depois da última letra digitada antes de pedir a sugestão à IA. */
+private const val ATRASO_SUGESTAO_MS = 400L
+private const val MINIMO_DE_LETRAS = 3
+
+/**
+ * Categoria a pré-selecionar: a escolha da pessoa nunca muda; depois a memória exata do estabelecimento;
+ * por último a IA, e só se a categoria sugerida ainda existe em [categorias].
+ */
+fun escolherSugestao(memoria: Categoria?, ia: Probabilidade?, categorias: List<Categoria>, jaEscolhida: Categoria?): Categoria? =
+    jaEscolhida ?: memoria ?: ia?.let { sugestao -> categorias.firstOrNull { it.id == sugestao.categoriaId } }
+
 class NovaTransacaoViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: FinancaRepository
 
     init {
         val database = AppDatabase.getInstance(application)
         repository = FinancaRepository.getInstance(database)
+        // Treina o modelo em segundo plano para a primeira sugestão não esperar (já treinado, não custa nada)
+        IaFinanceira.aquecer(TipoTransacao.DESPESA)
     }
 
     val categorias: StateFlow<List<Categoria>> = repository.listarCategorias()
@@ -56,6 +76,16 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
 
     var descricao by mutableStateOf("")
         private set
+
+    /** Ids das categorias do tipo, da mais provável para a menos provável, para a grade; vazio = ordem de sempre. */
+    var rankingIa by mutableStateOf<List<Long>>(emptyList())
+        private set
+
+    /** Id da categoria que a IA (não a memória, nem a pessoa) pré-selecionou; a grade mostra o ✦ nela. */
+    var sugeridaPelaIaId by mutableStateOf<Long?>(null)
+        private set
+
+    private var jobSugestao: Job? = null
 
     var formaPagamento by mutableStateOf(FormaPagamento.DEBITO)
         private set
@@ -94,15 +124,43 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
         descricao = detectada.descricao.orEmpty()
         data = LocalDate.now()
         if (detectada.tipo == TipoTransacao.DESPESA) onFormaPagamentoChange(detectada.formaPagamento)
-        sugerirCategoria(detectada)
+        sugerirCategoria(descricao, detectada.tipo, atrasoMs = 0, usarMemoria = detectada.descricao != null)
     }
 
-    /** Pré-seleciona a categoria usada da última vez neste estabelecimento, se a pessoa ainda não escolheu. */
-    private fun sugerirCategoria(detectada: TransacaoDetectada) {
-        val nome = detectada.descricao ?: return
-        viewModelScope.launch {
-            val sugerida = repository.sugerirCategoria(nome, detectada.tipo) ?: return@launch
-            if (categoriaSelecionada == null && tipo == detectada.tipo) categoriaSelecionada = sugerida
+    /**
+     * Pré-seleciona a categoria da memória do estabelecimento ou, sem memória, a da IA, se a pessoa ainda não
+     * escolheu. Roda fora da thread principal; um pedido novo cancela o anterior.
+     */
+    private fun sugerirCategoria(texto: String, tipoAlvo: TipoTransacao, atrasoMs: Long, usarMemoria: Boolean) {
+        jobSugestao?.cancel()
+        jobSugestao = viewModelScope.launch {
+            if (atrasoMs > 0) delay(atrasoMs)
+            val comLetras = chaveDoEstabelecimento(texto).count { it.isLetter() } >= MINIMO_DE_LETRAS
+            if (!usarMemoria && !comLetras) {
+                rankingIa = emptyList()
+                return@launch
+            }
+            var memoria: Categoria? = null
+            var ia: Probabilidade? = null
+            var ranking = emptyList<Long>()
+            coroutineScope {
+                if (usarMemoria) launch { memoria = repository.sugerirCategoria(texto, tipoAlvo) }
+                if (comLetras) {
+                    launch { ia = IaFinanceira.sugerir(texto, tipoAlvo) }
+                    launch { ranking = IaFinanceira.ranking(texto, tipoAlvo) }
+                }
+            }
+            // A descrição ou o tipo mudou enquanto esperava: esta resposta é velha
+            if (tipo != tipoAlvo || descricao != texto) return@launch
+            rankingIa = ranking
+            // O que a própria IA pôs antes não é escolha da pessoa e pode ser trocado
+            val atual = categoriaSelecionada
+            val daPessoa = atual?.takeIf { it.id != sugeridaPelaIaId }
+            val escolhida = escolherSugestao(memoria, ia, categorias.value, daPessoa)
+            if (daPessoa == null && escolhida != null) {
+                categoriaSelecionada = escolhida
+                sugeridaPelaIaId = if (memoria == null) escolhida.id else null
+            }
         }
     }
 
@@ -116,10 +174,12 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
 
     fun onCategoriaChange(categoria: Categoria?) {
         categoriaSelecionada = categoria
+        sugeridaPelaIaId = null
     }
 
     fun onDescricaoChange(novaDescricao: String) {
         descricao = novaDescricao
+        sugerirCategoria(novaDescricao, tipo, ATRASO_SUGESTAO_MS, usarMemoria = false)
     }
 
     fun onCartaoSelecionado(id: Long) {
@@ -244,6 +304,8 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
                     repository.salvarTransacao(transacao)
                 }
                 estabelecimentoDetectado?.let { repository.lembrarCategoria(it, tipo, catId) }
+                // O repositório já invalidou o modelo; treina de novo agora para a próxima tela não esperar
+                IaFinanceira.aquecer(tipo)
                 aoSalvarComSucesso()
             } finally {
                 salvando = false
