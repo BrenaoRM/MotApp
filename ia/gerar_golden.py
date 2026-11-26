@@ -31,7 +31,8 @@ def main():
         tokens.append({"bruto": b, "normalizado": n, "ids": codificar(dados["prefixo"] + n, dados["max_tokens"])})
     textos = [normalizar_para_modelo(b) for b in descricoes_finia()[150:190]] + \
         [normalizar_para_modelo(b) for b in DIFICEIS[:10]]
-    vetores = carregar_onnx(ASSETS)(textos)
+    # um texto por inferência (lote=1): a quantização int8 dinâmica faz o vetor depender dos vizinhos do lote
+    vetores = carregar_onnx(ASSETS, lote=1)(textos)
     DESTINO.mkdir(parents=True, exist_ok=True)
     (DESTINO / "golden_tokens.json").write_text(json.dumps(tokens, ensure_ascii=False, indent=1), encoding="utf-8")
     (DESTINO / "golden_vetores.json").write_text(json.dumps(

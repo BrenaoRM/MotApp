@@ -27,4 +27,16 @@ class VetorizadorJvmTest {
             assertTrue("cosseno mínimo $menor", menor >= 0.999)
         }
     }
+
+    @Test
+    fun vetorNaoDependeDosVizinhos() {
+        val vetorizador = VetorizadorOnnx.criar(GoldenIa.asset("modelo.onnx").readBytes(), GoldenIa.tokenizador(), GoldenIa.config())
+        vetorizador.use {
+            val a = "bilhete unico rec"
+            val b = "supercalifragilisticexpialidocious padaria pao quente restaurante japones"
+            val junto = it.vetorizar(listOf(a, b))
+            val sozinho = it.vetorizar(listOf(a))[0]
+            for (k in sozinho.indices) assertEquals(sozinho[k].toDouble(), junto[0][k].toDouble(), 1e-6)
+        }
+    }
 }

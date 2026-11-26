@@ -21,22 +21,19 @@ class VetorizadorOnnx private constructor(
 
     override val versao: Int get() = config.versaoModelo
 
-    override fun vetorizar(textos: List<String>): List<FloatArray> =
-        textos.chunked(LOTE).flatMap(::vetorizarLote)
+    /** Uma inferência por texto, sem padding entre textos: a quantização int8 é dinâmica e o vetor não pode depender dos vizinhos. */
+    override fun vetorizar(textos: List<String>): List<FloatArray> = textos.map(::vetorizarUm)
 
-    private fun vetorizarLote(textos: List<String>): List<FloatArray> {
-        val ids = textos.map { tokenizador.codificar(it, config.maxTokens) }
-        val maior = ids.maxOf { it.size }
-        val entrada = Array(ids.size) { r ->
-            LongArray(maior) { c -> (if (c < ids[r].size) ids[r][c] else tokenizador.pad).toLong() }
-        }
-        val mascara = Array(ids.size) { r -> LongArray(maior) { c -> if (c < ids[r].size) 1L else 0L } }
+    private fun vetorizarUm(texto: String): FloatArray {
+        val ids = listOf(tokenizador.codificar(texto, config.maxTokens))
+        val entrada = Array(1) { LongArray(ids[0].size) { c -> ids[0][c].toLong() } }
+        val mascara = Array(1) { LongArray(ids[0].size) { 1L } }
         OnnxTensor.createTensor(ambiente, entrada).use { tIds ->
             OnnxTensor.createTensor(ambiente, mascara).use { tMascara ->
                 sessao.run(mapOf("input_ids" to tIds, "attention_mask" to tMascara)).use { saida ->
                     @Suppress("UNCHECKED_CAST")
                     val oculto = saida[0].value as Array<Array<FloatArray>>
-                    return List(ids.size) { r -> poolingENorma(oculto[r], ids[r].size) }
+                    return poolingENorma(oculto[0], ids[0].size)
                 }
             }
         }
@@ -61,8 +58,6 @@ class VetorizadorOnnx private constructor(
     }
 
     companion object {
-        private const val LOTE = 64
-
         /** Devolve `null` se qualquer coisa falhar (asset ausente ou corrompido, sem `.so` da ABI, falta de memória). */
         fun abrir(
             context: Context,
