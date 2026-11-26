@@ -12,3 +12,4 @@ scikit-learn==1.9.1
 joblib==1.6.0
 protobuf==7.36.2
 pytest==9.2.0
+matplotlib==3.11.2
