@@ -5,6 +5,7 @@
     python avaliar_llm.py --tabela                # junta os JSON em ia/resultados/llm.md
 
 Plano: 60 perguntas de teste/perguntas.jsonl, gramática por pergunta, temperatura 0, seed fixa.
+O prompt é exatamente o de contrato.montar_prompt_* (igual ao treino e ao app).
 Fidelidade: respostas do modelo às perguntas de dados/gerados/resposta_valid.jsonl; vale se toda frase passa no verificador.
 O llama-server próprio sobe na porta 8082 (nunca a 8081, do professor) e é sempre encerrado.
 """
@@ -32,7 +33,7 @@ SAIDA_JSON = RESULTADOS / "llm"
 TABELA = RESULTADOS / "llm.md"
 PORTA = 8082
 SEED = 42
-THINK_VAZIO = "<think>\n\n</think>\n\n"
+THINK_VAZIO = "<think>\n\n</think>\n\n"  # só com --com-think; o prompt do app e do treino não leva
 
 
 # ---------------------------------------------------------------- métricas
@@ -48,8 +49,9 @@ def _normalizar_chamadas(chamadas, mes_atual, categorias):
 
 
 def plano_do_modelo(texto, mes_atual, categorias):
+    """Chamadas lidas como o app lê; None = JSON inválido (erro, não recusa)."""
     lido = gp.ler_plano(texto, mes_atual, categorias)
-    return [_chave(c) for c in lido or []]
+    return None if lido is None else [_chave(c) for c in lido]
 
 
 def _multi(lista):
@@ -60,12 +62,16 @@ def _multi(lista):
 
 
 def plano_exato(previsto, esperado):
-    """Mesmas chamadas, em qualquer ordem."""
+    """Mesmas chamadas, em qualquer ordem; plano inválido (None) nunca é exato."""
+    if previsto is None:
+        return False
     return _multi(previsto) == _multi(esperado)
 
 
 def plano_f1(previsto, esperado):
-    """F1 das chamadas (multiconjunto); dois planos vazios (recusa certa) valem 1."""
+    """F1 das chamadas (multiconjunto); dois planos vazios (recusa certa) valem 1; plano inválido (None) vale 0."""
+    if previsto is None:
+        return 0.0
     if not previsto and not esperado:
         return 1.0
     p, e = _multi(previsto), _multi(esperado)
@@ -83,9 +89,10 @@ def resumir_planos(casos):
     return {
         "plano_exato": sum(plano_exato(p, e) for p, e in casos) / n,
         "plano_parcial": sum(plano_f1(p, e) for p, e in casos) / n,
-        "recusa_correta": (sum(not p for p, _ in fora) / len(fora)) if fora else None,
+        "recusa_correta": (sum(p == [] for p, _ in fora) / len(fora)) if fora else None,
         "n_perguntas": n,
         "n_fora_do_escopo": len(fora),
+        "n_planos_invalidos": sum(p is None for p, _ in casos),
     }
 
 
@@ -123,12 +130,35 @@ def _papeis_dos_itens(fato):
     elif fato["ferramenta"] == "ORCAMENTO_RESTANTE":
         nomes = ["restante", "limite"]  # estourado: o excedido ocupa o lugar do restante
     else:
-        nomes, vistos = [], {}
-        for i in itens:
-            k = vistos.get(i["rotulo"], 0)
-            vistos[i["rotulo"]] = k + 1
-            nomes.append(("valor", "tipico")[k] if k < 2 else None)
+        return _papeis_atipicos(fato, itens)
     return [(nomes[k], verificador._canonico(i["valor"])) for k, i in enumerate(itens) if k < len(nomes) and nomes[k]]
+
+
+_TRECHO_TIPICO = re.compile(r"t[ií]pico R\$ ?([0-9]+(?:\.[0-9]{3})*(?:,[0-9]+)?)")
+_REAIS = re.compile(r"R\$ ?([0-9]+(?:\.[0-9]{3})*(?:,[0-9]+)?)")
+
+
+def _papeis_atipicos(fato, itens):
+    """O "típico" só existe quando há valor de referência, então a posição dos itens não diz o papel: lê-se da frase
+    ("Fora do padrão em X: onde, R$ valor (motivo[, típico R$ ref]); ..."). None se a frase não bate com os itens."""
+    corpo = fato["frase"].split(": ", 1)[-1]
+    papeis = []
+    for trecho in corpo.split("; "):
+        numeros = _REAIS.findall(trecho)
+        if not numeros:
+            continue
+        papeis.append(("valor", verificador._canonico(numeros[0])))
+        tipico = _TRECHO_TIPICO.search(trecho)
+        if tipico:
+            papeis.append(("tipico", verificador._canonico(tipico.group(1))))
+    if [v for _, v in papeis] != [verificador._canonico(i["valor"]) for i in itens]:
+        return None
+    return papeis
+
+
+def fato_ambiguo(fato):
+    """Fato de papéis que a heurística não consegue identificar (fica de fora da troca_de_papel)."""
+    return fato["ferramenta"] in PALAVRAS_DE_PAPEL and len(fato["itens"]) >= 2 and not _papeis_dos_itens(fato)
 
 
 def troca_de_papel(resposta, fatos):
@@ -239,8 +269,19 @@ def _fatos_do_prompt(prompt, por_frase):
 
 # ---------------------------------------------------------------- avaliações
 
-def avaliar_modelo(modelo, nome, sem_think=False, limite_validacao=None, log=print):
-    sufixo = "" if sem_think else THINK_VAZIO
+def outros_processos_na_gpu():
+    """PIDs com a GPU em uso agora (nvidia-smi); [] se a GPU está livre ou o nvidia-smi não existe."""
+    try:
+        saida = subprocess.run(["nvidia-smi", "--query-compute-apps=pid", "--format=csv,noheader"],
+                               capture_output=True, text=True, timeout=20).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return [l.strip() for l in saida.splitlines() if l.strip().isdigit()]
+
+
+def avaliar_modelo(modelo, nome, com_think=False, limite_validacao=None, log=print):
+    sufixo = THINK_VAZIO if com_think else ""
+    na_gpu = outros_processos_na_gpu()
     perguntas = _ler_jsonl(PERGUNTAS)
     tokens, ms = 0, 0.0
     with Servidor(modelo) as s:
@@ -257,28 +298,33 @@ def avaliar_modelo(modelo, nome, sem_think=False, limite_validacao=None, log=pri
         log("[plano] %s" % resultado)
 
         validacao = GERADOS / "resposta_valid.jsonl"
+        puladas = ambiguos = 0
         fieis = com_papeis = trocas_papeis = usados = 0
         if validacao.exists():
             por_frase = _fatos_por_frase()
             for l in _ler_jsonl(validacao)[:limite_validacao]:
                 fatos = _fatos_do_prompt(l["prompt"], por_frase)
                 if fatos is None:
+                    puladas += 1
                     continue
                 resp, n, t = s.completar(l["prompt"] + sufixo, n_predict=260)
                 tokens, ms = tokens + n, ms + t
                 usados += 1
                 fieis += resposta_fiel(resp, fatos)
+                ambiguos += sum(fato_ambiguo(f) for f in fatos)
                 if cita_papeis(fatos):
                     com_papeis += 1
                     trocas_papeis += troca_de_papel(resp, fatos)
-            log("[resposta] %d respostas, fiéis %d, com papéis %d, trocas %d" % (usados, fieis, com_papeis, trocas_papeis))
+            log("[resposta] %d respostas (%d puladas), fiéis %d, com papéis %d, trocas %d" % (
+                usados, puladas, fieis, com_papeis, trocas_papeis))
     resultado.update({
         "fidelidade": (fieis / usados) if usados else None,
         "troca_de_papel": (trocas_papeis / com_papeis) if com_papeis else None,
-        "n_respostas": usados, "n_respostas_com_papeis": com_papeis,
+        "n_respostas": usados, "n_respostas_puladas": puladas, "n_respostas_com_papeis": com_papeis,
+        "n_fatos_ambiguos_na_troca": ambiguos,
         "tokens_por_s_pc": (1000 * tokens / ms) if ms else None,
-        "modelo": Path(modelo).name, "nome": nome, "seed": SEED, "think_vazio": not sem_think,
-        "gpu_compartilhada": True,
+        "modelo": Path(modelo).name, "nome": nome, "seed": SEED, "com_think": com_think,
+        "gpu_compartilhada": bool(na_gpu), "processos_na_gpu": len(na_gpu),
     })
     resultado["falhas_plano"] = [d for d in detalhes if not d["exato"]][:10]
     return resultado
@@ -350,6 +396,7 @@ def tabela():
         ("troca de papel (menor é melhor)", lambda d: pct(d["troca_de_papel"])),
         ("tokens/s (PC, GPU compartilhada)", lambda d: "-" if d["tokens_por_s_pc"] is None else "%.0f" % d["tokens_por_s_pc"]),
         ("perguntas de plano", lambda d: str(d["n_perguntas"])),
+        ("planos inválidos (contam como erro)", lambda d: str(d.get("n_planos_invalidos", "-"))),
         ("respostas avaliadas", lambda d: str(d.get("n_respostas", "-"))),
     ]
     texto = "# Avaliação do LLM local\n\nGerado por `ia/llm/avaliar_llm.py --tabela` a partir de `ia/resultados/llm/*.json`.\n\n"
@@ -370,20 +417,25 @@ def main(argv=None):
     ap.add_argument("--nome")
     ap.add_argument("--sistema-atual", action="store_true")
     ap.add_argument("--tabela", action="store_true")
-    ap.add_argument("--sem-think", action="store_true", help="não acrescenta <think> vazio ao prompt (modelos ajustados)")
+    ap.add_argument("--com-think", action="store_true", help="acrescenta <think> vazio ao prompt (o app e o treino não usam)")
     ap.add_argument("--limite-validacao", type=int)
     a = ap.parse_args(argv)
     sys.stdout.reconfigure(encoding="utf-8")
     SAIDA_JSON.mkdir(parents=True, exist_ok=True)
+    codigo = 0
     if a.modelo:
         if not a.nome:
             ap.error("--modelo exige --nome")
-        r = avaliar_modelo(a.modelo, a.nome, a.sem_think, a.limite_validacao, log=lambda s: print(s, flush=True))
+        r = avaliar_modelo(a.modelo, a.nome, a.com_think, a.limite_validacao, log=lambda s: print(s, flush=True))
         (SAIDA_JSON / (a.nome + ".json")).write_text(json.dumps(r, ensure_ascii=False, indent=1), encoding="utf-8")
+        if r["n_respostas_puladas"]:
+            print("ERRO: %d respostas da validação puladas (fatos fora de fatos.jsonl)" % r["n_respostas_puladas"], file=sys.stderr)
+            codigo = 1
     if a.sistema_atual:
         (SAIDA_JSON / "atual.json").write_text(json.dumps(avaliar_sistema_atual(), ensure_ascii=False, indent=1), encoding="utf-8")
     if a.tabela:
         print(tabela())
+    sys.exit(codigo)
 
 
 if __name__ == "__main__":
