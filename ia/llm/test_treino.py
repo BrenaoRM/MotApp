@@ -127,3 +127,12 @@ def test_oom_retry_mantem_o_lote_efetivo():
 
 def test_exportar_divide_na_mesma_unidade_do_llama():
     assert ex.LIMITE_PARTE == 1900 * 1024 * 1024
+
+
+def test_modos_padrao_sem_o_4b():
+    import rodar_treinos as rt
+    assert rt.escolher_modos(rt.MODOS_PADRAO) == [("rapida", "0.6B"), ("media", "1.7B")]
+    assert rt.escolher_modos("inteligente") == [("inteligente", "4B")]
+    assert "4B" in tl.CONFIG
+    with pytest.raises(SystemExit):
+        rt.escolher_modos("xyz")

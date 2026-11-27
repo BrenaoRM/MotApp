@@ -1,4 +1,4 @@
-"""Orquestra, sem supervisão, o treino dos três modos (Rápida 0.6B, Média 1.7B, Inteligente 4B).
+"""Orquestra, sem supervisão, o treino dos modos escolhidos em --modos (padrão Rápida 0.6B e Média 1.7B; Inteligente 4B só se pedido).
 
     .venv/Scripts/python rodar_treinos.py          (rode com o python do venv; pode ser relançado: retoma de onde parou)
 
@@ -27,6 +27,7 @@ RESULTADOS = AQUI.parent / "resultados" / "llm"
 BASES = AQUI / "modelos" / "base"
 CONFIG_LOTE = {"0.6B": (8, 2), "1.7B": (4, 4), "4B": (1, 16)}  # espelha treinar_lora.CONFIG (lote, acumulação)
 MODOS = [("rapida", "0.6B"), ("media", "1.7B"), ("inteligente", "4B")]
+MODOS_PADRAO = "rapida,media"  # o 4B não é viável no S20 FE (34-56 s por pergunta); a Inteligente usa o 1.7B. Manual: --modos inteligente
 PORTA_PROFESSOR = 8081
 LINHA_FINAL = re.compile(r"^\{'tentativas': \d+, 'aprovadas': \d+")
 
@@ -201,8 +202,17 @@ def modo(nome, base):
         log("[%s] avaliação FALHOU (veja %s)" % (nome, lora / "avaliacao.log"))
 
 
+def escolher_modos(texto):
+    pedidos = [m.strip() for m in texto.split(",") if m.strip()]
+    desconhecidos = [m for m in pedidos if m not in dict(MODOS)]
+    if desconhecidos or not pedidos:
+        raise SystemExit("--modos inválido %r (válidos: %s)" % (texto, ",".join(n for n, _ in MODOS)))
+    return [(n, b) for n, b in MODOS if n in pedidos]
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--modos", default=MODOS_PADRAO, help="modos a treinar, separados por vírgula (padrão %s)" % MODOS_PADRAO)
     ap.add_argument("--sem-espera", action="store_true", help="não espera o gerador nem encerra o professor (só se já terminou)")
     a = ap.parse_args(argv)
     log("[orquestração] iniciada (PID %d)" % __import__("os").getpid())
@@ -211,7 +221,7 @@ def main(argv=None):
         preflight()
         parar_professor()
     fumaca()
-    for nome, base in MODOS:
+    for nome, base in escolher_modos(a.modos):
         modo(nome, base)
     etapa("tabela", [PY, "avaliar_llm.py", "--tabela"], AQUI / "modelos" / "tabela.log")
     log("[orquestração] concluída; tabela em ia/resultados/llm.md")
