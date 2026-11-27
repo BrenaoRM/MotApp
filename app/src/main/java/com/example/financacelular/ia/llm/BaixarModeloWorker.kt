@@ -13,8 +13,11 @@ import androidx.core.content.ContextCompat
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
 
@@ -26,43 +29,60 @@ class BaixarModeloWorker(contexto: Context, params: WorkerParameters) : Coroutin
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val modo = modoPedido ?: return@withContext Result.failure()
+        val job = inputData.getLong(GerenciadorDeModelo.CHAVE_JOB, 0L)
+        if (!GerenciadorDeModelo.jobVigente(job)) return@withContext Result.failure()
         val modelo = ModelosIa.disponiveis.firstOrNull { it.modo == modo }
         if (modelo == null) {
-            GerenciadorDeModelo.definirEstado(EstadoModelo.Falhou(modo))
+            GerenciadorDeModelo.falhar(applicationContext, job, modo)
             return@withContext Result.failure()
         }
-        // Sem POST_NOTIFICATIONS (Android 13+) o serviço roda igual, só a notificação fica oculta
-        try { setForeground(info(0)) } catch (_: Exception) { }
+        // Sem POST_NOTIFICATIONS (Android 13+) o serviço roda igual, só a notificação fica oculta; em segundo plano
+        // o Android 12+ pode recusar o primeiro plano, e o download segue sem ele
+        try { setForeground(info(0)) } catch (e: CancellationException) { throw e } catch (_: Exception) { }
 
+        val pasta = GerenciadorDeModelo.pasta(applicationContext).apply { mkdirs() }
+        if (!GerenciadorDeModelo.espacoSuficiente(GerenciadorDeModelo.bytesRestantes(pasta, modelo), pasta.usableSpace)) {
+            GerenciadorDeModelo.falhar(applicationContext, job, modo)
+            return@withContext Result.failure()
+        }
         val total = modelo.arquivos.sumOf { it.bytes }.coerceAtLeast(1)
-        val pasta = GerenciadorDeModelo.pasta(applicationContext)
         var concluidos = 0L
         var ultimo = -1
         try {
             for (arquivo in modelo.arquivos) {
-                val ok = GerenciadorDeModelo.baixar(arquivo, pasta) { bytes ->
+                val ok = GerenciadorDeModelo.baixar(arquivo, pasta, verificarAtivo = {
+                    ensureActive()
+                    if (!GerenciadorDeModelo.jobVigente(job)) throw CancellationException("Download substituído ou cancelado")
+                }) { bytes ->
                     val pct = ((concluidos + bytes) * 100 / total).toInt()
                     if (pct != ultimo) {
                         ultimo = pct
-                        GerenciadorDeModelo.definirEstado(EstadoModelo.Baixando(modo, pct / 100f))
+                        GerenciadorDeModelo.definirEstado(job, EstadoModelo.Baixando(modo, pct / 100f))
                         atualizarNotificacao(pct)
+                        launch { setProgress(workDataOf(GerenciadorDeModelo.CHAVE_PROGRESSO to pct / 100f)) }
                     }
                 }
                 ensureActive()
                 if (!ok) {
-                    GerenciadorDeModelo.definirEstado(EstadoModelo.Falhou(modo))
+                    GerenciadorDeModelo.falhar(applicationContext, job, modo)
                     return@withContext Result.failure()
                 }
                 concluidos += arquivo.bytes
             }
+            ensureActive()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: IOException) {
             if (runAttemptCount >= 4) {
-                GerenciadorDeModelo.definirEstado(EstadoModelo.Falhou(modo))
+                GerenciadorDeModelo.falhar(applicationContext, job, modo)
                 return@withContext Result.failure()
             }
             return@withContext Result.retry()
+        } catch (e: Exception) {
+            GerenciadorDeModelo.falhar(applicationContext, job, modo)
+            return@withContext Result.failure()
         }
-        GerenciadorDeModelo.concluir(applicationContext, modelo)
+        GerenciadorDeModelo.concluir(applicationContext, job, modelo)
         Result.success()
     }
 
