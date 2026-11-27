@@ -20,12 +20,14 @@ struct Motor {
     llama_model *model = nullptr;
     llama_context *ctx = nullptr;
     const llama_vocab *vocab = nullptr;
-    // Gera até este id está cancelado: um cancelamento atrasado nunca derruba a geração seguinte.
-    std::atomic<int64_t> cancelar_ate{0};
-    int64_t geracao = 0;
+    // Cancela só a geração com este id exato: cancelar uma geração na fila ou um cancelamento atrasado nunca
+    // derruba outra. `cancelar_tudo` é o do liberar.
+    std::atomic<int64_t> cancelar_id{0};
+    std::atomic<bool> cancelar_tudo{false};
+    std::atomic<int64_t> geracao{0};
 };
 
-bool cancelado(const Motor *m) { return m->cancelar_ate.load() >= m->geracao; }
+bool cancelado(const Motor *m) { return m->cancelar_tudo.load() || m->cancelar_id.load() == m->geracao.load(); }
 
 void log_llama(ggml_log_level nivel, const char *texto, void *) {
     if (nivel == GGML_LOG_LEVEL_ERROR) __android_log_print(ANDROID_LOG_ERROR, TAG, "%s", texto);
@@ -79,6 +81,7 @@ Java_com_example_financacelular_ia_llm_MotorLlm_nativeCarregar(JNIEnv *env, jcla
     (void) iniciado;
 
     const char *c = env->GetStringUTFChars(caminho, nullptr);
+    if (c == nullptr) return 0;  // OutOfMemoryError pendente sobe para o Kotlin
     llama_model_params mp = llama_model_default_params();
     mp.n_gpu_layers = 0;
     llama_model *model = llama_model_load_from_file(c, mp);
@@ -109,13 +112,15 @@ Java_com_example_financacelular_ia_llm_MotorLlm_nativeCarregar(JNIEnv *env, jcla
 extern "C" JNIEXPORT void JNICALL
 Java_com_example_financacelular_ia_llm_MotorLlm_nativeCancelar(JNIEnv *, jclass, jlong handle, jlong geracao) {
     auto *m = reinterpret_cast<Motor *>(handle);
-    int64_t atual = m->cancelar_ate.load();
-    while (atual < geracao && !m->cancelar_ate.compare_exchange_weak(atual, geracao)) {}
+    if (geracao == INT64_MAX) m->cancelar_tudo.store(true);
+    else m->cancelar_id.store(geracao);
 }
 
 /**
  * Gera com decodificação gulosa (e gramática GBNF, se houver). Devolve os bytes UTF-8 do texto, ou null em erro.
- * `receptor.pedaco(byte[])` recebe só UTF-8 completo. `estatisticas` = [tokens do prompt, µs do prompt, tokens gerados, µs da geração].
+ * `receptor.pedaco(byte[])` recebe só UTF-8 completo. `estatisticas` = [tokens do prompt, µs do prompt, tokens gerados,
+ * µs da geração, 1 se parou por cancelamento]. Se `pedaco` lançar exceção, solta tudo e volta na hora (a exceção sobe).
+ * Erro se prompt + maxTokens não couber no contexto.
  */
 extern "C" JNIEXPORT jbyteArray JNICALL
 Java_com_example_financacelular_ia_llm_MotorLlm_nativeGerar(
@@ -129,12 +134,19 @@ Java_com_example_financacelular_ia_llm_MotorLlm_nativeGerar(
 
     const int32_t nCtx = static_cast<int32_t>(llama_n_ctx(m->ctx));
     const int32_t n = -llama_tokenize(m->vocab, prompt.data(), static_cast<int32_t>(prompt.size()), nullptr, 0, true, true);
-    if (n <= 0 || n >= nCtx) {
-        __android_log_print(ANDROID_LOG_ERROR, TAG, "prompt com %d tokens não cabe no contexto de %d", n, nCtx);
+    if (n <= 0) {
+        __android_log_print(ANDROID_LOG_ERROR, TAG, "prompt vazio");
+        return nullptr;
+    }
+    if (maxTokens <= 0 || static_cast<int64_t>(n) + maxTokens > nCtx) {
+        __android_log_print(ANDROID_LOG_ERROR, TAG, "prompt de %d tokens + %d gerados não cabe no contexto de %d", n, maxTokens, nCtx);
         return nullptr;
     }
     std::vector<llama_token> tokens(static_cast<size_t>(n));
     llama_tokenize(m->vocab, prompt.data(), static_cast<int32_t>(prompt.size()), tokens.data(), n, true, true);
+
+    jmethodID pedaco = env->GetMethodID(env->GetObjectClass(receptor), "pedaco", "([B)V");
+    if (pedaco == nullptr) return nullptr;  // NoSuchMethodError pendente sobe para o Kotlin
 
     llama_sampler *amostrador = llama_sampler_chain_init(llama_sampler_chain_default_params());
     if (gramaticaUtf8 != nullptr) {
@@ -149,12 +161,11 @@ Java_com_example_financacelular_ia_llm_MotorLlm_nativeGerar(
     }
     llama_sampler_chain_add(amostrador, llama_sampler_init_greedy());
 
-    jmethodID pedaco = env->GetMethodID(env->GetObjectClass(receptor), "pedaco", "([B)V");
     llama_batch_ext *lote = llama_batch_ext_init(m->ctx);
     std::string texto;      // tudo o que foi gerado
     size_t entregue = 0;    // bytes de `texto` já passados ao receptor
     bool erro = false;
-    jlong est[4] = {n, 0, 0, 0};
+    jlong est[5] = {n, 0, 0, 0, 0};
 
     // prompt, em lotes de n_batch
     auto t = std::chrono::steady_clock::now();
@@ -174,22 +185,27 @@ Java_com_example_financacelular_ia_llm_MotorLlm_nativeGerar(
 
     t = std::chrono::steady_clock::now();
     llama_pos pos = n;
-    while (!erro && !cancelado(m) && pos < nCtx) {
+    while (!erro && !cancelado(m) && est[2] < maxTokens) {
         const llama_token tok = llama_sampler_sample(amostrador, m->ctx, -1);
         if (llama_vocab_is_eog(m->vocab, tok)) break;
         est[2]++;
 
-        char buf[256];
-        const int32_t k = llama_token_to_piece(m->vocab, tok, buf, sizeof(buf), 0, false);
-        if (k > 0) texto.append(buf, static_cast<size_t>(k));
+        std::string peca(64, '\0');
+        int32_t k = llama_token_to_piece(m->vocab, tok, peca.data(), static_cast<int32_t>(peca.size()), 0, false);
+        if (k < 0) {  // peça maior que o buffer: -k é o tamanho certo
+            peca.resize(static_cast<size_t>(-k));
+            k = llama_token_to_piece(m->vocab, tok, peca.data(), static_cast<int32_t>(peca.size()), 0, false);
+        }
+        if (k > 0) texto.append(peca.data(), static_cast<size_t>(k));
         const size_t completo = prefixo_utf8_completo(texto);
         if (completo > entregue) {
             jbyteArray a = bytes(env, texto.substr(entregue, completo - entregue));
+            if (a == nullptr) break;  // OutOfMemoryError pendente: tratado logo abaixo
             env->CallVoidMethod(receptor, pedaco, a);
             env->DeleteLocalRef(a);
             entregue = completo;
-            if (env->ExceptionCheck()) break;  // a exceção do aoPedaco sobe para o Kotlin
         }
+        if (env->ExceptionCheck()) break;  // exceção do aoPedaco: nenhuma outra chamada JNI antes de voltar
         if (est[2] >= maxTokens) break;
 
         llama_batch_ext_clear(lote);
@@ -203,7 +219,10 @@ Java_com_example_financacelular_ia_llm_MotorLlm_nativeGerar(
 
     llama_batch_ext_free(lote);
     llama_sampler_free(amostrador);
-    env->SetLongArrayRegion(estatisticas, 0, 4, est);
+    if (env->ExceptionCheck()) return nullptr;  // a exceção pendente sobe para o Kotlin
+
+    est[4] = cancelado(m) ? 1 : 0;
+    env->SetLongArrayRegion(estatisticas, 0, 5, est);
     if (erro && !cancelado(m)) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "llama_process falhou");
         return nullptr;

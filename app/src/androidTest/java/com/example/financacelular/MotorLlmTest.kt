@@ -14,6 +14,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -25,6 +26,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 import java.time.YearMonth
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * llama.cpp no aparelho. Antes: `adb push <modelo>.gguf /data/local/tmp/motapp-teste.gguf`.
@@ -69,10 +71,10 @@ class MotorLlmTest {
     fun cancelaNoMeioSemCrashEGeraDeNovo(): Unit = runBlocking(Dispatchers.Default) {
         val m = motor!!
         val primeiroPedaco = CompletableDeferred<Unit>()
-        var pedacos = 0
+        val pedacos = AtomicInteger(0)
         val geracao = async {
             m.gerar(contrato.promptResposta("me conta uma história longa", emptyList()), null, 400) {
-                pedacos++
+                pedacos.incrementAndGet()
                 primeiroPedaco.complete(Unit)
             }
         }
@@ -80,10 +82,36 @@ class MotorLlmTest {
         geracao.cancelAndJoin()
         assertTrue(geracao.isCancelled)
         Log.i(TAG, "cancelado depois de $pedacos pedaços")
-        assertTrue("não parou: $pedacos pedaços", pedacos < 400)
+        assertTrue("não parou: $pedacos pedaços", pedacos.get() < 400)
 
         val texto = m.gerar(promptPlano("qual foi meu total do mês?"), contrato.gramaticaPlano(mes, categorias.values.toList()), 96) {}
         assertNotNull("plano inválido depois de cancelar: $texto", contrato.lerPlano(texto, mes, categorias))
+    }
+
+    /** Cancelar uma geração que ainda está na fila não pode cortar a que está rodando. */
+    @Test
+    fun cancelarAFilaNaoCortaAGeracaoEmAndamento(): Unit = runBlocking(Dispatchers.Default) {
+        val m = motor!!
+        val prompt = contrato.promptResposta("me conta uma história longa", emptyList())
+        val referencia = m.gerar(prompt, null, 80) {}
+        val primeiroPedaco = CompletableDeferred<Unit>()
+        val rodando = async { m.gerar(prompt, null, 80) { primeiroPedaco.complete(Unit) } }
+        primeiroPedaco.await()
+        val naFila = async { m.gerar(promptPlano("total do mês"), null, 8) {} }
+        delay(50)
+        naFila.cancelAndJoin()
+        assertTrue(naFila.isCancelled)
+        assertEquals("a geração em andamento foi cortada", referencia, rodando.await())
+    }
+
+    /** Uma exceção em aoPedaco sobe para quem chamou, sem derrubar o processo (CheckJNI do debug), e o motor continua usável. */
+    @Test
+    fun excecaoNoAoPedacoSobeSemCrash(): Unit = runBlocking(Dispatchers.Default) {
+        val m = motor!!
+        val erro = runCatching { m.gerar(promptPlano("total do mês"), null, 16) { error("falhou no pedaço") } }.exceptionOrNull()
+        assertTrue("esperava IllegalStateException: $erro", erro is IllegalStateException && erro.message == "falhou no pedaço")
+        val texto = m.gerar(promptPlano("qual foi meu total do mês?"), contrato.gramaticaPlano(mes, categorias.values.toList()), 96) {}
+        assertNotNull("plano inválido depois da exceção: $texto", contrato.lerPlano(texto, mes, categorias))
     }
 
     @Test

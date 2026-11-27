@@ -1,6 +1,7 @@
 package com.example.financacelular.ia.llm
 
 import kotlinx.coroutines.suspendCancellableCoroutine
+import java.util.concurrent.CancellationException
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicLong
@@ -19,11 +20,15 @@ data class EstatisticasGeracao(val tokensPrompt: Long, val microsPrompt: Long, v
 /**
  * llama.cpp via JNI (libmotor_llm.so), decodificação gulosa. As gerações rodam uma de cada vez numa thread própria;
  * [liberar] entra na mesma fila, então nunca solta o modelo no meio de uma geração.
+ *
+ * `aoPedaco` roda nessa thread interna, não no dispatcher de quem chamou: para mexer na UI, trocar para a Main.
+ * Sem [liberar], a thread e o modelo (1–3 GB) ficam presos até o processo morrer; quem carrega é dono do ciclo de vida.
  */
 class MotorLlm private constructor(handle: Long) : MotorDeTexto {
     private val trava = Any()
     private var handle = handle // 0 depois de liberar; lido e zerado só com `trava`
     private val geracoes = AtomicLong(0)
+    private val emAndamento = AtomicLong(0) // id da geração que está no llama.cpp agora (0 = nenhuma)
     private val fila = Executors.newSingleThreadExecutor { r -> Thread(null, r, "MotorLlm", 8L shl 20) }
 
     @Volatile
@@ -35,40 +40,54 @@ class MotorLlm private constructor(handle: Long) : MotorDeTexto {
 
     override suspend fun gerar(prompt: String, gramatica: String?, maxTokens: Int, aoPedaco: (String) -> Unit): String =
         suspendCancellableCoroutine { cont ->
-            val id = geracoes.incrementAndGet()
-            cont.invokeOnCancellation { cancelar(id) }
-            val tarefa = Runnable {
+            val tarefa = fun(id: Long) = Runnable {
                 val h = synchronized(trava) { handle }
                 if (h == 0L) {
                     cont.resumeWithException(IllegalStateException("MotorLlm já liberado"))
                     return@Runnable
                 }
-                if (!cont.isActive) return@Runnable
-                val est = LongArray(4)
-                val resultado = runCatching {
-                    nativeGerar(h, id, prompt.toByteArray(), gramatica?.toByteArray(), maxTokens, Receptor(aoPedaco), est)
+                // marca antes de olhar isActive: ou o cancelamento vê este id, ou esta tarefa vê o cancelamento
+                emAndamento.set(id)
+                try {
+                    if (!cont.isActive) return@Runnable
+                    val est = LongArray(5)
+                    val resultado = runCatching {
+                        nativeGerar(h, id, prompt.toByteArray(), gramatica?.toByteArray(), maxTokens, Receptor(aoPedaco), est)
+                    }
+                    ultimaGeracao = EstatisticasGeracao(est[0], est[1], est[2], est[3])
+                    resultado.fold(
+                        { bytes ->
+                            when {
+                                liberado -> cont.resumeWithException(IllegalStateException("MotorLlm liberado durante a geração"))
+                                // parou por cancelamento: nunca devolve o texto cortado como se tivesse terminado
+                                est[4] != 0L -> cont.resumeWithException(CancellationException("geração cancelada"))
+                                bytes == null -> cont.resumeWithException(IllegalStateException("falha na geração do llama.cpp"))
+                                else -> cont.resume(String(bytes, Charsets.UTF_8))
+                            }
+                        },
+                        { cont.resumeWithException(it) },
+                    )
+                } finally {
+                    emAndamento.set(0)
                 }
-                ultimaGeracao = EstatisticasGeracao(est[0], est[1], est[2], est[3])
-                resultado.fold(
-                    { bytes ->
-                        when {
-                            bytes == null -> cont.resumeWithException(IllegalStateException("falha na geração do llama.cpp"))
-                            liberado -> cont.resumeWithException(IllegalStateException("MotorLlm liberado durante a geração"))
-                            else -> cont.resume(String(bytes, Charsets.UTF_8))
-                        }
-                    },
-                    { cont.resumeWithException(it) },
-                )
             }
-            try {
-                fila.execute(tarefa)
-            } catch (_: RejectedExecutionException) {
-                cont.resumeWithException(IllegalStateException("MotorLlm já liberado"))
+            // id e lugar na fila juntos: a ordem dos ids é a ordem de execução
+            val id = synchronized(trava) {
+                val id = geracoes.incrementAndGet()
+                try {
+                    fila.execute(tarefa(id))
+                } catch (_: RejectedExecutionException) {
+                    cont.resumeWithException(IllegalStateException("MotorLlm já liberado"))
+                    return@suspendCancellableCoroutine
+                }
+                id
             }
+            cont.invokeOnCancellation { cancelar(id) }
         }
 
-    private fun cancelar(ate: Long) = synchronized(trava) {
-        if (handle != 0L) nativeCancelar(handle, ate)
+    /** Cancela só a geração `id`, e só se ela já estiver no llama.cpp (na fila, a própria tarefa vê o cancelamento e não roda). */
+    private fun cancelar(id: Long) = synchronized(trava) {
+        if (handle != 0L && emAndamento.get() == id) nativeCancelar(handle, id)
     }
 
     /** Cancela o que estiver gerando e solta o modelo assim que a geração atual parar. Pode chamar mais de uma vez. */
