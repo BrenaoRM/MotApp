@@ -21,6 +21,7 @@ import verificador
 
 AQUI = Path(__file__).resolve().parent
 FATOS = AQUI / "dados" / "gerados" / "fatos.jsonl"
+SEM_ITENS_A_CADA = 10  # id % 10 == 0: fato sem itens, resposta = a própria frase (sem professor)
 ALVO = 6500            # ~6.000 treino + 500 validação
 VALID_A_CADA = 13
 
@@ -39,6 +40,10 @@ EXTRA_SEM_ECONOMIA = " Escreva uma frase por fato, só dizendo o que o fato diz.
 _CONSELHO = re.compile(r"conselho|considere|recomend|(revise|reduza|evite|mantenha|controle|tente|procure|aproveite)", re.IGNORECASE)
 _META = re.compile(r"fato de economia|n[aã]o h[aá] (outros|mais|fatos|categorias|gastos)|n[aã]o foram? (mencionad|citad)|mencionad[oa]s? nos fatos",
                    re.IGNORECASE)
+
+
+_m = re.search(r"No máximo (\d+) frases", contrato.carregar()["sistema_resposta"])
+MAX_FRASES = int(_m.group(1))   # "No máximo 4 frases curtas e 1 conselho se houver fato de economia"
 
 
 def tem_valor_por_extenso(texto):
@@ -61,6 +66,11 @@ def carregar_fatos(caminho=FATOS):
     return bons, len(fatos) - len(bons)
 
 
+def separar_fatos(fatos):
+    """(com itens, sem itens): o verificador não confere frase de fato sem itens, então ela nunca vai ao professor."""
+    return [f for f in fatos if f["itens"]], [f for f in fatos if not f["itens"]]
+
+
 def pergunta_do_fato(fato, rnd, nome_da_ferramenta):
     """Pergunta escrita à mão (formas de gerar_planos) sobre um fato: período do fato, categoria do primeiro rótulo."""
     nome = nome_da_ferramenta[fato["ferramenta"]]
@@ -75,16 +85,21 @@ def pergunta_do_fato(fato, rnd, nome_da_ferramenta):
     return re.sub(r"\s+", " ", texto).strip()
 
 
-def montar_caso(i, fatos, nome_da_ferramenta):
+def montar_caso(i, com_itens, sem_itens, nome_da_ferramenta):
+    """(pergunta, fatos, deterministico). id % 10 == 0: um fato sem itens, resposta = a frase do fato."""
     rnd = random.Random(5000 + i)
+    if i % SEM_ITENS_A_CADA == 0:
+        fato = rnd.choice(sem_itens)
+        return pergunta_do_fato(fato, rnd, nome_da_ferramenta), [fato], True
     n = rnd.choices([1, 2, 3, 4], [0.4, 0.35, 0.18, 0.07])[0]
-    escolhidos = rnd.sample(fatos, n)
+    escolhidos = rnd.sample(com_itens, n)
     pergunta = gp._juntar([pergunta_do_fato(f, rnd, nome_da_ferramenta) for f in escolhidos], rnd)
-    return pergunta, escolhidos
+    return pergunta, escolhidos, False
 
 
 def _tem_economia(fatos):
-    return any(f["ferramenta"] == "COMO_ECONOMIZAR" for f in fatos)
+    """Só vale fato de economia com itens (um vazio não dá base para conselho)."""
+    return any(f["ferramenta"] == "COMO_ECONOMIZAR" and f["itens"] for f in fatos)
 
 
 def avaliar_resposta(resposta, fatos):
@@ -96,7 +111,7 @@ def avaliar_resposta(resposta, fatos):
     if _META.search(resposta) or (_CONSELHO.search(resposta) and not _tem_economia(fatos)):
         return "meta"
     lista = verificador.frases(resposta)
-    if not lista or len(lista) > 5:
+    if not lista or len(lista) > MAX_FRASES + (1 if _tem_economia(fatos) else 0):
         return "tamanho"
     periodo, aprovadas = None, []
     for frase in lista:
@@ -116,12 +131,22 @@ def _sistema_do_professor(sistema, fatos):
     return sistema.replace(" e 1 conselho se houver fato de economia", "") + EXTRA_PROFESSOR + EXTRA_SEM_ECONOMIA
 
 
-def _tentar(i, fatos, nome_da_ferramenta):
-    pergunta, escolhidos = montar_caso(i, fatos, nome_da_ferramenta)
-    prompt = contrato.montar_prompt_resposta(pergunta, escolhidos)
+def _tentar(pergunta, fatos, deterministico):
+    prompt = contrato.montar_prompt_resposta(pergunta, fatos)
+    if deterministico:
+        return prompt, fatos[0]["frase"], None
     sistema = contrato.carregar()["sistema_resposta"]
-    resposta = gp.completar(prompt.replace(sistema, _sistema_do_professor(sistema, escolhidos), 1), seed=i, temperatura=0.6, n_predict=260)
-    return prompt, resposta, avaliar_resposta(resposta, escolhidos)
+    resposta = gp.completar(prompt.replace(sistema, _sistema_do_professor(sistema, fatos), 1),
+                            seed=hash_estavel(pergunta), temperatura=0.6, n_predict=260)
+    return prompt, resposta, avaliar_resposta(resposta, fatos)
+
+
+def hash_estavel(texto):
+    return sum(ord(c) * 31 ** (k % 7) for k, c in enumerate(texto)) % 2_000_000_000
+
+
+def _pergunta_da_resposta(prompt):
+    return prompt.split("Pergunta: ", 1)[1].split("\nFatos:", 1)[0]
 
 
 def gerar(limite, saida_dir, workers=4, fatos_arquivo=FATOS, log=print):
@@ -129,34 +154,78 @@ def gerar(limite, saida_dir, workers=4, fatos_arquivo=FATOS, log=print):
     saida_dir.mkdir(parents=True, exist_ok=True)
     treino, valid, feito = (saida_dir / "resposta_treino.jsonl", saida_dir / "resposta_valid.jsonl", saida_dir / "resposta.feito")
     fatos, pulados = carregar_fatos(fatos_arquivo)
+    com_itens, sem_itens = separar_fatos(fatos)
     nome_da_ferramenta = {f["intencao"]: f["nome"] for f in contrato.carregar()["ferramentas"]}
-    tentativas = {}
+    guarda = gp.Guarda()
+    # feito: uma linha JSON por tentativa e, ao fim de cada bloco, "B proximo linhas_treino linhas_valid"
+    tentativas, ultimo = {}, None
     if feito.exists():
+        pendentes = {}
         for l in feito.read_text(encoding="utf-8").splitlines():
-            r = json.loads(l)
-            tentativas[r["id"]] = r["motivo"]
+            if l.startswith("B "):
+                _, proximo_b, lt, lv = l.split()
+                tentativas.update(pendentes)
+                pendentes = {}
+                ultimo = (int(proximo_b), int(lt), int(lv))
+            else:
+                r = json.loads(l)
+                pendentes[r["id"]] = r["motivo"]
+    if ultimo is None:
+        tentativas = {}
+        for arq in (treino, valid, feito):
+            arq.write_text("", encoding="utf-8")
+        proximo = 0
+    else:
+        gp.truncar_linhas(treino, ultimo[1])
+        gp.truncar_linhas(valid, ultimo[2])
+        feito.write_text("".join(json.dumps({"id": i, "motivo": m}) + "\n" for i, m in sorted(tentativas.items()))
+                         + "B %d %d %d\n" % ultimo, encoding="utf-8")
+        proximo = ultimo[0]
+        for arq in (treino, valid):
+            for l in arq.read_text(encoding="utf-8").splitlines():
+                guarda.usar(_pergunta_da_resposta(json.loads(l)["prompt"]))
     aprovadas = sum(m is None for m in tentativas.values())
-    proximo = max(tentativas, default=-1) + 1
     motivos = {}
     for m in tentativas.values():
         if m is not None:
             motivos[m] = motivos.get(m, 0) + 1
+    linhas_t, linhas_v = gp._contar_linhas(treino), gp._contar_linhas(valid)
     t0 = time.time()
-    log("[respostas] fatos usáveis %d, pulados (frase própria reprovada) %d" % (len(fatos), pulados))
+    log("[respostas] fatos com itens %d, sem itens %d, pulados (frase própria reprovada) %d" % (len(com_itens), len(sem_itens), pulados))
     with open(treino, "a", encoding="utf-8") as ft, open(valid, "a", encoding="utf-8") as fv, \
             open(feito, "a", encoding="utf-8") as ff, ThreadPoolExecutor(workers) as pool:
         while aprovadas < limite:
             ids = list(range(proximo, proximo + 32))
-            for i, (prompt, resposta, motivo) in zip(ids, pool.map(lambda i: _tentar(i, fatos, nome_da_ferramenta), ids)):
+            casos, motivo_previo = [], {}
+            for i in ids:
+                pergunta, escolhidos, det = montar_caso(i, com_itens, sem_itens, nome_da_ferramenta)
+                if not guarda.aceita(pergunta):
+                    motivo_previo[i] = "repetida_ou_teste"
+                else:
+                    guarda.usar(pergunta)
+                casos.append((i, pergunta, escolhidos, det))
+            validos = [c for c in casos if c[0] not in motivo_previo]
+            resultados = dict(zip((c[0] for c in validos), pool.map(lambda c: _tentar(c[1], c[2], c[3]), validos)))
+            for i, pergunta, escolhidos, det in casos:
+                if i in motivo_previo:
+                    motivo = motivo_previo[i]
+                else:
+                    prompt, resposta, motivo = resultados[i]
                 if motivo is None:
-                    (fv if i % VALID_A_CADA == 0 else ft).write(
-                        json.dumps({"prompt": prompt, "saida": resposta}, ensure_ascii=False) + "\n")
+                    linha = json.dumps({"prompt": prompt, "saida": resposta}, ensure_ascii=False) + "\n"
+                    if i % VALID_A_CADA == 0:
+                        fv.write(linha)
+                        linhas_v += 1
+                    else:
+                        ft.write(linha)
+                        linhas_t += 1
                     aprovadas += 1
                 else:
                     motivos[motivo] = motivos.get(motivo, 0) + 1
                 ff.write(json.dumps({"id": i, "motivo": motivo}) + "\n")
-            ft.flush(), fv.flush(), ff.flush()
             proximo = ids[-1] + 1
+            ft.flush(), fv.flush()
+            ff.write("B %d %d %d\n" % (proximo, linhas_t, linhas_v)), ff.flush()
             log("[respostas] tentativas %d  aprovadas %d (%.0f%%)  rejeições %s  %.0fs" % (
                 proximo, aprovadas, 100 * aprovadas / proximo, motivos, time.time() - t0))
     return {"tentativas": proximo, "aprovadas": aprovadas, "rejeicoes": motivos, "fatos_pulados": pulados}

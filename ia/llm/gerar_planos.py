@@ -7,6 +7,7 @@ guarda o último id gravado e o gerador continua dali.
     python gerar_planos.py [--limite N] [--saida-dir DIR] [--sem-professor]
 """
 import argparse
+import difflib
 import json
 import random
 import re
@@ -172,6 +173,11 @@ _COISAS = ["jogar xadrez", "tocar violão", "falar inglês", "programar em pytho
 _PESSOAS = ["einstein", "pelé", "santos dumont", "machado de assis", "marie curie", "ayrton senna", "dom pedro", "leonardo da vinci"]
 _TIMES = ["flamengo", "corinthians", "palmeiras", "são paulo", "grêmio", "vasco", "cruzeiro", "santos"]
 _FILMES = ["de comédia", "de terror", "de ação", "pra ver em família", "de ficção científica", "de romance", "de animação"]
+_ANIMAIS = ["cachorro", "gato", "papagaio", "tartaruga", "cavalo", "coelho", "hamster", "peixe"]
+_ESPORTES = ["futebol", "vôlei", "tênis", "natação", "basquete", "jiu-jitsu", "corrida", "ciclismo"]
+_PLANETAS = ["marte", "júpiter", "vênus", "saturno", "a lua", "o sol", "netuno", "mercúrio"]
+_REMEDIOS = ["dor de cabeça", "gripe", "azia", "insônia", "dor nas costas", "tosse", "enjoo", "estresse"]
+_SERIES = ["breaking bad", "friends", "dark", "the office", "lost", "stranger things", "round 6", "la casa de papel"]
 FORA_FORMAS = [
     "qual a capital de {a}", "me conta sobre {a}", "como faço {b}", "receita de {b}", "vai chover em {c} amanhã", "previsão do tempo em {c}",
     "me explica {d}", "o que é {d}", "traduz bom dia pra {e}", "como se diz obrigado em {e}", "quanto custa {f}", "onde comprar {f}",
@@ -179,19 +185,29 @@ FORA_FORMAS = [
     "me indica um filme {j}", "sugere uma série {j}", "quanto é {n} vezes {n2}", "quanto é {n} mais {n2}", "qual a raiz quadrada de {n}",
     "que horas são em {c}", "qual a distância de {c} até {c2}", "me conta uma piada sobre {i}", "escreve um poema sobre {a}",
     "como chegar em {c}", "qual o melhor celular de {n} reais", "o que fazer em {c} no fim de semana",
+    "como cuidar de um {k}", "quanto tempo vive um {k}", "meu {k} não come, o que faço", "qual a melhor ração pra {k}",
+    "quem é o melhor jogador de {t}", "quais as regras de {t}", "onde assistir {t} hoje", "como começar a treinar {t}",
+    "quanto tempo a luz do sol leva até {w}", "me conta sobre {w}", "qual a temperatura em {w}", "tem vida em {w}",
+    "o que fazer pra aliviar {r}", "chá bom pra {r}", "por que tenho {r}", "como evitar {r}",
+    "me resume a série {z}", "vale a pena assistir {z}", "quantas temporadas tem {z}", "quem faz o protagonista de {z}",
+    "quanto é {n} dividido por {n2}", "converte {n} km em milhas", "quantos dias faltam pro natal", "que dia da semana cai o dia {n}",
+    "escreve uma mensagem de aniversário pro meu {k}", "me ajuda a escolher um nome pro meu {k}",
+    "qual o melhor jeito de aprender {g}", "quanto tempo leva pra aprender a {g}", "me recomenda um curso de {g}",
+    "quem ganhou a copa de {n2}", "como é o clima em {a}", "qual a moeda de {a}", "qual a língua falada em {a}",
 ]
 
 
 def _fora_de_escopo(rnd):
-    forma = rnd.choice(FORA_FORMAS + FORA_DE_ESCOPO * 2)
+    forma = rnd.choice(FORA_FORMAS * 4 + FORA_DE_ESCOPO)
     slots = {"{a}": _PAISES, "{b}": _COMIDAS, "{c}": _CIDADES, "{c2}": _CIDADES, "{d}": _TEMAS, "{e}": _IDIOMAS, "{f}": _PRODUTOS,
-             "{g}": _COISAS, "{h}": _PESSOAS, "{i}": _TIMES, "{j}": _FILMES}
+             "{g}": _COISAS, "{h}": _PESSOAS, "{i}": _TIMES, "{j}": _FILMES, "{k}": _ANIMAIS, "{t}": _ESPORTES, "{w}": _PLANETAS, "{r}": _REMEDIOS, "{z}": _SERIES}
     for chave, lista in slots.items():
         forma = forma.replace(chave, rnd.choice(lista))
     forma = forma.replace("{n2}", str(rnd.randint(2, 99))).replace("{n}", str(rnd.randint(2, 99)))
-    texto = rnd.choice(ABERTURAS) + forma
-    if rnd.random() < 0.2:
-        texto += rnd.choice([" por favor", " pfv", " rapidinho", " valeu"])
+    texto = rnd.choice(ABERTURAS + ["ah, ", "então, ", "opa, ", "bom, ", "fala, "]) + forma
+    if rnd.random() < 0.3:
+        texto += rnd.choice([" por favor", " pfv", " rapidinho", " valeu", " obrigado", " se puder", " agora"])
+    texto = limpar(texto)
     texto = texto[0].upper() + texto[1:] if rnd.random() < 0.7 else texto
     return texto + rnd.choice(["?", "", "?", " ?"])
 
@@ -349,20 +365,53 @@ def _sortear_chamada(rnd, mes_atual, categorias, evitar=()):
         chamada["categoria"] = categoria
     if chamada in evitar:
         return _sortear_chamada(rnd, mes_atual, categorias, evitar)
+    if ferramenta == "comparar_mes_anterior" and rnd.random() < 0.3:
+        # "que o mês passado" é o termo de comparação: o mês pedido é o atual
+        chamada["mes"] = "atual"
+        return chamada, rnd.choice(COMPARA_COM_PASSADO)
     forma = rnd.choice(FORMAS[_chave_forma(ferramenta, com_categoria)])
     texto = forma.replace("{m}", _frase_do_mes(mes, mes_atual, rnd) if mes else "").replace(
         "{c}", _escrever_categoria(categoria, rnd) if categoria else "")
     return chamada, re.sub(r"\s+", " ", texto).strip()
 
 
+COMPARA_COM_PASSADO = [
+    "gastei mais que no mês passado", "tô gastando mais do que no mês passado", "gastei menos que no mês passado",
+    "estou gastando mais ou menos que no mês passado", "esse mês gastei mais que mês passado", "meus gastos subiram em relação ao mês passado",
+    "gastei mais ou menos do que no mês passado", "to gastando menos q no mês passado", "como estou em relação ao mês passado",
+    "compara com o mês passado", "gasto de agora contra o do mês passado", "e em comparação com o mês passado",
+]
 FORMAS_POR_FERRAMENTA = [f["nome"] for f in contrato.carregar()["ferramentas"]]
 
 
+_INTERROGATIVAS = ("quanto", "qual", "quais", "onde", "em que", "no que", "como")
+_REPETIDO = re.compile(r"\b(\w+(?: \w+)?)([ ,.]+)\1\b", re.IGNORECASE)
+
+
+def limpar(texto):
+    """Tira palavra ou par de palavras repetidos em seguida ("quero saber quero saber", "agora agora")."""
+    anterior = None
+    while anterior != texto:
+        anterior = texto
+        texto = _REPETIDO.sub(lambda m: m.group(1), texto)
+    return texto
+
+
+def _pede_interrogativa(trecho):
+    return "saber" in trecho or "me diz" in trecho or "pode me dizer" in trecho
+
+
 def _juntar(textos, rnd):
-    saida = rnd.choice(ABERTURAS) + textos[0]
+    abertura = rnd.choice(ABERTURAS)
+    if _pede_interrogativa(abertura) and not textos[0].startswith(_INTERROGATIVAS):
+        abertura = ""
+    saida = abertura + textos[0]
     for t in textos[1:]:
         conector = rnd.choice(CONECTORES)
+        if _pede_interrogativa(conector) and not t.startswith(_INTERROGATIVAS):
+            conector = " e "
         saida += conector + (t[0].upper() + t[1:] if conector.startswith(".") else t)
+    saida = limpar(saida)
     saida = saida[0].upper() + saida[1:]
     return saida + rnd.choice(["?", "?", "?", "", " ?", "??"])
 
@@ -377,14 +426,26 @@ def _acompanhamento(rnd, mes_atual, categorias, anterior):
     if pode_cat and (not pode_mes or rnd.random() < 0.4):
         novo = rnd.choice([c for c in categorias if c != anterior.get("categoria")] or categorias)
         chamada = dict(anterior, categoria=novo)
-        texto = rnd.choice(["e com {c}", "e de {c}", "e em {c}", "e {c}", "e a {c}", "e sobre {c}", "agora {c}", "e {c} tbm"])
-        return chamada, texto.replace("{c}", _escrever_categoria(novo, rnd)) + rnd.choice(["?", "", "?"])
+        texto = rnd.choice(PREFIXOS_CONTINUACAO) + rnd.choice(FORMAS_CATEGORIA).replace("{c}", _escrever_categoria(novo, rnd))
+        return chamada, limpar(texto) + rnd.choice(["?", "", "?"])
     novo = rnd.choice([m for m in ["atual", "anterior"] + [_mes_somar(mes_atual, -k) for k in range(2, 8)]
                        if m != anterior["mes"]])
     chamada = dict(anterior, mes=novo)
-    frase = _frase_do_mes(novo, mes_atual, rnd)
-    texto = rnd.choice(["e {m}", "e {m}", "e como foi {m}", "agora {m}", "e {m} tbm", "o mesmo {m}", "e como ficou {m}"]).replace("{m}", frase)
-    return chamada, texto + rnd.choice(["?", "", "?"])
+    texto = rnd.choice(PREFIXOS_CONTINUACAO) + rnd.choice(FORMAS_MES).replace("{m}", _frase_do_mes(novo, mes_atual, rnd))
+    return chamada, limpar(texto) + rnd.choice(["?", "", "?"])
+
+
+PREFIXOS_CONTINUACAO = ["", "", "", "ah, ", "beleza, ", "ok, ", "valeu, ", "show, ", "boa, ", "certo, "]
+FORMAS_CATEGORIA = [
+    "e com {c}", "e de {c}", "e em {c}", "e {c}", "e a {c}", "e sobre {c}", "agora {c}", "e {c} tbm", "e quanto a {c}", "e na {c}",
+    "e o de {c}", "e pra {c}", "agora com {c}", "agora me fala de {c}", "mesma coisa pra {c}", "o mesmo com {c}", "e se for {c}",
+    "troca por {c}", "e para {c}", "e no caso de {c}",
+]
+FORMAS_MES = [
+    "e {m}", "e como foi {m}", "agora {m}", "e {m} tbm", "o mesmo {m}", "e como ficou {m}", "e {m} então", "e se for {m}",
+    "mesma coisa {m}", "agora me mostra {m}", "e quanto foi {m}", "troca pra {m}", "e olhando {m}", "e para {m}", "como foi {m}",
+    "e {m}, como fica", "me mostra {m}", "agora vê {m}", "e no caso de {m}", "pode ver {m}",
+]
 
 
 def montar_exemplo(i, rnd=None):
@@ -394,11 +455,11 @@ def montar_exemplo(i, rnd=None):
     ano_max, mes_max = _mes_para_tupla(MES_ATUAL_MAX)
     mes_atual = _mes_somar(MES_ATUAL_MIN, rnd.randint(0, (ano_max * 12 + mes_max) - (ano_min * 12 + mes_min)))
     categorias = sortear_categorias(rnd)
-    r = rnd.random()
+    k = (i * 61) % 100   # categoria fixa por id: 15% fora do escopo, 14% continuação, 38% compostas, 33% simples
     historico = []
-    if r < 0.14:
+    if k < 15:
         pergunta, chamadas = _fora_de_escopo(rnd), []
-    elif r < 0.28:
+    elif k < 29:
         for _ in range(rnd.choice([1, 1, 2])):
             c, t = _sortear_chamada(rnd, mes_atual, categorias)
             historico.append((_juntar([t], rnd), serializar_plano([c])))
@@ -409,7 +470,7 @@ def montar_exemplo(i, rnd=None):
         chamada, pergunta = achado
         pergunta = pergunta[0].upper() + pergunta[1:]
         chamadas = [chamada]
-    elif r < 0.66:
+    elif k < 67:
         n = rnd.choices([2, 3, 4], [0.6, 0.28, 0.12])[0]
         chamadas, textos = [], []
         for _ in range(n):
@@ -455,59 +516,116 @@ SISTEMA_PARAFRASE = (
 )
 
 
+_FINANCEIRO = re.compile(r"gast|pag|compr|dinheiro|\breais?\b|r\$|econom|orcament|saldo|fatura|cart|salari|renda|receit|poup|assinatur|financ")
+_CUE_ATUAL = re.compile(r"\bmes\b|agora|atual|momento|\be?sse\b|\be?ste\b|neste|nesse|hoje")
+_CUE_PASSADO = re.compile(r"passad|anterior|ultimo")
+
+
 def parafrasear(ex, seed):
-    """Pergunta reescrita pelo professor, ou None se perdeu algum pedido, mês ou categoria."""
+    """Paráfrase de pergunta de uma chamada só (ou fora do escopo); None se perdeu pedido, mês ou categoria."""
+    if len(ex["chamadas"]) > 1 or ex["historico"]:
+        return None
     prompt = ("<|im_start|>system\n" + SISTEMA_PARAFRASE + "<|im_end|>\n<|im_start|>user\n" + ex["pergunta"]
               + "<|im_end|>\n<|im_start|>assistant\n")
     texto = completar(prompt, seed, 0.8, 120).split("\n")[0].strip().strip('"“”')
     if not texto or len(texto) > 300:
         return None
     norm = normalizar(texto)
-    for c in ex["chamadas"]:
-        if c.get("categoria") and normalizar(c["categoria"]) not in norm:
-            return None
-        mes = c.get("mes")
-        if mes == "anterior" and not re.search(r"passad|anterior|ultimo", norm):
-            return None
-        if mes and re.fullmatch(r"\d{4}-\d{2}", mes):
-            if normalizar(_MESES_ACENTO[_mes_para_tupla(mes)[1] - 1]) not in norm:
-                return None
-    if not ex["chamadas"] and len(norm.split()) < 1:
+    if not ex["chamadas"]:
+        return None if _FINANCEIRO.search(norm) else texto
+    c = ex["chamadas"][0]
+    if c.get("categoria") and normalizar(c["categoria"]) not in norm:
+        return None
+    mes = c.get("mes")
+    if mes == "anterior" and not _CUE_PASSADO.search(norm):
+        return None
+    if mes == "atual" and (not _CUE_ATUAL.search(norm) or _CUE_PASSADO.search(norm)):
+        return None
+    if mes and re.fullmatch(r"\d{4}-\d{2}", mes) and normalizar(_MESES_ACENTO[_mes_para_tupla(mes)[1] - 1]) not in norm:
         return None
     return texto
 
 
+# ---------------------------------------------------------------- vazamento e repetição
+
+class Guarda:
+    """Recusa pergunta parecida com a de teste (difflib >= 0.85) ou já usada em treino/validação."""
+    LIMIAR = 0.85
+
+    def __init__(self, caminho_teste=None):
+        self.teste = sorted(_perguntas_de_teste(caminho_teste or PERGUNTAS_TESTE))
+        self.vistas = set()
+
+    def parecida_com_teste(self, norm):
+        for t in self.teste:
+            tamanho = len(norm) + len(t)
+            if tamanho and 2 * min(len(norm), len(t)) / tamanho < self.LIMIAR:
+                continue
+            if difflib.SequenceMatcher(None, norm, t).ratio() >= self.LIMIAR:
+                return True
+        return False
+
+    def aceita(self, pergunta):
+        norm = normalizar(pergunta)
+        return norm not in self.vistas and not self.parecida_com_teste(norm)
+
+    def usar(self, pergunta):
+        self.vistas.add(normalizar(pergunta))
+
+
+def truncar_linhas(caminho, n):
+    """Mantém só as n primeiras linhas (descarta o que ficou escrito depois do último bloco registrado)."""
+    caminho = Path(caminho)
+    linhas = caminho.read_text(encoding="utf-8").splitlines(True) if caminho.exists() else []
+    caminho.write_text("".join(linhas[:n]), encoding="utf-8")
+
+
+def _contar_linhas(caminho):
+    caminho = Path(caminho)
+    return len(caminho.read_text(encoding="utf-8").splitlines()) if caminho.exists() else 0
+
+
 # ---------------------------------------------------------------- execução
 
-def _perguntas_de_teste():
-    if not PERGUNTAS_TESTE.exists():
+def _perguntas_de_teste(caminho=None):
+    caminho = Path(caminho or PERGUNTAS_TESTE)
+    if not caminho.exists():
         return set()
-    return {normalizar(json.loads(l)["pergunta"]) for l in PERGUNTAS_TESTE.read_text(encoding="utf-8").splitlines() if l.strip()}
+    return {normalizar(json.loads(l)["pergunta"]) for l in caminho.read_text(encoding="utf-8").splitlines() if l.strip()}
 
 
 def _pergunta_do_prompt(prompt):
     return prompt.rsplit("Pergunta: ", 1)[1].split("<|im_end|>")[0]
 
 
-def _ultimo_feito(caminho):
-    if not caminho.exists():
-        return -1
-    linhas = caminho.read_text(encoding="utf-8").split()
-    return int(linhas[-1]) if linhas else -1
+def _estado_do_feito(caminho, treino, valid):
+    """(próximo id, ) após alinhar os arquivos ao último bloco registrado ("id linhas_treino linhas_valid")."""
+    ultimo = None
+    if caminho.exists():
+        for l in caminho.read_text(encoding="utf-8").splitlines():
+            if len(l.split()) == 3:
+                ultimo = [int(x) for x in l.split()]
+    if ultimo is None:
+        for arq in (treino, valid, caminho):
+            arq.write_text("", encoding="utf-8")
+        return 0
+    truncar_linhas(treino, ultimo[1])
+    truncar_linhas(valid, ultimo[2])
+    return ultimo[0] + 1
 
 
-def gerar(limite, saida_dir, usar_professor=True, taxa_parafrase=0.3, workers=4, log=print):
+def gerar(limite, saida_dir, usar_professor=True, taxa_parafrase=0.6, workers=4, log=print):
+    """taxa_parafrase vale entre as perguntas elegíveis (uma chamada só ou fora do escopo, ~48% dos ids)."""
     saida_dir = Path(saida_dir)
     saida_dir.mkdir(parents=True, exist_ok=True)
     treino, valid, feito = (saida_dir / "plano_treino.jsonl", saida_dir / "plano_valid.jsonl", saida_dir / "plano.feito")
-    proibidas = _perguntas_de_teste()
-    vistas = set()
+    guarda = Guarda()
+    inicio = _estado_do_feito(feito, treino, valid)
     for caminho in (treino, valid):
-        if caminho.exists():
-            for l in caminho.read_text(encoding="utf-8").splitlines():
-                vistas.add(normalizar(_pergunta_do_prompt(json.loads(l)["prompt"])))
-    inicio = _ultimo_feito(feito) + 1
+        for l in caminho.read_text(encoding="utf-8").splitlines():
+            guarda.usar(_pergunta_do_prompt(json.loads(l)["prompt"]))
     parafraseadas = descartadas = 0
+    linhas_t, linhas_v = _contar_linhas(treino), _contar_linhas(valid)
     t0 = time.time()
     with open(treino, "a", encoding="utf-8") as ft, open(valid, "a", encoding="utf-8") as fv, \
             open(feito, "a", encoding="utf-8") as ff, ThreadPoolExecutor(workers) as pool:
@@ -516,33 +634,35 @@ def gerar(limite, saida_dir, usar_professor=True, taxa_parafrase=0.3, workers=4,
             exemplos = [montar_exemplo(i) for i in ids]
             novas = {}
             if usar_professor:
-                alvos = [e for e in exemplos if not e["historico"] and random.Random(7000 + e["id"]).random() < taxa_parafrase]
+                alvos = [e for e in exemplos if (not e["chamadas"] or len(e["chamadas"]) == 1) and not e["historico"]
+                         and random.Random(7000 + e["id"]).random() < taxa_parafrase]
                 for e, nova in zip(alvos, pool.map(lambda e: parafrasear(e, e["id"]), alvos)):
                     novas[e["id"]] = nova
             for e in exemplos:
-                anterior = "|" + normalizar(e["historico"][-1][0]) if e["historico"] else ""
                 nova = novas.get(e["id"])
                 pergunta = e["pergunta"]
-                if nova and normalizar(nova) not in proibidas and normalizar(nova) + anterior not in vistas:
+                if nova and guarda.aceita(nova):
                     pergunta = nova
                     parafraseadas += 1
-                chave = normalizar(pergunta) + anterior
                 tentativa = 0
-                while normalizar(pergunta) in proibidas or chave in vistas:
-                    # repetida: sorteia outra variação do mesmo id (determinístico)
+                while not guarda.aceita(pergunta):
+                    # repetida ou parecida com o teste: outra variação do mesmo id (mesma categoria, determinístico)
                     tentativa += 1
                     descartadas += 1
-                    if tentativa > 50:
+                    if tentativa > 200:
                         raise RuntimeError("não há variações novas para o id %d" % e["id"])
                     e = montar_exemplo(e["id"], random.Random(1000 + e["id"] + tentativa * 100003))
                     pergunta = e["pergunta"]
-                    anterior = "|" + normalizar(e["historico"][-1][0]) if e["historico"] else ""
-                    chave = normalizar(pergunta) + anterior
-                vistas.add(chave)
+                guarda.usar(pergunta)
                 linha = json.dumps({"prompt": prompt_do_exemplo(e, pergunta), "saida": e["saida"]}, ensure_ascii=False)
-                (fv if e["id"] % VALID_A_CADA == 0 else ft).write(linha + "\n")
+                if e["id"] % VALID_A_CADA == 0:
+                    fv.write(linha + "\n")
+                    linhas_v += 1
+                else:
+                    ft.write(linha + "\n")
+                    linhas_t += 1
             ft.flush(), fv.flush()
-            ff.write("%d\n" % (ids[-1])), ff.flush()
+            ff.write("%d %d %d\n" % (ids[-1], linhas_t, linhas_v)), ff.flush()
             log("[planos] id %d/%d  parafraseadas %d  descartadas %d  %.0fs" % (ids[-1] + 1, limite, parafraseadas, descartadas, time.time() - t0))
     return {"parafraseadas": parafraseadas, "descartadas": descartadas}
 

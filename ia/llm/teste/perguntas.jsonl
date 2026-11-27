@@ -48,13 +48,13 @@
 {"pergunta": "me mostra de agosto os dois", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [["quanto gastei esse mês", "{\"chamadas\":[{\"f\":\"total_mes\",\"mes\":\"atual\"}]}"], ["e quanto sobrou?", "{\"chamadas\":[{\"f\":\"poupanca\",\"mes\":\"atual\"}]}"]], "plano_esperado": [{"f": "total_mes", "mes": "2026-08"}, {"f": "poupanca", "mes": "2026-08"}]}
 {"pergunta": "e novembro", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [["algum gasto estranho em outubro", "{\"chamadas\":[{\"f\":\"atipicos\",\"mes\":\"2026-10\"}]}"]], "plano_esperado": [{"f": "atipicos", "mes": "atual"}]}
 {"pergunta": "e o de lazer?", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [["quanto resta do orçamento de alimentação", "{\"chamadas\":[{\"f\":\"orcamento_restante\",\"mes\":\"atual\",\"categoria\":\"Alimentação\"}]}"]], "plano_esperado": [{"f": "orcamento_restante", "mes": "atual", "categoria": "Lazer"}]}
-{"pergunta": "qual a capital da frança", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [], "plano_esperado": []}
-{"pergunta": "me conta uma piada", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [], "plano_esperado": []}
-{"pergunta": "vai chover amanha?", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [], "plano_esperado": []}
-{"pergunta": "quem ganhou o jogo ontem", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [], "plano_esperado": []}
-{"pergunta": "como faço bolo de cenoura", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [], "plano_esperado": []}
-{"pergunta": "voce é o chatgpt?", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [], "plano_esperado": []}
-{"pergunta": "quanto custa um iphone 15", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [], "plano_esperado": []}
-{"pergunta": "traduz good morning pra portugues", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [], "plano_esperado": []}
-{"pergunta": "qual o melhor investimento em acoes hoje", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [], "plano_esperado": []}
-{"pergunta": "oii", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [], "plano_esperado": []}
+{"pergunta": "qual o melhor jeito de aprender violao", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [], "plano_esperado": []}
+{"pergunta": "me recomenda um restaurante japones", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [], "plano_esperado": []}
+{"pergunta": "quantos anos tem a lua?", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [], "plano_esperado": []}
+{"pergunta": "pode resumir a historia de roma", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [], "plano_esperado": []}
+{"pergunta": "como funciona um motor a diesel", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [], "plano_esperado": []}
+{"pergunta": "escreve um email pro meu chefe pedindo ferias", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [], "plano_esperado": []}
+{"pergunta": "quem inventou a lampada", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [], "plano_esperado": []}
+{"pergunta": "qual a altura do everest?", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [], "plano_esperado": []}
+{"pergunta": "consegue me ajudar com matematica?", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [], "plano_esperado": []}
+{"pergunta": "meu cachorro nao para de latir, o que faço", "mes_atual": "2026-11", "categorias": ["Alimentação", "Transporte", "Lazer", "Contas", "Outros"], "historico": [], "plano_esperado": []}
