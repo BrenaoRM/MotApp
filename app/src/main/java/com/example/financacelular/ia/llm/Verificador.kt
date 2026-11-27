@@ -72,9 +72,13 @@ object Verificador {
         return melhor
     }
 
-    /** Regra 2: apaga da frase os rótulos dos fatos que têm dígito ("outubro de 2025", "Carro 2"). */
+    /**
+     * Regra 2: apaga da frase os períodos ("outubro de 2025") e os rótulos com letra ("Carro 2") que têm dígito.
+     * Rótulo só de dígitos ("99") não é apagado: os números dele são conferidos como qualquer outro.
+     */
     private fun mascarar(texto: String, fatos: List<Fato>): String {
-        val rotulos = fatos.flatMap { f -> listOf(f.periodo) + f.itens.map { it.rotulo } }.filterNotNull().map { normalizar(it) }.toSet()
+        val rotulos = fatos.mapNotNull { it.periodo }.map { normalizar(it) }.toSet() +
+            fatos.flatMap { f -> f.itens.mapNotNull { it.rotulo } }.map { normalizar(it) }.filter { r -> r.any { it.isLetter() } }
         var saida = texto
         for (r in rotulos.filter { r -> r.any { it.isDigit() } }.sortedWith(compareBy({ -it.length }, { it }))) {
             var i = posicao(r, saida)

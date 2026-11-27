@@ -64,9 +64,13 @@ def _periodo(texto, fatos, anterior):
 
 
 def _mascarar(texto, fatos):
-    """Regra 2: apaga da frase os rótulos dos fatos que têm dígito ("outubro de 2025", "Carro 2")."""
-    rotulos = {_normalizar(r) for f in fatos for r in [f["periodo"]] + [i["rotulo"] for i in f["itens"]]
-               if r is not None}
+    """Regra 2: apaga da frase os períodos ("outubro de 2025") e os rótulos com letra ("Carro 2") que têm dígito.
+
+    Rótulo só de dígitos ("99") não é apagado: os números dele são conferidos como qualquer outro.
+    """
+    rotulos = {_normalizar(f["periodo"]) for f in fatos if f["periodo"] is not None}
+    rotulos |= {r for r in (_normalizar(i["rotulo"]) for f in fatos for i in f["itens"] if i["rotulo"] is not None)
+                if any(c.isalpha() for c in r)}
     for r in sorted((r for r in rotulos if any(c.isdigit() for c in r)), key=lambda r: (-len(r), r)):
         i = _posicao(r, texto)
         while i >= 0:
