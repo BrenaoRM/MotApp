@@ -47,7 +47,12 @@ def montar_prompt_resposta(pergunta, fatos) -> str:
 
 
 def _gbnf(literal: str) -> str:
-    """Literal GBNF entre aspas, com barra invertida e aspas escapadas."""
+    r"""Literal GBNF entre aspas: escapa `\` como `\\` e `"` como `\\"`, nada mais.
+
+    Nomes de categoria: primeiro json.dumps(nome, ensure_ascii=False) (aspas e
+    barra viram escapes JSON, \n etc.; acentos e emoji ficam literais em UTF-8),
+    depois este escape GBNF sobre o resultado inteiro (inclusive as aspas externas).
+    """
     return '"' + literal.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
@@ -64,6 +69,10 @@ def _meses_ate(mes_atual: str) -> list:
 
 def gramatica_plano(mes_atual, categorias) -> str:
     ferramentas = carregar()["ferramentas"]
+    if not categorias:
+        # sem categorias: some quem exige categoria e a cláusula opcional de categoria
+        ferramentas = [dict(f, usa_categoria=False) for f in ferramentas
+                       if not f["categoria_obrigatoria"]]
     meses = ["atual", "anterior"] + _meses_ate(mes_atual)
     regras = ["root ::= " + _gbnf('{"chamadas":[') + " (chamada (" + _gbnf(",")
               + " chamada){0," + str(MAX_CHAMADAS - 1) + "})? " + _gbnf("]}")]
@@ -78,6 +87,7 @@ def gramatica_plano(mes_atual, categorias) -> str:
         corpo += " " + _gbnf("}")
         regras.append("c-" + f["nome"].replace("_", "-") + " ::= " + corpo)
     regras.append("mes ::= " + " | ".join(_gbnf('"' + m + '"') for m in meses))
-    regras.append("categoria ::= " + " | ".join(
-        _gbnf(json.dumps(c, ensure_ascii=False)) for c in categorias))
+    if categorias:
+        regras.append("categoria ::= " + " | ".join(
+            _gbnf(json.dumps(c, ensure_ascii=False)) for c in categorias))
     return "\n".join(regras) + "\n"

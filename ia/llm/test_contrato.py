@@ -52,6 +52,18 @@ def test_gramatica_golden(request):
     confere("gramatica_plano.gbnf", contrato.gramatica_plano("2026-11", CATEGORIAS), request)
 
 
+def test_gramatica_sem_categorias_golden(request):
+    g = contrato.gramatica_plano("2026-11", [])
+    assert "categoria ::=" not in g and "gasto-categoria" not in g and "categoria" not in g.replace("gasto_categoria", "")
+    confere("gramatica_plano_sem_categorias.gbnf", g, request)
+
+
+def test_gramatica_nomes_especiais():
+    g = contrato.gramatica_plano("2026-11", ["Bar\\Café", "🍔 Lanche", "A\nB"])
+    esperado = ('categoria ::= "\\"Bar\\\\\\\\Café\\"" | "\\"🍔 Lanche\\"" | "\\"A\\\\nB\\""')
+    assert esperado in g
+
+
 def test_gramatica_estrutura():
     g = contrato.gramatica_plano("2026-11", CATEGORIAS)
     assert '"\\"Pet \\\\\\"Rex\\\\\\"\\""' in g
@@ -89,5 +101,50 @@ def test_gramatica_aceita_e_recusa():
             for c in plano["chamadas"]:
                 assert c["f"] in nomes
             print(pergunta, "->", saida)
+    finally:
+        proc.terminate()
+
+
+@pytest.mark.llama
+@pytest.mark.skipif(not (SERVER.exists() and GGUF.exists()), reason="llama-server ausente")
+def test_gramatica_nomes_especiais_e_sem_categorias_no_llama():
+    porta = 18097
+    proc = subprocess.Popen([str(SERVER), "-m", str(GGUF), "--port", str(porta), "-c", "2048"],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        base = f"http://127.0.0.1:{porta}"
+        for _ in range(120):
+            try:
+                if requests.get(base + "/health", timeout=2).status_code == 200:
+                    break
+            except requests.RequestException:
+                pass
+            time.sleep(1)
+        else:
+            pytest.fail("llama-server não subiu")
+        nomes = {f["nome"] for f in contrato.carregar()["ferramentas"]}
+        exemplo = ('{"chamadas":[{"f":"gasto_categoria","mes":"atual","categoria":"Lazer"}]}')
+        for cats in (["Bar\\Café", "🍔 Lanche"], []):
+            gram = contrato.gramatica_plano("2026-11", cats)
+            hist = [("Quanto gastei em Lazer?", exemplo)] if cats else []
+            alvo = cats[0] if cats else "isso"
+            prompt = contrato.montar_prompt_plano("Quanto gastei em " + alvo + "?", "2026-11", cats, hist)
+            r = requests.post(base + "/completion", json={
+                "prompt": prompt, "grammar": gram, "temperature": 0, "n_predict": 200}, timeout=120)
+            corpo = r.json()
+            assert r.status_code == 200 and "content" in corpo, corpo
+            plano = json.loads(corpo["content"])
+            for c in plano["chamadas"]:
+                assert c["f"] in nomes
+                if "categoria" in c:
+                    assert c["categoria"] in cats
+            print(cats, "->", corpo["content"])
+        # força uma chamada com o nome exato: gramática só com a ferramenta de categoria
+        gram = contrato.gramatica_plano("2026-11", ["Bar\\Café"]).replace(
+            "chamada ::= ", 'chamada ::= c-gasto-categoria #', 1)
+        r = requests.post(base + "/completion", json={
+            "prompt": "x", "grammar": gram, "temperature": 0, "n_predict": 200}, timeout=120)
+        plano = json.loads(r.json()["content"])
+        assert plano["chamadas"][0]["categoria"] == "Bar\\Café"
     finally:
         proc.terminate()
