@@ -1,0 +1,242 @@
+package com.example.financacelular.ia.llm
+
+import com.example.financacelular.data.Categoria
+import com.example.financacelular.data.DespesaRecorrente
+import com.example.financacelular.data.Orcamento
+import com.example.financacelular.data.TipoTransacao
+import com.example.financacelular.data.Transacao
+import com.example.financacelular.data.idDaCategoriaFatura
+import com.example.financacelular.ia.Atipico
+import com.example.financacelular.ia.Intencao
+import com.example.financacelular.ia.Pergunta
+import com.example.financacelular.ia.Perguntas
+import com.example.financacelular.ia.Recomendacao
+import com.example.financacelular.ia.RespondedorDePerguntas
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import java.time.LocalDate
+import java.time.YearMonth
+
+/** Tudo o que as ferramentas precisam para calcular os fatos de uma pergunta. */
+data class DadosDaConversa(
+    val transacoes: List<Transacao>,
+    val categorias: List<Categoria>,
+    val recorrentes: List<DespesaRecorrente>,
+    val orcamentos: List<Orcamento>,
+    val recomendacoes: List<Recomendacao>,
+    val atipicos: List<Atipico>,
+    val mesAtual: YearMonth,
+    val hoje: LocalDate,
+)
+
+sealed interface EventoResposta {
+    /** Já verificada; a tela acrescenta. */
+    data class Frase(val texto: String) : EventoResposta
+
+    data class Fim(val planoJson: String, val sugestoes: List<String>) : EventoResposta
+
+    /** Nada foi mostrado ainda: a tela responde pelo sistema atual. */
+    data object UsarSistemaAtual : EventoResposta
+}
+
+/**
+ * Pipeline da IA avançada: o LLM planeja as chamadas (JSON com gramática), o app calcula os [Fato]s e o LLM escreve.
+ * Cada frase só sai depois de passar no [Verificador]; a primeira reprovada corta a geração e os fatos ainda não citados
+ * entram com a frase pronta. Se nada foi mostrado e algo falhou (plano inválido, erro, [tempoLimiteMs] esgotado),
+ * sai [EventoResposta.UsarSistemaAtual].
+ *
+ * O flow é frio: cancelar o collect cancela o `motor.gerar` em andamento, e nenhum evento sai depois.
+ */
+class AssistenteLlm(private val motor: MotorDeTexto, private val contrato: ContratoLlm, private val tempoLimiteMs: Long) {
+
+    /** O que a geração (coroutine filha) passa para quem emite os eventos. */
+    private sealed interface Interno {
+        class Plano(val json: String, val chamadas: List<Chamada>, val fatos: List<Fato>) : Interno
+        class Pedaco(val texto: String) : Interno
+        data object Terminou : Interno
+    }
+
+    fun responder(pergunta: String, historico: List<Pair<String, String>>, dados: DadosDaConversa): Flow<EventoResposta> = flow {
+        coroutineScope {
+            val canal = Channel<Interno>(Channel.UNLIMITED)
+            val geracao = launch {
+                try {
+                    withTimeoutOrNull(tempoLimiteMs) { gerar(pergunta, historico, dados, canal) }
+                } finally {
+                    canal.close() // fechar sem Terminou = falha ou tempo esgotado
+                }
+            }
+
+            var plano: Interno.Plano? = null
+            var terminou = false
+            var interrompida = false
+            val bruto = StringBuilder()
+            var consumido = 0 // quanto do texto visível já virou frase
+            var periodo: String? = null
+            val aprovadas = ArrayList<String>()
+
+            leitura@ for (m in canal) {
+                when (m) {
+                    is Interno.Plano -> {
+                        plano = m
+                        if (m.chamadas.isEmpty()) break@leitura
+                    }
+                    is Interno.Pedaco -> {
+                        val fatos = plano?.fatos ?: continue@leitura
+                        bruto.append(m.texto)
+                        val visivel = semPensamento(bruto.toString()) ?: continue@leitura
+                        while (true) {
+                            val (frase, fim) = proximaFrase(visivel, consumido) ?: break
+                            consumido = fim
+                            val (ok, novo) = Verificador.verificarFrase(frase, fatos, periodo)
+                            if (!ok) {
+                                interrompida = true
+                                break@leitura
+                            }
+                            periodo = novo
+                            aprovadas += frase
+                            emit(EventoResposta.Frase(frase))
+                            if (aprovadas.size >= maxFrases(fatos)) {
+                                interrompida = true
+                                break@leitura
+                            }
+                        }
+                    }
+                    Interno.Terminou -> terminou = true
+                }
+            }
+            geracao.cancel()
+
+            val p = plano
+            when {
+                p == null -> emit(EventoResposta.UsarSistemaAtual)
+                p.chamadas.isEmpty() -> {
+                    emit(EventoResposta.Frase(contrato.textoRecusa))
+                    emit(EventoResposta.Fim(p.json, Perguntas.SUGESTOES_INICIAIS))
+                }
+                aprovadas.isEmpty() && !terminou && !interrompida -> emit(EventoResposta.UsarSistemaAtual)
+                else -> {
+                    if (terminou && !interrompida) {
+                        // a última frase pode vir sem pontuação no fim
+                        val resto = semPensamento(bruto.toString())?.substring(consumido)?.trim()
+                        if (!resto.isNullOrEmpty() && aprovadas.size < maxFrases(p.fatos) &&
+                            Verificador.verificarFrase(resto, p.fatos, periodo).first
+                        ) {
+                            aprovadas += resto
+                            emit(EventoResposta.Frase(resto))
+                        }
+                    }
+                    for (f in fatosNaoCitados(aprovadas, p.fatos)) emit(EventoResposta.Frase(f.frase))
+                    val sugestoes = RespondedorDePerguntas.SUGESTOES_DEPOIS[contrato.intencao(p.chamadas.first().ferramenta)]
+                        ?: Perguntas.SUGESTOES_INICIAIS
+                    emit(EventoResposta.Fim(p.json, sugestoes))
+                }
+            }
+        }
+    }
+
+    /** Roda na coroutine filha: plano, fatos e o texto em pedaços. Erro (fora cancelamento) só fecha o canal. */
+    private suspend fun gerar(pergunta: String, historico: List<Pair<String, String>>, dados: DadosDaConversa, canal: Channel<Interno>) {
+        try {
+            val faturaId = idDaCategoriaFatura(dados.categorias)
+            val despesas = dados.categorias.filter { it.tipo == TipoTransacao.DESPESA && it.id != faturaId }
+            val nomes = despesas.map { it.nome }
+            val json = motor.gerar(
+                contrato.promptPlano(pergunta, dados.mesAtual, nomes, historico),
+                contrato.gramaticaPlano(dados.mesAtual, nomes), MAX_TOKENS_PLANO,
+            ) {}.trim()
+            val chamadas = contrato.lerPlano(json, dados.mesAtual, despesas.associate { it.id to it.nome }) ?: return
+            val fatos = chamadas.distinct().map { c ->
+                RespondedorDePerguntas.fato(
+                    Pergunta(contrato.intencao(c.ferramenta), 1f, c.mes ?: dados.mesAtual, c.categoriaId),
+                    dados.transacoes, dados.categorias, dados.recorrentes, dados.orcamentos, dados.recomendacoes,
+                    dados.atipicos, dados.hoje,
+                )
+            }
+            canal.send(Interno.Plano(json, chamadas, fatos))
+            if (chamadas.isEmpty()) return
+            // aoPedaco roda na thread do motor: trySend no canal sem limite nunca bloqueia
+            motor.gerar(contrato.promptResposta(pergunta, fatos), null, MAX_TOKENS_RESPOSTA) { canal.trySend(Interno.Pedaco(it)) }
+            canal.send(Interno.Terminou)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // cai no sistema atual (nada mostrado) ou nas frases prontas
+        }
+    }
+
+    companion object {
+        private const val MAX_TOKENS_PLANO = 160
+        private const val MAX_TOKENS_RESPOSTA = 256
+
+        /** "No máximo 4 frases curtas e 1 conselho se houver fato de economia" (sistema_resposta; igual ao gerar_respostas.py). */
+        private const val MAX_FRASES = 4
+
+        private val ABREVIACOES = setOf("sr", "sra", "dr", "dra", "prof", "aprox", "ex", "obs", "p")
+
+        private fun maxFrases(fatos: List<Fato>): Int =
+            MAX_FRASES + if (fatos.any { it.ferramenta == Intencao.COMO_ECONOMIZAR && it.itens.isNotEmpty() }) 1 else 0
+
+        /**
+         * Tira um `<think>…</think>` do começo. null = ainda sem texto visível (pensamento sem fim, ou o começo
+         * ainda pode ser `<think>`).
+         */
+        internal fun semPensamento(texto: String): String? {
+            val s = texto.trimStart()
+            if (s.length < ABRE.length && ABRE.startsWith(s)) return null
+            if (!s.startsWith(ABRE)) return texto
+            val fim = s.indexOf(FECHA)
+            return if (fim < 0) null else s.substring(fim + FECHA.length)
+        }
+
+        private const val ABRE = "<think>"
+        private const val FECHA = "</think>"
+
+        /**
+         * A próxima frase completa de [texto] a partir de [inicio], e onde ela termina; null se ainda não há uma.
+         * Mesmo corte do [Verificador.frases] (.!? seguido de espaço, ou quebra de linha), mas só quando o espaço já
+         * chegou: "R$ 1.234,56" nunca corta, e abreviação ("aprox. R$ 300") não fecha frase.
+         */
+        internal fun proximaFrase(texto: String, inicio: Int): Pair<String, Int>? {
+            var comeco = inicio
+            var i = inicio
+            while (i < texto.length) {
+                val c = texto[i]
+                val corte = when {
+                    c == '\n' || c == '\r' -> i
+                    (c == '.' || c == '!' || c == '?') && i + 1 < texto.length && texto[i + 1].isWhitespace() &&
+                        !(c == '.' && abreviacao(texto, comeco, i)) -> i + 1
+                    else -> -1
+                }
+                if (corte >= 0) {
+                    val frase = texto.substring(comeco, corte).trim()
+                    val fim = i + 1
+                    if (frase.isNotEmpty()) return frase to fim
+                    comeco = fim
+                }
+                i++
+            }
+            return null
+        }
+
+        private fun abreviacao(texto: String, comeco: Int, ponto: Int): Boolean {
+            var j = ponto
+            while (j > comeco && texto[j - 1].isLetter()) j--
+            return texto.substring(j, ponto).lowercase() in ABREVIACOES
+        }
+
+        /** Fatos que nenhuma frase aprovada citou, na ordem do plano. Fato sem itens conta como citado se a frase dele saiu igual. */
+        private fun fatosNaoCitados(aprovadas: List<String>, fatos: List<Fato>): List<Fato> {
+            val citados = Verificador.fatosCitados(aprovadas, fatos)
+            val ditas = aprovadas.map { it.lowercase() }.toSet()
+            return fatos.filterIndexed { n, f ->
+                n !in citados && !(f.itens.isEmpty() && Verificador.frases(f.frase).all { it.lowercase() in ditas })
+            }
+        }
+    }
+}

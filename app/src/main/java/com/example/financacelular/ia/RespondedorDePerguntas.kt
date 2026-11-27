@@ -31,7 +31,7 @@ object RespondedorDePerguntas {
     private const val TEXTO_DESCONHECIDA = "Ainda não sei responder isso. Tente: \"Onde estou gastando mais?\""
     private const val MESES_DA_MEDIA = 6
 
-    private val SUGESTOES_DEPOIS: Map<Intencao, List<String>> = mapOf(
+    internal val SUGESTOES_DEPOIS: Map<Intencao, List<String>> = mapOf(
         Intencao.RANKING_CATEGORIAS to listOf("Gastei mais que no mês passado?", "Qual foi meu maior gasto?"),
         Intencao.GASTO_EM_CATEGORIA to listOf("Onde estou gastando mais?", "Quanto ainda posso gastar?"),
         Intencao.TOTAL_DO_MES to listOf("Onde estou gastando mais?", "Quanto sobrou esse mês?"),
