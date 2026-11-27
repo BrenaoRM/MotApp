@@ -25,3 +25,13 @@ ia/llm/bin/llama-quantize.exe x-f16.gguf ia/llm/modelos/gguf/base-0.6B-q4km.gguf
 
 ## Servidor do professor
 `ia/llm/bin/llama-server.exe -m ia/llm/modelos/professor/Qwen3-8B-Q4_K_M.gguf -ngl 99 --port 8081`
+
+## Avaliação reproduzível
+Resultados em `ia/resultados/llm/*.json` e a tabela em `ia/resultados/llm.md`. Sobe um `llama-server` próprio na porta 8082 (nunca a 8081) e o encerra no fim.
+```
+ia/llm/.venv/Scripts/python ia/llm/avaliar_llm.py --modelo ia/llm/modelos/gguf/base-0.6B-q4km.gguf --nome base-0.6B   # --sem-think para modelos ajustados
+python ia/llm/avaliar_llm.py --sistema-atual --tabela     # Python do ia/requirements.txt (precisa de onnxruntime)
+```
+- Plano: 60 perguntas de `teste/perguntas.jsonl` com gramática por pergunta, temperatura 0, seed 42. Fidelidade e `troca_de_papel` usam `dados/gerados/resposta_valid.jsonl` (sem o arquivo ficam vazios; rode de novo depois).
+- O prompt leva um `<think>` vazio no fim (como o professor); `--sem-think` tira, para modelos treinados sem ele.
+- Sistema atual: intenção do classificador mapeada para a ferramenta do contrato (campo `intencao` de `contrato.json`); recusa = plano vazio; compara só a ferramenta.

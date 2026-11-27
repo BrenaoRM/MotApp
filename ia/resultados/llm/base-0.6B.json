@@ -1,0 +1,69 @@
+{
+ "plano_exato": 0.26666666666666666,
+ "plano_parcial": 0.2777777777777778,
+ "recusa_correta": 1.0,
+ "n_perguntas": 60,
+ "n_fora_do_escopo": 10,
+ "fidelidade": null,
+ "troca_de_papel": null,
+ "n_respostas": 0,
+ "n_respostas_com_papeis": 0,
+ "tokens_por_s_pc": 71.49332424674037,
+ "modelo": "base-0.6B-q4km.gguf",
+ "nome": "base-0.6B",
+ "seed": 42,
+ "think_vazio": true,
+ "gpu_compartilhada": true,
+ "falhas_plano": [
+  {
+   "pergunta": "No que é melhor eu gastar menos? e em que eu gastei mais nesse mês, quero que me fale também no que gastei mais no mês passado",
+   "saida": "{\"chamadas\":[]}",
+   "exato": false
+  },
+  {
+   "pergunta": "quanto gastei c mercado e com a academia esse mes?",
+   "saida": "{\"chamadas\":[]}",
+   "exato": false
+  },
+  {
+   "pergunta": "me fala o total do mes e quanto sobrou",
+   "saida": "{\"chamadas\":[]}",
+   "exato": false
+  },
+  {
+   "pergunta": "gastei mais ou menos q mes passado? e qual foi meu maior gasto",
+   "saida": "{\"chamadas\":[]}",
+   "exato": false
+  },
+  {
+   "pergunta": "quanto foi de transporte e de lazer em outubro",
+   "saida": "{\"chamadas\":[]}",
+   "exato": false
+  },
+  {
+   "pergunta": "minhas assinaturas e quanto ainda tenho de orçamento",
+   "saida": "{\"chamadas\":[]}",
+   "exato": false
+  },
+  {
+   "pergunta": "recebi quanto esse mes e gastei quanto?",
+   "saida": "{\"chamadas\":[]}",
+   "exato": false
+  },
+  {
+   "pergunta": "tem algum gasto estranho em outubro? e em novembro tbm",
+   "saida": "{\"chamadas\":[]}",
+   "exato": false
+  },
+  {
+   "pergunta": "ranking de gastos de setembro, agosto e julho",
+   "saida": "{\"chamadas\":[]}",
+   "exato": false
+  },
+  {
+   "pergunta": "quanto gastei com lanche e com Pet \"Rex\" no mes passado, e a media mensal de saude",
+   "saida": "{\"chamadas\":[]}",
+   "exato": false
+  }
+ ]
+}

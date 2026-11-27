@@ -1,0 +1,15 @@
+{
+ "plano_exato": 0.38333333333333336,
+ "plano_parcial": 0.6233333333333333,
+ "recusa_correta": 1.0,
+ "n_perguntas": 60,
+ "n_fora_do_escopo": 10,
+ "n_compostas": 26,
+ "cobertura_dos_planos_com_escopo": 0.4716666666666666,
+ "fidelidade": null,
+ "troca_de_papel": null,
+ "tokens_por_s_pc": null,
+ "nome": "atual",
+ "modelo": "modelo_ia.json (regressão logística + recusa por centroide)",
+ "nota": "Só intenção (sem mês nem categoria); exato = intenção certa em pergunta de 1 chamada; parcial = F1 com 1 chamada prevista (acerto em composta de n chamadas = 2/(n+1))."
+}
