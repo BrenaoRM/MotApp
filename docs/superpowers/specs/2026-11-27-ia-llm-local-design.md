@@ -90,7 +90,7 @@ mensagem (+ últimas 2 trocas, só em memória)
   - Se o 4B não couber, "Inteligente" passa a ser o 1.7B e somem os nomes que sobrarem.
 - A pessoa escolhe o modo na sheet de ativação e pode trocar depois. Trocar de modo baixa outro arquivo e apaga o anterior.
 - Ajuste com LoRA (Unsloth, 4 bits) na RTX 4050 (6 GB; o 4B fica no limite da placa e usa lote pequeno). O PC fica ligado ~20 h/dia para treinar. Um único modelo por tamanho aprende as duas tarefas (planejar e escrever), com prompts diferentes.
-- Dados sintéticos gerados por script em `ia/llm/`: combinações de perguntas simples e compostas, paráfrases, conversas com continuação ("e no mês passado?"), perguntas fora do escopo; respostas-alvo escritas a partir de fatos sintéticos. Nenhum dado real do usuário. Pode usar o Ollama local para gerar paráfrases.
+- Dados sintéticos gerados por script em `ia/llm/`: combinações de perguntas simples e compostas, paráfrases, conversas com continuação ("e no mês passado?"), perguntas fora do escopo; respostas-alvo escritas a partir de fatos sintéticos. Nenhum dado real do usuário. Paráfrases e respostas-alvo vêm de um modelo professor (Qwen3-8B) rodando no `llama-server` do PC, o mesmo motor e a mesma gramática do celular.
 - Exportar para GGUF quantizado (Q4_K_M ou similar).
 - Avaliação (vira tabela do trabalho, uma coluna por modo + sistema atual), com conjunto de teste separado de ~50+ perguntas escritas à mão por mim (o usuário autorizou), nunca usadas no treino:
   - acerto exato do plano (lista de chamadas);
@@ -130,7 +130,7 @@ Trabalho no celular e treino no PC andam em paralelo:
 
 | PC (GPU, ~20 h/dia) | App |
 |---|---|
-| 1. Ferramentas com fatos estruturados + pipeline no PC com Ollama (sem treino) | 1. llama.cpp via JNI rodando um GGUF base no S20 FE (mede tempo e memória cedo) |
+| 1. Ferramentas com fatos estruturados + pipeline no PC com llama-server (sem treino) | 1. llama.cpp via JNI rodando um GGUF base no S20 FE (mede tempo e memória cedo) |
 | 2. Dados sintéticos + perguntas de teste | 2. Protótipo HTML (sheet de ativação com os modos, "pensando…") → aprovação |
 | 3. Treino Rápida → avaliação → Média → Inteligente | 3. Download/ativação, pipeline completo, verificador, fallback |
 | 4. Publicar os GGUF aprovados na release `modelo-ia-v1` | 4. Teste no S20 FE com os modelos treinados |
@@ -149,7 +149,7 @@ Corte se apertar: entregar só o modo mais inteligente que funcionar no celular 
 
 ## Decisões minhas (após revisão)
 
-- **Verificador estrito:** cada fato é estruturado (`rotulo`, `periodo`, `valor`). Para passar, todo número da resposta (R$, %, contagens, dias, ordinais) precisa aparecer **na mesma frase** que o rótulo e o período do seu fato. Assim um valor certo atribuído à categoria errada é reprovado. A métrica de fidelidade do trabalho usa essa regra.
+- **Verificador estrito:** cada fato é estruturado (`rotulo`, `periodo`, `valor`). Para passar, todo número da resposta (R$, %, contagens, dias, ordinais) precisa aparecer **na mesma frase** que o rótulo e o período do seu fato. Assim um valor certo atribuído à categoria errada é reprovado. O período pode vir de uma frase anterior: vale o último mês citado (período vigente), para não exigir repetir "em novembro" em toda frase. A métrica de fidelidade do trabalho usa essa regra.
 - **Streaming por frase:** o modelo gera escondido, e cada frase só aparece depois de passar no verificador. Se uma frase reprovar, a geração para e o resto da resposta é completado com as frases prontas dos fatos que ainda faltam. Para a pessoa, nada aparece como erro e nenhum texto já mostrado é trocado.
 - **Categorias:** o nome é texto livre do usuário. Por isso a gramática da Fase 1 é montada a cada pergunta com as categorias daquela pessoa. O treino sorteia conjuntos de categorias (as padrão do app e outras inventadas), e a avaliação inclui nomes que não aparecem no treino.
 
