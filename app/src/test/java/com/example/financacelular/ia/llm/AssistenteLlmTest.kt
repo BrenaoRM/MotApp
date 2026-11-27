@@ -66,6 +66,7 @@ class AssistenteLlmTest {
         val tamanhoDoPedaco: Int = 3,
         val esperaAntes: Map<Int, Long> = emptyMap(), // pedaço -> atraso antes dele, em ms (tempo virtual)
         val travaNoFim: Boolean = false,
+        val erroNoFim: Boolean = false,
     ) : MotorDeTexto {
         val prompts = ArrayList<String>()
         var cancelados = 0
@@ -80,6 +81,7 @@ class AssistenteLlmTest {
                     aoPedaco(p)
                 }
                 if (travaNoFim) awaitCancellation()
+                if (erroNoFim) throw IllegalStateException("falha no meio")
                 terminados++
                 return resposta
             } catch (e: CancellationException) {
@@ -91,9 +93,14 @@ class AssistenteLlmTest {
         override fun liberar() = Unit
     }
 
-    private fun TestScope.coletar(motor: MotorDeTexto, tempoLimiteMs: Long = 30_000, p: String = pergunta): List<EventoResposta> {
+    private fun TestScope.coletar(
+        motor: MotorDeTexto,
+        tempoLimiteMs: Long = 30_000,
+        p: String = pergunta,
+        historico: List<Pair<String, String>> = emptyList(),
+    ): List<EventoResposta> {
         val eventos = ArrayList<EventoResposta>()
-        launch { AssistenteLlm(motor, contrato, tempoLimiteMs).responder(p, emptyList(), dados).toList(eventos) }
+        launch { AssistenteLlm(motor, contrato, tempoLimiteMs).responder(p, historico, dados).toList(eventos) }
         advanceUntilIdle()
         return eventos
     }
@@ -211,10 +218,79 @@ class AssistenteLlmTest {
     }
 
     @Test
-    fun `ultima frase sem pontuacao no fim tambem passa`() = runTest {
-        val semPonto = fraseReceita.removeSuffix(".")
-        val eventos = coletar(MotorFalso(planoComposto, "$fraseTotal $fraseAlimentacao $semPonto"))
-        assertEquals(listOf(Frase(fraseTotal), Frase(fraseAlimentacao), Frase(semPonto), Fim(planoComposto, sugestoesTotal)), eventos)
+    fun `ultima frase com ponto e sem espaco depois passa no fim`() = runTest {
+        val eventos = coletar(MotorFalso(planoComposto, "$fraseTotal $fraseAlimentacao $fraseReceita"))
+        assertEquals(Frase(fraseReceita), eventos[2])
+    }
+
+    @Test
+    fun `ultima frase sem pontuacao e descartada mesmo verificando e entra a pronta`() = runTest {
+        // limite de tokens no meio da frase: "Você recebeu R$ 3.000" verifica, mas pode estar cortada
+        val cortada = fraseReceita.removeSuffix(" em novembro.")
+        val eventos = coletar(MotorFalso(planoComposto, "$fraseTotal $fraseAlimentacao $cortada"))
+        assertEquals(listOf(Frase(fraseTotal), Frase(fraseAlimentacao), Frase(prontas[2]), Fim(planoComposto, sugestoesTotal)), eventos)
+    }
+
+    @Test
+    fun `modelo que termina sem citar todos os fatos tem os outros completados`() = runTest {
+        val motor = MotorFalso(planoComposto, fraseTotal)
+        val eventos = coletar(motor)
+        assertEquals(listOf(Frase(fraseTotal), Frase(prontas[1]), Frase(prontas[2]), Fim(planoComposto, sugestoesTotal)), eventos)
+        assertEquals(1, motor.terminados)
+    }
+
+    @Test
+    fun `frase sem numero passa e os fatos que ela comenta entram com a frase pronta`() = runTest {
+        val semNumero = "Alimentação foi o destaque do mês."
+        val eventos = coletar(MotorFalso(planoComposto, "$fraseTotal $semNumero"))
+        assertEquals(
+            listOf(Frase(fraseTotal), Frase(semNumero), Frase(prontas[1]), Frase(prontas[2]), Fim(planoComposto, sugestoesTotal)),
+            eventos,
+        )
+    }
+
+    @Test
+    fun `limite de 4 frases corta a geracao`() = runTest {
+        val plano = """{"chamadas":[{"f":"total_mes","mes":"atual"},{"f":"gasto_categoria","mes":"atual","categoria":"Alimentação"},""" +
+            """{"f":"gasto_categoria","mes":"atual","categoria":"Lazer"},{"f":"receitas","mes":"atual"}]}"""
+        val lazer = "Com Lazer foram R$ 300."
+        val motor = MotorFalso(plano, "$fraseTotal $fraseAlimentacao $lazer $fraseReceita $fraseTotal ", travaNoFim = true)
+        val eventos = coletar(motor)
+        assertEquals(
+            listOf(Frase(fraseTotal), Frase(fraseAlimentacao), Frase(lazer), Frase(fraseReceita), Fim(plano, sugestoesTotal)),
+            eventos,
+        )
+        assertEquals(1, motor.cancelados)
+    }
+
+    @Test
+    fun `erro no motor depois de uma frase completa com as prontas`() = runTest {
+        val motor = MotorFalso(planoComposto, "$fraseTotal Com Alimen", erroNoFim = true)
+        val eventos = coletar(motor)
+        assertEquals(listOf(Frase(fraseTotal), Frase(prontas[1]), Frase(prontas[2]), Fim(planoComposto, sugestoesTotal)), eventos)
+    }
+
+    @Test
+    fun `primeira frase reprovada da as frases prontas`() = runTest {
+        // a regra da frase reprovada vale também para a primeira: os fatos já estão calculados
+        val motor = MotorFalso(planoComposto, "Em novembro você gastou R$ 999. $fraseAlimentacao", travaNoFim = true)
+        assertEquals(prontas.map { Frase(it) } + Fim(planoComposto, sugestoesTotal), coletar(motor))
+        assertEquals(1, motor.cancelados)
+    }
+
+    @Test
+    fun `plano com todas as chamadas descartadas usa o sistema atual e nao a recusa`() = runTest {
+        val plano = """{"chamadas":[{"f":"gasto_categoria","mes":"atual","categoria":"Viagem"}]}"""
+        assertEquals(listOf(UsarSistemaAtual), coletar(MotorFalso(plano)))
+    }
+
+    @Test
+    fun `historico entra no prompt do plano`() = runTest {
+        val anterior = """{"chamadas":[{"f":"total_mes","mes":"atual"}]}"""
+        val motor = MotorFalso(planoComposto, fraseTotal)
+        coletar(motor, historico = listOf("Quanto gastei?" to anterior))
+        val esperado = "<|im_start|>user\nPergunta: Quanto gastei?<|im_end|>\n<|im_start|>assistant\n$anterior<|im_end|>\n"
+        assertTrue(motor.prompts[0], motor.prompts[0].contains(esperado))
     }
 
     @Test

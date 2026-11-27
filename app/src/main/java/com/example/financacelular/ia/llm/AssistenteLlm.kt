@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import org.json.JSONObject
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -122,9 +123,10 @@ class AssistenteLlm(private val motor: MotorDeTexto, private val contrato: Contr
                 aprovadas.isEmpty() && !terminou && !interrompida -> emit(EventoResposta.UsarSistemaAtual)
                 else -> {
                     if (terminou && !interrompida) {
-                        // a última frase pode vir sem pontuação no fim
+                        // A última frase só passa com .!? no fim: o motor não diz se parou no limite de tokens, e
+                        // frase sem pontuação pode ter sido cortada no meio (o fato dela entra com a frase pronta).
                         val resto = semPensamento(bruto.toString())?.substring(consumido)?.trim()
-                        if (!resto.isNullOrEmpty() && aprovadas.size < maxFrases(p.fatos) &&
+                        if (!resto.isNullOrEmpty() && resto.last() in ".!?" && aprovadas.size < maxFrases(p.fatos) &&
                             Verificador.verificarFrase(resto, p.fatos, periodo).first
                         ) {
                             aprovadas += resto
@@ -151,6 +153,8 @@ class AssistenteLlm(private val motor: MotorDeTexto, private val contrato: Contr
                 contrato.gramaticaPlano(dados.mesAtual, nomes), MAX_TOKENS_PLANO,
             ) {}.trim()
             val chamadas = contrato.lerPlano(json, dados.mesAtual, despesas.associate { it.id to it.nome }) ?: return
+            // lista vazia porque todas as chamadas foram descartadas não é recusa: sistema atual
+            if (chamadas.isEmpty() && JSONObject(json).getJSONArray("chamadas").length() > 0) return
             val fatos = chamadas.distinct().map { c ->
                 RespondedorDePerguntas.fato(
                     Pergunta(contrato.intencao(c.ferramenta), 1f, c.mes ?: dados.mesAtual, c.categoriaId),
@@ -177,7 +181,7 @@ class AssistenteLlm(private val motor: MotorDeTexto, private val contrato: Contr
         /** "No máximo 4 frases curtas e 1 conselho se houver fato de economia" (sistema_resposta; igual ao gerar_respostas.py). */
         private const val MAX_FRASES = 4
 
-        private val ABREVIACOES = setOf("sr", "sra", "dr", "dra", "prof", "aprox", "ex", "obs", "p")
+        private val ABREVIACOES = setOf("sr", "sra", "dr", "dra", "prof", "aprox", "obs")
 
         private fun maxFrases(fatos: List<Fato>): Int =
             MAX_FRASES + if (fatos.any { it.ferramenta == Intencao.COMO_ECONOMIZAR && it.itens.isNotEmpty() }) 1 else 0
