@@ -1,8 +1,8 @@
-"""Junta o adaptador LoRA ao modelo base, converte para GGUF f16, quantiza em Q4_K_M e divide se passar de 1,9 GB.
+"""Junta o adaptador LoRA ao modelo base, converte para GGUF f16, quantiza em Q4_K_M e divide se passar de 1900 MiB.
 
     python exportar_gguf.py --lora modelos/lora/rapida/final --saida modelos/gguf/motapp-rapida-q4km.gguf [--base DIR]
 
-O arquivo inteiro fica em --saida (usado na avaliação no PC). Se passar de 1,9 GB, as partes de até 1900M (limite de
+O arquivo inteiro fica em --saida (usado na avaliação no PC). Se passar de 1900 MiB, as partes de até 1900M (limite de
 download do app) vão para `<pasta de --saida>/partes/<nome>/`. Imprime o SHA-256 e o tamanho de cada arquivo.
 """
 import argparse
@@ -16,7 +16,7 @@ from pathlib import Path
 AQUI = Path(__file__).resolve().parent
 BIN = AQUI / "bin"
 CONVERSOR = BIN / "llama.cpp" / "convert_hf_to_gguf.py"
-LIMITE_PARTE = 1_900_000_000  # 1,9 GB; --split-max-size 1900M
+LIMITE_PARTE = 1900 * 1024 * 1024  # 1900 MiB, a mesma unidade do --split-max-size 1900M do llama-gguf-split
 
 
 def precisa_dividir(tamanho_bytes):
@@ -67,16 +67,17 @@ def exportar(lora, saida, base=None):
         _rodar([sys.executable, CONVERSOR, tmp / "merged", "--outtype", "f16", "--outfile", f16])
         parcial = saida.with_suffix(".tmp")
         _rodar([BIN / "llama-quantize.exe", f16, parcial, "Q4_K_M"])
-        parcial.replace(saida)  # o arquivo final só existe quando completo (a orquestração pula se ele existir)
+        pasta = saida.parent / "partes" / saida.stem
+        partes = []
+        if precisa_dividir(parcial.stat().st_size):  # divide ANTES do rename final: a orquestração pula se `saida` existe
+            shutil.rmtree(pasta, ignore_errors=True)
+            pasta.mkdir(parents=True)
+            _rodar([BIN / "llama-gguf-split.exe", "--split", "--split-max-size", "1900M", parcial, pasta / saida.stem])
+            partes = sorted(pasta.glob("*.gguf"))
+        parcial.replace(saida)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-    arquivos = [saida]
-    if precisa_dividir(saida.stat().st_size):
-        pasta = saida.parent / "partes" / saida.stem
-        shutil.rmtree(pasta, ignore_errors=True)
-        pasta.mkdir(parents=True)
-        _rodar([BIN / "llama-gguf-split.exe", "--split", "--split-max-size", "1900M", saida, pasta / saida.stem])
-        arquivos += sorted(pasta.glob("*.gguf"))
+    arquivos = [saida] + partes
     for l in relatorio(arquivos):
         print(l, flush=True)
     return arquivos

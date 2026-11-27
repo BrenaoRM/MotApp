@@ -85,8 +85,8 @@ def test_cli_do_treino():
 
 
 def test_divisao_por_tamanho():
-    assert not ex.precisa_dividir(1_900_000_000)
-    assert ex.precisa_dividir(1_900_000_001)
+    assert not ex.precisa_dividir(ex.LIMITE_PARTE)
+    assert ex.precisa_dividir(ex.LIMITE_PARTE + 1)
 
 
 def test_exportar_cli_e_utilitarios(tmp_path):
@@ -106,3 +106,24 @@ def test_orquestracao_reconhece_linha_final_do_gerador():
     assert not rt.LINHA_FINAL.match("[respostas] tentativas 288  aprovadas 257 (89%)")
     assert [n for n, _ in rt.MODOS] == ["rapida", "media", "inteligente"]
     assert dict(rt.MODOS) == {"rapida": "0.6B", "media": "1.7B", "inteligente": "4B"}
+
+
+@pytest.mark.parametrize("base", sorted(tl.CONFIG))
+def test_training_arguments_validos_para_as_tres_bases(base, tmp_path, monkeypatch):
+    monkeypatch.setattr(tl, "_SEM_GPU", True)
+    lote, acum, _ = tl.CONFIG[base]
+    a = tl.montar_args(tmp_path, lote, acum, 12000)
+    assert a.per_device_train_batch_size * a.gradient_accumulation_steps == 16
+    assert a.per_device_eval_batch_size == tl.EVAL_LOTE <= 2
+    assert a.warmup_steps == 0.03 and a.train_sampling_strategy == "group_by_length"
+    assert a.eval_steps == a.save_steps and a.load_best_model_at_end
+    assert tl.montar_args(tmp_path, lote, acum, 400, passos=20).max_steps == 20
+
+
+def test_oom_retry_mantem_o_lote_efetivo():
+    import rodar_treinos as rt
+    assert rt.CONFIG_LOTE == {k: (v[0], v[1]) for k, v in tl.CONFIG.items()}
+
+
+def test_exportar_divide_na_mesma_unidade_do_llama():
+    assert ex.LIMITE_PARTE == 1900 * 1024 * 1024

@@ -23,6 +23,8 @@ FIM_DE_TURNO = "<|im_end|>"
 CONTEXTO = 1024
 SEMENTE = 42
 EPOCAS = 2
+EVAL_LOTE = 2   # avaliação com lote pequeno: os logits de 152k de vocabulário ocupam muita VRAM
+_SEM_GPU = False  # os testes de CPU ligam isto para construir os argumentos sem CUDA
 # base -> (lote por passo, acumulação, gradient checkpointing). Lote efetivo 16 em todos; ajustado à VRAM de 6 GB.
 CONFIG = {"0.6B": (8, 2, False), "1.7B": (4, 4, True), "4B": (1, 16, True)}
 
@@ -99,6 +101,20 @@ def ultimo_checkpoint(saida):
     return str(max(cps)[1]) if cps else None
 
 
+def montar_args(saida, lote, acum, n_treino, passos=None):
+    """TrainingArguments (transformers 5.x: warmup_steps fracionário, train_sampling_strategy no lugar de group_by_length)."""
+    from transformers import TrainingArguments
+    cada = passos_de_avaliacao(n_treino, lote, acum) if passos is None else max(1, passos // 2)
+    return TrainingArguments(
+        output_dir=str(saida), per_device_train_batch_size=lote, per_device_eval_batch_size=EVAL_LOTE,
+        gradient_accumulation_steps=acum, num_train_epochs=EPOCAS, max_steps=passos if passos else -1,
+        learning_rate=2e-4, lr_scheduler_type="cosine", warmup_steps=0.03, weight_decay=0.0, optim="adamw_8bit",
+        bf16=True, logging_steps=10, eval_strategy="steps", eval_steps=cada, save_strategy="steps", save_steps=cada,
+        save_total_limit=2, load_best_model_at_end=True, metric_for_best_model="eval_loss", greater_is_better=False,
+        train_sampling_strategy="group_by_length", dataloader_num_workers=0, report_to="none", seed=SEMENTE,
+        remove_unused_columns=False, use_cpu=_SEM_GPU)
+
+
 def _log_em(arquivo):
     def log(msg):
         linha = "%s %s" % (time.strftime("%Y-%m-%d %H:%M:%S"), msg)
@@ -108,19 +124,48 @@ def _log_em(arquivo):
     return log
 
 
-def treinar(base, saida, passos=None, max_exemplos=None, max_valid=400, log=None):
+def treinar(base, saida, passos=None, max_exemplos=None, max_valid=400, log=None, lote=None, acum=None, dry_run=False):
     saida = Path(saida)
     saida.mkdir(parents=True, exist_ok=True)
     log = log or _log_em(saida / "treino.log")
     if (saida / "final" / "adapter_config.json").exists() and passos is None:
         log("[treino] %s já treinado (%s), nada a fazer" % (base, saida / "final"))
         return
+    lote_padrao, acum_padrao, checkpointing = CONFIG[base]
+    lote, acum = lote or lote_padrao, acum or acum_padrao
+    if dry_run:
+        return _dry_run(base, saida, lote, acum, max_exemplos, max_valid, log)
     import unsloth  # noqa: F401  (precisa vir antes de transformers/peft)
     from unsloth import FastLanguageModel
     import torch
-    from transformers import Trainer, TrainerCallback, TrainingArguments
+    from transformers import Trainer, TrainerCallback
 
-    lote, acum, checkpointing = CONFIG[base]
+    try:
+        return _treinar_gpu(base, saida, passos, max_exemplos, max_valid, log, lote, acum, checkpointing, FastLanguageModel,
+                            torch, Trainer, TrainerCallback)
+    except torch.cuda.OutOfMemoryError:
+        log("[treino] ERRO: sem memória na GPU (OOM) com base %s, lote %d x acumulação %d" % (base, lote, acum))
+        sys.exit(3)
+
+
+def _dry_run(base, saida, lote, acum, max_exemplos, max_valid, log):
+    """Tudo até o trainer.train(), sem GPU: tokenizador, dados, coletor e TrainingArguments."""
+    global _SEM_GPU
+    from transformers import AutoTokenizer
+    _SEM_GPU = True
+    tok = AutoTokenizer.from_pretrained(str(BASES / ("Qwen3-" + base)))
+    treino_cru, valid_cru = carregar_dados(max_exemplos, max_valid)
+    treino, d1 = tokenizar_conjunto(tok, treino_cru)
+    valid, d2 = tokenizar_conjunto(tok, valid_cru)
+    lote_ex = juntar_lote(treino[:lote], tok.pad_token_id or tok.eos_token_id)
+    args = montar_args(Path(saida) / "_dry", lote, acum, len(treino))
+    log("[dry-run] ok: %d treino (%d descartados), %d validação (%d descartados), lote %d x %d, avalia a cada %d passos, "
+        "lote de exemplo %dx%d" % (len(treino), d1, len(valid), d2, lote, acum, args.eval_steps, len(lote_ex["input_ids"]),
+                                   len(lote_ex["input_ids"][0])))
+
+
+def _treinar_gpu(base, saida, passos, max_exemplos, max_valid, log, lote, acum, checkpointing, FastLanguageModel, torch,
+                 Trainer, TrainerCallback):
     caminho_base = BASES / ("Qwen3-" + base)
     log("[treino] base %s (%s), lote %d x acumulação %d, checkpointing %s, contexto %d, épocas %d" % (
         base, caminho_base, lote, acum, checkpointing, CONTEXTO, EPOCAS))
@@ -141,14 +186,7 @@ def treinar(base, saida, passos=None, max_exemplos=None, max_valid=400, log=None
     def coletor(lote_):
         return {k: torch.tensor(v) for k, v in juntar_lote(lote_, pad_id).items()}
 
-    cada = passos_de_avaliacao(len(treino), lote, acum) if passos is None else max(1, passos // 2)
-    args = TrainingArguments(
-        output_dir=str(saida), per_device_train_batch_size=lote, per_device_eval_batch_size=max(1, lote),
-        gradient_accumulation_steps=acum, num_train_epochs=EPOCAS, max_steps=passos if passos else -1,
-        learning_rate=2e-4, lr_scheduler_type="cosine", warmup_ratio=0.03, weight_decay=0.0, optim="adamw_8bit",
-        bf16=True, logging_steps=10, eval_strategy="steps", eval_steps=cada, save_strategy="steps", save_steps=cada,
-        save_total_limit=2, load_best_model_at_end=True, metric_for_best_model="eval_loss", greater_is_better=False,
-        group_by_length=True, dataloader_num_workers=0, report_to="none", seed=SEMENTE, remove_unused_columns=False)
+    args = montar_args(saida, lote, acum, len(treino), passos)
 
     class Registro(TrainerCallback):
         def on_log(self, a, estado, controle, logs=None, **kw):
@@ -160,11 +198,7 @@ def treinar(base, saida, passos=None, max_exemplos=None, max_valid=400, log=None
     retomar = ultimo_checkpoint(saida)
     log("[treino] %s" % ("retomando de " + retomar if retomar else "começando do zero"))
     t0 = time.time()
-    try:
-        trainer.train(resume_from_checkpoint=retomar)
-    except torch.cuda.OutOfMemoryError:
-        log("[treino] ERRO: sem memória na GPU (OOM) com base %s" % base)
-        sys.exit(3)
+    trainer.train(resume_from_checkpoint=retomar)
     destino = saida / ("final" if passos is None else "final-smoke")
     modelo.save_pretrained(str(destino))
     tokenizer.save_pretrained(str(destino))
@@ -178,11 +212,14 @@ def main(argv=None):
     ap.add_argument("--saida", required=True)
     ap.add_argument("--passos", type=int, help="só para teste de fumaça: para após N passos")
     ap.add_argument("--max-exemplos", type=int, help="limita os exemplos de treino (teste)")
+    ap.add_argument("--lote", type=int, help="substitui o lote por passo (a acumulação deve compensar)")
+    ap.add_argument("--acum", type=int, help="substitui a acumulação de gradiente")
+    ap.add_argument("--dry-run", action="store_true", help="monta dados, coletor e argumentos sem GPU e sai")
     ap.add_argument("--max-valid", type=int, default=400, help="exemplos de validação usados (padrão 400)")
     a = ap.parse_args(argv)
     if sys.stdout.encoding != "utf-8":
         sys.stdout.reconfigure(encoding="utf-8")
-    treinar(a.base, a.saida, a.passos, a.max_exemplos, a.max_valid)
+    treinar(a.base, a.saida, a.passos, a.max_exemplos, a.max_valid, lote=a.lote, acum=a.acum, dry_run=a.dry_run)
 
 
 if __name__ == "__main__":

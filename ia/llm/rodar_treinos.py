@@ -24,6 +24,8 @@ LOG = AQUI / "modelos" / "treinos.log"
 LORA = AQUI / "modelos" / "lora"
 GGUF = AQUI / "modelos" / "gguf"
 RESULTADOS = AQUI.parent / "resultados" / "llm"
+BASES = AQUI / "modelos" / "base"
+CONFIG_LOTE = {"0.6B": (8, 2), "1.7B": (4, 4), "4B": (1, 16)}  # espelha treinar_lora.CONFIG (lote, acumulação)
 MODOS = [("rapida", "0.6B"), ("media", "1.7B"), ("inteligente", "4B")]
 PORTA_PROFESSOR = 8081
 LINHA_FINAL = re.compile(r"^\{'tentativas': \d+, 'aprovadas': \d+")
@@ -68,7 +70,7 @@ def esperar_gerador(intervalo=60):
                 "(gerador caiu? relance rodar.cmd e depois este script)")
             sys.exit(2)
         if voltas % 10 == 0:  # uma linha a cada ~10 min
-            ultima = GERACAO_LOG.read_text(encoding="utf-8", errors="replace").strip().splitlines()[-1]
+            ultima = ([""] + GERACAO_LOG.read_text(encoding="utf-8", errors="replace").strip().splitlines())[-1]
             log("[espera] gerador rodando (PIDs %s). Último: %s" % (pids, ultima[:140]))
         voltas += 1
         time.sleep(intervalo)
@@ -77,6 +79,33 @@ def esperar_gerador(intervalo=60):
             log("[espera] ABORTADO: falta %s.jsonl" % nome)
             sys.exit(2)
     log("[espera] gerador terminou; dados finais")
+
+
+def _cauda(arquivo, n=15):
+    try:
+        linhas = Path(arquivo).read_text(encoding="utf-8", errors="replace").strip().splitlines()
+    except OSError:
+        return "(sem %s)" % arquivo
+    return "\n".join(linhas[-n:])
+
+
+def preflight():
+    """Antes de encerrar o professor: CUDA visível, placa de >= 5,5 GiB e dry-run (dados, coletor, argumentos) sem erro."""
+    r = subprocess.run([PY, "-c", "import torch,sys; ok=torch.cuda.is_available(); "
+                        "print(ok, torch.cuda.mem_get_info()[1]/2**30 if ok else 0)"], capture_output=True, text=True, cwd=str(AQUI))
+    partes = (r.stdout.strip().splitlines() or [""])[-1].split()
+    if r.returncode != 0 or len(partes) != 2 or partes[0] != "True" or float(partes[1]) < 5.5:
+        log("[preflight] ABORTADO (professor intacto): CUDA indisponível ou placa pequena demais. rc=%d saída=%r %s" % (
+            r.returncode, r.stdout.strip()[-200:], r.stderr.strip()[-300:]))
+        sys.exit(5)
+    saida = LORA / "_fumaca"
+    saida.mkdir(parents=True, exist_ok=True)
+    rc = etapa("dry-run", [PY, "treinar_lora.py", "--base", "0.6B", "--saida", saida, "--dry-run", "--max-exemplos", "400",
+                           "--max-valid", "32"], saida / "dry-run.log")
+    if rc != 0:
+        log("[preflight] ABORTADO (professor intacto): dry-run falhou. Fim do log:\n%s" % _cauda(saida / "dry-run.log"))
+        sys.exit(5)
+    log("[preflight] ok (CUDA, %s GiB, dry-run)" % partes[1][:4])
 
 
 def parar_professor():
@@ -128,7 +157,8 @@ def fumaca():
     rc = etapa("fumaça", [PY, "treinar_lora.py", "--base", "0.6B", "--saida", saida, "--passos", "20", "--max-exemplos", "400",
                           "--max-valid", "32"], saida / "stdout.log")
     if rc != 0 or not (saida / "final-smoke" / "adapter_config.json").exists():
-        log("[fumaça] FALHOU (rc=%d): abortando todo o treino. Veja %s e %s" % (rc, saida / "stdout.log", saida / "treino.log"))
+        log("[fumaça] FALHOU (rc=%d): abortando todo o treino. Veja %s e %s. Fim do stdout:\n%s" % (
+            rc, saida / "stdout.log", saida / "treino.log", _cauda(saida / "stdout.log")))
         sys.exit(4)
     log("[fumaça] ok")
 
@@ -140,20 +170,28 @@ def modo(nome, base):
     if (lora / "final" / "adapter_config.json").exists():
         log("[%s] treino já feito, pulando" % nome)
     else:
-        for tentativa in (1, 2):  # a segunda retoma do último checkpoint
-            rc = etapa("%s treino (%s)%s" % (nome, base, "" if tentativa == 1 else " retomada"),
-                       [PY, "treinar_lora.py", "--base", base, "--saida", lora], lora / "stdout.log")
+        lote_padrao, acum_padrao = CONFIG_LOTE[base]
+        extra, metade = [], False
+        for tentativa in (1, 2, 3):  # retomadas continuam do último checkpoint
+            rc = etapa("%s treino (%s)%s%s" % (nome, base, "" if tentativa == 1 else " retomada %d" % tentativa,
+                                                " lote/2" if metade else ""),
+                       [PY, "treinar_lora.py", "--base", base, "--saida", lora] + extra, lora / "stdout.log")
             if rc == 0:
                 break
             if rc == 3:
-                log("[%s] OOM na GPU com %s: registrado, seguindo sem este modo" % (nome, base))
-                return
+                if base == "4B" or metade or lote_padrao < 2:
+                    log("[%s] OOM na GPU com %s (lote %s): registrado, seguindo sem este modo" % (
+                        nome, base, "reduzido" if metade else "mínimo"))
+                    return
+                metade = True  # mesmo lote efetivo: metade do lote, o dobro da acumulação
+                extra = ["--lote", str(lote_padrao // 2), "--acum", str(acum_padrao * 2)]
+                log("[%s] OOM na GPU: nova tentativa com lote %d x acumulação %d" % (nome, lote_padrao // 2, acum_padrao * 2))
         else:
-            log("[%s] treino FALHOU duas vezes, seguindo para o próximo modo" % nome)
+            log("[%s] treino FALHOU 3 vezes, seguindo para o próximo modo. Fim do stdout:\n%s" % (nome, _cauda(lora / "stdout.log")))
             return
     if gguf.exists():
         log("[%s] GGUF já existe, pulando exportação" % nome)
-    elif etapa("%s exportação" % nome, [PY, "exportar_gguf.py", "--lora", lora / "final", "--saida", gguf],
+    elif etapa("%s exportação" % nome, [PY, "exportar_gguf.py", "--lora", lora / "final", "--saida", gguf, "--base", BASES / ("Qwen3-" + base)],
                lora / "exportar.log") != 0:
         log("[%s] exportação FALHOU (veja %s)" % (nome, lora / "exportar.log"))
         return
@@ -170,12 +208,13 @@ def main(argv=None):
     log("[orquestração] iniciada (PID %d)" % __import__("os").getpid())
     if not a.sem_espera:
         esperar_gerador()
+        preflight()
         parar_professor()
     fumaca()
     for nome, base in MODOS:
         modo(nome, base)
     etapa("tabela", [PY, "avaliar_llm.py", "--tabela"], AQUI / "modelos" / "tabela.log")
-    log("[orquestração] concluída; tabela em ia/resultados/llm.md (se --tabela escreve lá) e modelos/tabela.log")
+    log("[orquestração] concluída; tabela em ia/resultados/llm.md")
 
 
 if __name__ == "__main__":
