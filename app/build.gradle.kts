@@ -44,6 +44,8 @@ fun resolverVersionCode(versionName: String): Int {
 android {
     namespace = "com.example.financacelular"
     compileSdk = 37
+    // NDK e CMake do llama.cpp (MotorLlm); o CI instala as mesmas versões
+    ndkVersion = "27.1.12297006"
 
     // --- CONFIGURAÇÃO DA ASSINATURA OFICIAL ---
     signingConfigs {
@@ -71,6 +73,20 @@ android {
         // ONNX Runtime só no arm64 (celulares atuais); em outras ABIs o modelo não abre e a IA desliga sozinha
         ndk {
             abiFilters += listOf("arm64-v8a")
+        }
+
+        // llama.cpp estático dentro de libmotor_llm.so (ver src/main/cpp/CMakeLists.txt)
+        externalNativeBuild {
+            cmake {
+                arguments += listOf("-DGGML_OPENMP=OFF", "-DLLAMA_CURL=OFF", "-DBUILD_SHARED_LIBS=OFF")
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
         }
     }
 

@@ -22,6 +22,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      # NDK e CMake do llama.cpp (libmotor_llm.so), nas versões fixadas em app/build.gradle.kts.
+      # O CMake baixa o llama.cpp (tag de ia/llm/VERSAO_LLAMA_CPP) por FetchContent: precisa de rede.
+      - name: Instalar NDK e CMake
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.1.12297006" "cmake;3.22.1" > /dev/null
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
@@ -64,6 +69,11 @@ jobs:
             exit 1
           fi
           echo "versao=$VERSAO" >> "$GITHUB_OUTPUT"
+
+      # NDK e CMake do llama.cpp (libmotor_llm.so), nas versões fixadas em app/build.gradle.kts.
+      # O CMake baixa o llama.cpp (tag de ia/llm/VERSAO_LLAMA_CPP) por FetchContent: precisa de rede.
+      - name: Instalar NDK e CMake
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.1.12297006" "cmake;3.22.1" > /dev/null
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew

@@ -24,3 +24,7 @@
 
 # ONNX Runtime: o JNI procura classes e métodos pelo nome
 -keep class ai.onnxruntime.** { *; }
+
+# LLM local (libmotor_llm.so): o JNI acha os métodos nativos e o callback pelo nome
+-keepclasseswithmembernames class com.example.financacelular.ia.llm.MotorLlm { native <methods>; }
+-keepclassmembers class com.example.financacelular.ia.llm.MotorLlm$Receptor { void pedaco(byte[]); }
