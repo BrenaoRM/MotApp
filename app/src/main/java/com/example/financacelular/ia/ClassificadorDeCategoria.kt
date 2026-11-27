@@ -89,18 +89,19 @@ class ClassificadorDeCategoria(private val cfg: ConfigIa) {
     }
 
     /** g(c) = argmax_g cos(vetorNome_c, vetoresNomes_g) se ≥ similaridadeMinimaMapeamento; senão -1. */
-    private fun mapear(categorias: List<CategoriaParaIa>): IntArray {
-        val gen = cfg.generico
-        return IntArray(categorias.size) { c ->
-            var melhor = -1
-            var maior = Double.NEGATIVE_INFINITY
-            gen.vetoresNomes.forEachIndexed { g, v ->
-                val s = produto(v, categorias[c].vetorNome)
-                if (s > maior) { maior = s; melhor = g }
-            }
-            if (melhor >= 0 && maior >= gen.similaridadeMinimaMapeamento) melhor else -1
-        }
+    private fun mapear(categorias: List<CategoriaParaIa>): IntArray =
+        IntArray(categorias.size) { c -> indiceGenerico(cfg.generico, categorias[c].vetorNome) }
+}
+
+/** Índice (em `gen.nomes`) da genérica mais parecida com o nome da categoria, ou -1 se nenhuma passa do mínimo. */
+internal fun indiceGenerico(gen: ConfigGenerico, vetorNome: FloatArray): Int {
+    var melhor = -1
+    var maior = Double.NEGATIVE_INFINITY
+    gen.vetoresNomes.forEachIndexed { g, v ->
+        val s = produto(v, vetorNome)
+        if (s > maior) { maior = s; melhor = g }
     }
+    return if (melhor >= 0 && maior >= gen.similaridadeMinimaMapeamento) melhor else -1
 }
 
 /** Todos os passos de uma previsão (índices nas categorias do modelo; -1 = nenhum). Usado pelo golden. */

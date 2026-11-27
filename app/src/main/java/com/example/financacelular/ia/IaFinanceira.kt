@@ -60,6 +60,20 @@ object IaFinanceira {
     suspend fun ranking(descricao: String, tipo: TipoTransacao): List<Long> =
         pronto?.await()?.ranking(descricao, tipo).orEmpty()
 
+    /** Config lido do asset (null se não abriu ou a IA não foi iniciada); não depende do modelo ONNX. */
+    suspend fun config(): ConfigIa? = pronto?.await()?.config
+
+    /** Vetor da pergunta, sem passar pelo cache do banco (o texto da pergunta nunca é gravado); null sem modelo. */
+    suspend fun vetorizarPergunta(texto: String): FloatArray? = pronto?.await()?.vetorizarPergunta(texto)
+
+    /** Vetores dos nomes das categorias (cache do banco), para citar categoria na pergunta; vazio sem modelo. */
+    suspend fun vetoresDasCategorias(categorias: List<Categoria>): List<Pair<Long, FloatArray>> =
+        pronto?.await()?.vetoresDasCategorias(categorias).orEmpty()
+
+    /** Genérica de cada categoria (mesmo critério do treino); sem modelo, só pelo nome exato. Vazio sem config. */
+    suspend fun genericasDasCategorias(categorias: List<Categoria>): Map<Long, String> =
+        pronto?.await()?.genericasDasCategorias(categorias).orEmpty()
+
     /** Treina em segundo plano o modelo do tipo (se faltar), para o próximo [sugerir] não esperar. Não bloqueia. */
     fun aquecer(tipo: TipoTransacao) {
         val iniciando = pronto ?: return
@@ -81,6 +95,29 @@ internal class MotorIa(
     private val calculo: CoroutineDispatcher = Dispatchers.Default,
 ) {
     val disponivel: Boolean = cfg != null && vetorizador != null
+    val config: ConfigIa? get() = cfg
+
+    suspend fun vetorizarPergunta(texto: String): FloatArray? = semErro(null) {
+        val normalizado = NormalizacaoTexto.paraModelo(texto)
+        if (normalizado.isEmpty() || vetorizador == null) null
+        else withContext(calculo) { vetorizador.vetorizar(listOf(normalizado)).first() }
+    }
+
+    suspend fun vetoresDasCategorias(categorias: List<Categoria>): List<Pair<Long, FloatArray>> = semErro(emptyList()) {
+        if (vetorizador == null) return@semErro emptyList()
+        val textos = categorias.associateWith { NormalizacaoTexto.paraModelo(it.nome) }
+        val vetores = RepositorioDeVetores(banco().vetorIaDao(), vetorizador, io, calculo).vetores(textos.values.filter { it.isNotEmpty() })
+        categorias.mapNotNull { c -> vetores[textos.getValue(c)]?.let { c.id to it } }
+    }
+
+    suspend fun genericasDasCategorias(categorias: List<Categoria>): Map<Long, String> = semErro(emptyMap()) {
+        val gen = cfg?.generico ?: return@semErro emptyMap()
+        val vetores = vetoresDasCategorias(categorias).toMap()
+        val pelaIa = vetores.mapNotNull { (id, v) -> indiceGenerico(gen, v).takeIf { it >= 0 }?.let { id to gen.nomes[it] } }.toMap()
+        // Sem vetor (modelo fora): casa o nome normalizado com o nome da genérica
+        val chaves = gen.nomes.associateBy { chaveDoEstabelecimento(it) }
+        pelaIa + categorias.filter { it.id !in pelaIa }.mapNotNull { c -> chaves[chaveDoEstabelecimento(c.nome)]?.let { c.id to it } }
+    }
 
     /** Modelo de um tipo, válido enquanto as categorias (ids e nomes) forem as mesmas de [assinatura]. */
     private class Treinado(

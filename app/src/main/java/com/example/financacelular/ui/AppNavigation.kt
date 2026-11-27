@@ -180,6 +180,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     var atualizacaoDispensada by rememberSaveable { mutableStateOf(false) }
     // Cabeçalho fixo das abas: o ViewModel da Análise e a folha de período ficam aqui, fora das telas
     val analiseViewModel: AnaliseViewModel = viewModel()
+    val assistenteViewModel: AssistenteViewModel = viewModel()
     val mesGlobal by MesGlobal.mes.collectAsStateWithLifecycle()
     val periodoAnalise by analiseViewModel.periodo.collectAsStateWithLifecycle()
     var folhaPeriodoAberta by rememberSaveable { mutableStateOf(false) }
@@ -536,7 +537,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         )
                     }
                     composable(DestinoPrincipal.ASSISTENTE.rota) {
-                        AssistenteScreen()
+                        AssistenteScreen(viewModel = assistenteViewModel)
                     }
                     composable(ROTA_CONFIGURACOES) {
                         ConfiguracoesScreen(
