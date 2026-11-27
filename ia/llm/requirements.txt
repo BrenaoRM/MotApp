@@ -1,0 +1,16 @@
+# Instalar com: .venv/Scripts/python -m pip install -r requirements.txt
+# torch CUDA 13.0 (o indice extra abaixo traz a build com CUDA; pip cai no CPU sem ele)
+--extra-index-url https://download.pytorch.org/whl/cu130
+torch
+unsloth
+trl
+peft
+transformers
+datasets
+huggingface_hub
+requests
+pytest
+# Fallback se o Unsloth nao instalar no Windows: remover a linha unsloth e usar
+# bitsandbytes (+ accelerate) com o mesmo script de treino.
+# bitsandbytes
+# accelerate
