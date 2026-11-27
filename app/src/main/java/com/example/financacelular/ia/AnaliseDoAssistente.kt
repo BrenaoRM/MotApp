@@ -61,7 +61,7 @@ object AnaliseDoAssistente {
     ): AnaliseCompleta {
         val nomes = categorias.associate { it.id to it.nome }
         val faturaId = idDaCategoriaFatura(categorias)
-        val gastos = DetectorDeAtipicos.gastosParaAnalise(transacoes, faturaId, nomes)
+        val gastos = DetectorDeAtipicos.gastosParaAnalise(transacoes, faturaId, nomes, hoje)
         if (gastos.size < cfg.atipicos.minimoGastos) {
             return AnaliseCompleta(EstadoAssistente.PoucosDados(gastos.size, cfg.atipicos.minimoGastos), emptyList())
         }
@@ -111,8 +111,11 @@ object AnaliseDoAssistente {
         val receitas = meses.associateWith { m ->
             porMes.getValue(m).filter { it.tipo == TipoTransacao.RECEITA }.sumOf { it.valorCentavos }
         }
+        // O impacto divide pelos meses completos: só entram os atípicos que caem neles (não o mês corrente nem o futuro)
+        val porId = transacoes.associateBy { it.id }
+        val atipicosDosMeses = atipicos.filter { a -> porId[a.transacaoId]?.let { mes(it) in meses } == true }
         return EntradaRecomendador(
-            meses, despesas, receitas, recorrentes, orcamentos, atipicos, genericaDaCategoria,
+            meses, despesas, receitas, recorrentes, orcamentos, atipicosDosMeses, genericaDaCategoria,
             categorias.associate { it.id to it.nome },
         )
     }

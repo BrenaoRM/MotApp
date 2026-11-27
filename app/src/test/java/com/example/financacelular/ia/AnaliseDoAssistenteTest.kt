@@ -127,4 +127,31 @@ class AnaliseDoAssistenteTest {
         assertEquals(1, pronto.atipicosDoMes.size)
         assertTrue(pronto.recomendacoes.any { it.codigo == CodigoRecomendacao.POUPANCA_BAIXA })
     }
+
+    @Test
+    fun atipicoDoMesCorrenteNaoEntraNoImpactoDoRecomendador() {
+        // Um gasto enorme neste mês (incompleto) não pode ser dividido pelos 4 meses fechados
+        val grande = despesa(902, LocalDate.of(2026, 11, 15), 1800000, "Posto Shell")
+        val pronto = montar(historico() + grande, novembro) as EstadoAssistente.Pronto
+        assertEquals(listOf(902L), pronto.atipicosDoMes.map { it.atipico.transacaoId })
+        assertTrue(pronto.recomendacoes.none { it.codigo == CodigoRecomendacao.GASTOS_ATIPICOS })
+    }
+
+    @Test
+    fun atipicoDeMesFechadoEntraNoImpacto() {
+        val grande = despesa(902, LocalDate.of(2026, 10, 15), 1800000, "Joalheria Ouro")
+        val pronto = montar(historico() + grande, novembro) as EstadoAssistente.Pronto
+        assertTrue(pronto.recomendacoes.any { it.codigo == CodigoRecomendacao.GASTOS_ATIPICOS })
+    }
+
+    @Test
+    fun lancamentoFuturoNaoApareceNemDesloca() {
+        val futuro = despesa(903, LocalDate.of(2026, 12, 15), 900000, "Viagem Futura")
+        val sem = montar(tudo, novembro) as EstadoAssistente.Pronto
+        val com = montar(tudo + futuro, novembro) as EstadoAssistente.Pronto
+        assertEquals(sem.atipicosDoMes.map { it.atipico.transacaoId }, com.atipicosDoMes.map { it.atipico.transacaoId })
+        val dez = montar(tudo + futuro, YearMonth.of(2026, 12)) as EstadoAssistente.Pronto
+        assertTrue(dez.atipicosDoMes.isEmpty())
+        assertEquals(sem.recomendacoes, com.recomendacoes)
+    }
 }

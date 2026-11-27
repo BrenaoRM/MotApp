@@ -48,6 +48,8 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
     init {
         val database = AppDatabase.getInstance(application)
         repository = FinancaRepository.getInstance(database)
+        // Idempotente e não bloqueia: a tela pode abrir antes de a MainActivity ter iniciado a IA
+        IaFinanceira.iniciar(application)
         // Treina o modelo em segundo plano para a primeira sugestão não esperar (já treinado, não custa nada)
         IaFinanceira.aquecer(TipoTransacao.DESPESA)
     }
@@ -138,6 +140,7 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
             val comLetras = chaveDoEstabelecimento(texto).count { it.isLetter() } >= MINIMO_DE_LETRAS
             if (!usarMemoria && !comLetras) {
                 rankingIa = emptyList()
+                limparPreSelecaoDaIa()
                 return@launch
             }
             var memoria: Categoria? = null
@@ -160,8 +163,17 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
             if (daPessoa == null && escolhida != null) {
                 categoriaSelecionada = escolhida
                 sugeridaPelaIaId = if (memoria == null) escolhida.id else null
+            } else if (daPessoa == null && escolhida == null) {
+                limparPreSelecaoDaIa()
             }
         }
+    }
+
+    /** Tira a pré-seleção (e o ✦) só se a categoria atual ainda é a que a IA pôs; escolha da pessoa nunca sai. */
+    private fun limparPreSelecaoDaIa() {
+        val idDaIa = sugeridaPelaIaId ?: return
+        if (categoriaSelecionada?.id == idDaIa) categoriaSelecionada = null
+        sugeridaPelaIaId = null
     }
 
     fun onValorChange(novoValor: String) {

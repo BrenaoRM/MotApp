@@ -8,6 +8,7 @@ import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.financacelular.ia.AlertaDispensado
 import com.example.financacelular.ia.AlertaDispensadoDao
+import com.example.financacelular.ia.IaFinanceira
 import com.example.financacelular.ia.VetorIa
 import com.example.financacelular.ia.VetorIaDao
 import kotlinx.coroutines.CoroutineScope
@@ -96,7 +97,12 @@ abstract class AppDatabase : RoomDatabase() {
         fun <T> comBancoFechado(bloco: () -> T): T = synchronized(this) {
             FinancaRepository.destruirInstancia()
             destruirInstancia()
-            bloco()
+            try {
+                bloco()
+            } finally {
+                // Restauro (ou rollback): o modelo e a memória da IA vieram do banco anterior
+                IaFinanceira.invalidar()
+            }
         }
     }
 }

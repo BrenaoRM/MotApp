@@ -178,4 +178,15 @@ class DetectorDeAtipicosTest {
         }
         File("build/ia/pontuacoes.json").writeText(saida.toString(), Charsets.UTF_8)
     }
+
+    @Test
+    fun gastosParaAnaliseComHojeSoTemORealizado() {
+        fun t(id: Long, data: LocalDate) = Transacao(
+            id = id, valorCentavos = 1000, data = data, categoriaId = 1, tipo = TipoTransacao.DESPESA, descricao = "Padaria",
+        )
+        val hoje = LocalDate.of(2026, 11, 20)
+        val transacoes = listOf(t(1, LocalDate.of(2026, 11, 19)), t(2, LocalDate.of(2026, 11, 20)), t(3, LocalDate.of(2026, 12, 5)))
+        assertEquals(setOf(1L, 2L), DetectorDeAtipicos.gastosParaAnalise(transacoes, null, hoje = hoje).map { it.transacaoId }.toSet())
+        assertEquals(setOf(1L, 2L, 3L), DetectorDeAtipicos.gastosParaAnalise(transacoes, null).map { it.transacaoId }.toSet())
+    }
 }

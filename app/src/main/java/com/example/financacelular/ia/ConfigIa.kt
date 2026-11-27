@@ -27,7 +27,9 @@ data class ConfigIa(
                 generico = ConfigGenerico.deJson(o.getJSONObject("generico")),
                 atipicos = ConfigAtipicos.deJson(o.getJSONObject("atipicos")),
                 lexico = lexicoDeJson(o.getJSONObject("lexico")),
-                intencoes = o.optJSONObject("intencoes")?.let(ConfigIntencoes::deJson) ?: ConfigIntencoes.VAZIA,
+                // Seção malformada desliga só as Perguntas (tudo vira desconhecida), não o resto da IA
+                intencoes = runCatching { o.optJSONObject("intencoes")?.let(ConfigIntencoes::deJson) }.getOrNull()
+                    ?: ConfigIntencoes.VAZIA,
             )
         }
 

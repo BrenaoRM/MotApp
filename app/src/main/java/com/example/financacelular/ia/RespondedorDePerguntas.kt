@@ -98,10 +98,10 @@ object RespondedorDePerguntas {
 
     // ---------------------------------------------------------------- base de cálculo
 
-    private class Base(transacoes: List<Transacao>, categorias: List<Categoria>, val hoje: LocalDate) {
+    private class Base(private val transacoes: List<Transacao>, categorias: List<Categoria>, val hoje: LocalDate) {
         val nomes: Map<Long, String> = categorias.associate { it.id to it.nome }
         private val porId = transacoes.associateBy { it.id }
-        private val faturaId = idDaCategoriaFatura(categorias)
+        val faturaId = idDaCategoriaFatura(categorias)
         private val pagas = conjuntoFaturasPagas(transacoes)
 
         /** Realizadas (a regra de [estaRealizada] já deixa de fora pagamento de fatura) e fora da categoria Fatura. */
@@ -124,6 +124,14 @@ object RespondedorDePerguntas {
         fun porCategoria(mes: YearMonth): List<Pair<Long, Long>> =
             despesas(mes).groupBy { it.categoriaId }.map { (id, lista) -> id to lista.sumOf { it.valorCentavos } }
                 .sortedByDescending { it.second }
+
+        /**
+         * Gasto por categoria como a tela de Orçamento (`gastoPorCategoriaNoMes`): toda despesa com `anoMes` igual ao
+         * mês, sem filtro de realização (compra em fatura aberta já conta).
+         */
+        fun gastoDoOrcamento(mes: YearMonth): Map<Long, Long> =
+            transacoes.filter { it.tipo == TipoTransacao.DESPESA && mesDe(it) == mes.toString() }
+                .groupBy { it.categoriaId }.mapValues { (_, l) -> l.sumOf { it.valorCentavos } }
 
         fun meses(): List<YearMonth> = validas.filter { it.tipo == TipoTransacao.DESPESA }
             .map { YearMonth.parse(mesDe(it)) }.distinct()
@@ -209,24 +217,26 @@ object RespondedorDePerguntas {
     private fun orcamentoRestante(p: Pergunta, b: Base, orcamentos: List<Orcamento>): String {
         val categoria = p.categoriaId?.takeIf { it in b.nomes }
         val mes = rotulo(p.mes, b.hoje)
-        val doMes = orcamentos.filter { it.anoMes == p.mes.toString() && (categoria == null || it.categoriaId == categoria) }
-        if (doMes.isEmpty()) {
+        // Mesma regra da tela de Orçamento: limite herdado do mais recente até o mês, 0 = sem orçamento, sem "Fatura"
+        val limites = orcamentos.map { it.categoriaId }.distinct()
+            .filter { it != b.faturaId && (categoria == null || it == categoria) }
+            .mapNotNull { id -> limiteDoMes(orcamentos, id, p.mes)?.let { id to it } }
+        if (limites.isEmpty()) {
             return if (categoria == null) "Você não definiu orçamento para $mes."
             else "Você não definiu orçamento de ${b.nome(categoria)} para $mes."
         }
-        val gastoPorCategoria = b.porCategoria(p.mes).toMap()
-        val limite = doMes.sumOf { it.valorLimiteCentavos }
-        val gasto = doMes.sumOf { gastoPorCategoria[it.categoriaId] ?: 0L }
+        val gastoPorCategoria = b.gastoDoOrcamento(p.mes)
+        val limite = limites.sumOf { it.second }
+        val gasto = limites.sumOf { gastoPorCategoria[it.first] ?: 0L }
         val orcamento = if (categoria == null) "orçamento de $mes" else "orçamento de ${b.nome(categoria)} em $mes"
         val restante = limite - gasto
         if (restante < 0) return "Você passou ${formatarReaisInteiros(-restante)} do $orcamento (${formatarReaisInteiros(limite)})."
         val inicio = "Do $orcamento ainda restam ${formatarReaisInteiros(restante)} de " +
             "${formatarReaisInteiros(limite)} (${porcento(gasto, limite)}% usado)."
-        if (categoria != null || doMes.size < 2) return inicio
-        val maisPerto = doMes.filter { it.valorLimiteCentavos > 0 }
-            .maxByOrNull { (gastoPorCategoria[it.categoriaId] ?: 0L).toDouble() / it.valorLimiteCentavos } ?: return inicio
-        val pct = porcento(gastoPorCategoria[maisPerto.categoriaId] ?: 0L, maisPerto.valorLimiteCentavos)
-        return "$inicio Mais perto do limite: ${b.nome(maisPerto.categoriaId)} ($pct%)."
+        if (categoria != null || limites.size < 2) return inicio
+        val maisPerto = limites.maxByOrNull { (gastoPorCategoria[it.first] ?: 0L).toDouble() / it.second } ?: return inicio
+        val pct = porcento(gastoPorCategoria[maisPerto.first] ?: 0L, maisPerto.second)
+        return "$inicio Mais perto do limite: ${b.nome(maisPerto.first)} ($pct%)."
     }
 
     private fun assinaturas(recorrentes: List<DespesaRecorrente>): String {

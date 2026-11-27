@@ -69,6 +69,7 @@ class FinancaRepository(private val database: AppDatabase) {
             despesaRecorrenteDao.excluirDoCartao(cartao.id)
             cartaoDao.excluir(cartao)
         }
+        IaFinanceira.invalidar()
     }
     fun listarTodosCartoes(): Flow<List<CartaoEntity>> = cartaoDao.listarTodos()
     suspend fun listarTodosCartoesSync(): List<CartaoEntity> = cartaoDao.listarTodosSync()
@@ -116,6 +117,7 @@ class FinancaRepository(private val database: AppDatabase) {
         }
 
     suspend fun pagarFaturaCartao(cartaoId: Long, anoMes: String, valorTotal: Double) {
+        var criouCategoriaFatura = false
         database.withTransaction<Unit> {
             // Já existe pagamento deste cartão neste mês? Então não registra outro (evita toque duplo).
             val jaPaga = dao.pagamentosDeFaturaDoMes(anoMes).any {
@@ -129,6 +131,7 @@ class FinancaRepository(private val database: AppDatabase) {
             val catId = if (categoriaFatura != null) {
                 categoriaFatura.id
             } else {
+                criouCategoriaFatura = true
                 categoriaDao.inserir(Categoria(nome = "Fatura", tipo = TipoTransacao.DESPESA))
             }
 
@@ -154,6 +157,8 @@ class FinancaRepository(private val database: AppDatabase) {
                 )
             )
         }
+        // O pagamento não entra no treino; só a categoria nova "Fatura" muda a assinatura de categorias
+        if (criouCategoriaFatura) IaFinanceira.invalidar()
     }
 
     suspend fun cancelarPagamentoFaturaCartao(cartaoId: Long, anoMes: String) {
@@ -162,6 +167,7 @@ class FinancaRepository(private val database: AppDatabase) {
                 .filter { it.faturaQuitadaPorEstePagamento() == FaturaChave(cartaoId, anoMes) }
                 .forEach { dao.excluirTransacao(it) }
         }
+        IaFinanceira.invalidar()
     }
 
     // ------------------------------------------------------------------
@@ -233,7 +239,7 @@ class FinancaRepository(private val database: AppDatabase) {
         cartaoId: Long?,
         de: YearMonth,
         ate: YearMonth
-    ) {
+    ): Boolean {
         val descricao = descricaoDaRecorrente(recorrente)
         val novas = mutableListOf<Transacao>()
         // No cartão, a cobrança entra na fatura pelo fechamento, igual a uma compra avulsa
@@ -267,6 +273,7 @@ class FinancaRepository(private val database: AppDatabase) {
         }
 
         if (novas.isNotEmpty()) dao.inserirTransacoes(novas)
+        return novas.isNotEmpty()
     }
 
     suspend fun salvarAssinaturaCartao(
@@ -285,7 +292,7 @@ class FinancaRepository(private val database: AppDatabase) {
         val formaPag = if (semCartao) FormaPagamento.DEBITO else FormaPagamento.CARTAO_CREDITO
         val cId = if (semCartao) null else cartaoId
 
-        database.withTransaction {
+        val gerou = database.withTransaction {
             val recorrente = DespesaRecorrente(
                 nome = nome,
                 valorCentavos = reaisEmCentavos(valor),
@@ -308,15 +315,17 @@ class FinancaRepository(private val database: AppDatabase) {
                 ate = referencia.plusMonths(MESES_A_FRENTE)
             )
         }
+        if (gerou) IaFinanceira.invalidar()
     }
 
     suspend fun gerarRecorrentesPendentes() {
-        database.withTransaction {
+        val mudou = database.withTransaction {
+            var mudou = false
             val agora = YearMonth.now()
             val limite = agora.plusMonths(MESES_A_FRENTE)
             val cartoes = cartaoDao.listarTodosSync()
             val primeiroCartaoId = cartoes.firstOrNull()?.id
-            repararAnoMesDasRecorrentesNoCartao(cartoes)
+            if (repararAnoMesDasRecorrentesNoCartao(cartoes)) mudou = true
 
             for (recorrente in despesaRecorrenteDao.listarTodasSync()) {
                 val ultima = dao.ultimaDaRecorrente(recorrente.id)
@@ -332,15 +341,19 @@ class FinancaRepository(private val database: AppDatabase) {
                 // Sem nenhum cartão, não gera cobrança (ficaria órfã, fora de qualquer fatura).
                 val cartaoDaAssinatura = if (semCartao) null
                 else (recorrente.cartaoId ?: ultima?.cartaoId ?: primeiroCartaoId ?: continue)
-                gerarMeses(
-                    recorrente = recorrente,
-                    formaPagamento = if (semCartao) FormaPagamento.DEBITO else FormaPagamento.CARTAO_CREDITO,
-                    cartaoId = cartaoDaAssinatura,
-                    de = inicio,
-                    ate = limite
-                )
+                if (gerarMeses(
+                        recorrente = recorrente,
+                        formaPagamento = if (semCartao) FormaPagamento.DEBITO else FormaPagamento.CARTAO_CREDITO,
+                        cartaoId = cartaoDaAssinatura,
+                        de = inicio,
+                        ate = limite
+                    )
+                ) mudou = true
             }
+            mudou
         }
+        // Só quando algo mudou, para não retreinar a cada abertura do app
+        if (mudou) IaFinanceira.invalidar()
     }
 
     /**
@@ -348,7 +361,7 @@ class FinancaRepository(private val database: AppDatabase) {
      * (as antigas eram gravadas no mês da data). Idempotente; não toca em lançamento passado nem em
      * fatura paga. Também corrige quando o usuário muda o dia de fechamento do cartão.
      */
-    private suspend fun repararAnoMesDasRecorrentesNoCartao(cartoes: List<CartaoEntity>) {
+    private suspend fun repararAnoMesDasRecorrentesNoCartao(cartoes: List<CartaoEntity>): Boolean {
         val hoje = LocalDate.now()
         val corrigidas = recorrentesNoCartaoComAnoMesErrado(
             transacoes = dao.cobrancasDeRecorrenteNoCartaoDesde(hoje),
@@ -357,6 +370,7 @@ class FinancaRepository(private val database: AppDatabase) {
             hoje = hoje
         )
         for (t in corrigidas) dao.atualizarTransacao(t)
+        return corrigidas.isNotEmpty()
     }
 
     suspend fun excluirRecorrente(despesa: DespesaRecorrente) {
@@ -365,6 +379,7 @@ class FinancaRepository(private val database: AppDatabase) {
             dao.excluirFuturasDaRecorrente(despesa.id, descricoes, LocalDate.now())
             despesaRecorrenteDao.excluir(despesa)
         }
+        IaFinanceira.invalidar()
     }
 
     // ------------------------------------------------------------------
@@ -388,11 +403,13 @@ class FinancaRepository(private val database: AppDatabase) {
      * (as chaves estrangeiras impedem apagar só a categoria) e, em cascata, os limites de orçamento.
      * Tudo numa transação: se algo falhar, nada é apagado.
      */
-    suspend fun excluirCategoriaComDados(categoria: Categoria) = database.withTransaction {
-        dao.excluirPorCategoria(categoria.id)
-        despesaRecorrenteDao.excluirPorCategoria(categoria.id)
-        estabelecimentoDao.excluirPorCategoria(categoria.id)
-        categoriaDao.excluir(categoria)
+    suspend fun excluirCategoriaComDados(categoria: Categoria) {
+        database.withTransaction {
+            dao.excluirPorCategoria(categoria.id)
+            despesaRecorrenteDao.excluirPorCategoria(categoria.id)
+            estabelecimentoDao.excluirPorCategoria(categoria.id)
+            categoriaDao.excluir(categoria)
+        }
         IaFinanceira.invalidar()
     }
 
@@ -401,11 +418,13 @@ class FinancaRepository(private val database: AppDatabase) {
      * exclui [categoria]. O limite de orçamento da categoria excluída é descartado (cascata); o do destino fica.
      * Tudo numa transação.
      */
-    suspend fun moverEExcluirCategoria(categoria: Categoria, destino: Categoria) = database.withTransaction {
-        dao.moverPorCategoria(categoria.id, destino.id)
-        despesaRecorrenteDao.moverPorCategoria(categoria.id, destino.id)
-        estabelecimentoDao.moverPorCategoria(categoria.id, destino.id)
-        categoriaDao.excluir(categoria)
+    suspend fun moverEExcluirCategoria(categoria: Categoria, destino: Categoria) {
+        database.withTransaction {
+            dao.moverPorCategoria(categoria.id, destino.id)
+            despesaRecorrenteDao.moverPorCategoria(categoria.id, destino.id)
+            estabelecimentoDao.moverPorCategoria(categoria.id, destino.id)
+            categoriaDao.excluir(categoria)
+        }
         IaFinanceira.invalidar()
     }
 

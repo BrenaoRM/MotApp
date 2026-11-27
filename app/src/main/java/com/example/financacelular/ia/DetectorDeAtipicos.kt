@@ -3,6 +3,9 @@ package com.example.financacelular.ia
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.data.Transacao
 import com.example.financacelular.data.chaveDoEstabelecimento
+import com.example.financacelular.data.conjuntoFaturasPagas
+import com.example.financacelular.data.estaRealizada
+import java.time.LocalDate
 import kotlin.math.ceil
 
 /** Por que um gasto foi marcado, na ordem de prioridade em que é decidido. */
@@ -31,22 +34,28 @@ object DetectorDeAtipicos {
      * Só o hábito: despesas que não são pagamento de fatura, nem da categoria Fatura, nem recorrentes. Compra
      * parcelada (mesmo `grupoParcelamentoId`) vira um gasto com o valor total, no dia da compra, com o id da
      * primeira parcela. Chave = descrição normalizada; sem descrição ou igual ao nome da categoria → `"#cat<id>"`.
+     * Com [hoje], só o realizado (compra de fatura aberta e data futura ficam de fora; a compra parcelada vale pela
+     * primeira parcela), então um lançamento futuro não desloca a janela do detector.
      */
     fun gastosParaAnalise(
         transacoes: List<Transacao>,
         categoriaFaturaId: Long?,
         nomesDasCategorias: Map<Long, String> = emptyMap(),
+        hoje: LocalDate? = null,
     ): List<GastoParaAnalise> {
+        val pagas = if (hoje != null) conjuntoFaturasPagas(transacoes) else emptySet()
+        fun vale(t: Transacao) = hoje == null || t.estaRealizada(pagas, hoje)
         val habito = transacoes.filter {
             it.tipo == TipoTransacao.DESPESA && it.pagaFaturaDoCartaoId == null &&
                 it.categoriaId != categoriaFaturaId && it.recorrenteId == null
         }
         val (parceladas, avulsas) = habito.partition { it.grupoParcelamentoId != null }
-        val compras = parceladas.groupBy { it.grupoParcelamentoId }.values.map { parcelas ->
+        val compras = parceladas.groupBy { it.grupoParcelamentoId }.values.mapNotNull { parcelas ->
             val primeira = parcelas.minWith(compareBy({ it.numeroParcela }, { it.id }))
+            if (!vale(primeira)) return@mapNotNull null
             primeira.copy(valorCentavos = parcelas.sumOf { it.valorCentavos }, data = primeira.dataCompra ?: primeira.data)
         }
-        return (avulsas + compras).map { t ->
+        return (avulsas.filter(::vale) + compras).map { t ->
             GastoParaAnalise(t.id, t.data, t.valorCentavos, t.categoriaId, chave(t, nomesDasCategorias[t.categoriaId]))
         }
     }

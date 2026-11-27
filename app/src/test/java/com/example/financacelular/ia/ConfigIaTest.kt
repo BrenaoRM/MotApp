@@ -21,4 +21,14 @@ class ConfigIaTest {
         assertTrue(cfg.lexico.values.all { it in cfg.generico.nomes })
         assertTrue(cfg.atipicos.minimoGastos > 0)
     }
+
+    @Test
+    fun intencoesMalformadoDesligaSoAsPerguntas() {
+        val o = org.json.JSONObject(GoldenIa.asset("modelo_ia.json").readText(Charsets.UTF_8))
+        o.put("intencoes", org.json.JSONObject().put("intencoes", "isto nao e uma lista"))
+        val cfg = ConfigIa.deJson(o.toString())
+        assertEquals(ConfigIntencoes.VAZIA, cfg.intencoes)
+        assertEquals(9, cfg.generico.pesos.size)
+        assertTrue(cfg.atipicos.minimoGastos > 0)
+    }
 }

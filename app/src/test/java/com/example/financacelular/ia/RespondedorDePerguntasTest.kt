@@ -383,4 +383,41 @@ class RespondedorDePerguntasTest {
         )
         assertEquals(Perguntas.SUGESTOES_INICIAIS, d.sugestoes)
     }
+
+    @Test
+    fun orcamentoHerdaOLimiteDoMesAnterior() {
+        // Definido em setembro, vale em novembro (como a tela de Orçamento): restam 1.000 - 820 = 180
+        val orcamentos = listOf(Orcamento(1, mercado, "2026-09", 100000))
+        assertEquals(
+            "Do orçamento de Mercado em novembro ainda restam R\$ 180 de R\$ 1.000 (82% usado).",
+            responder(pergunta(Intencao.ORCAMENTO_RESTANTE, cat = mercado), gastosDeNovembro, orcamentos = orcamentos),
+        )
+    }
+
+    @Test
+    fun orcamentoMaisRecenteSubstituiEZeroEhSemOrcamento() {
+        val orcamentos = listOf(
+            Orcamento(1, mercado, "2026-09", 100000), Orcamento(2, mercado, "2026-10", 0),
+            Orcamento(3, restaurantes, "2026-10", 50000),
+        )
+        // Mercado tem limite 0 (sem orçamento) desde outubro: só Restaurantes conta
+        assertEquals(
+            "Você passou R\$ 40 do orçamento de novembro (R\$ 500).",
+            responder(pergunta(Intencao.ORCAMENTO_RESTANTE), gastosDeNovembro, orcamentos = orcamentos),
+        )
+        assertEquals(
+            "Você não definiu orçamento de Mercado para novembro.",
+            responder(pergunta(Intencao.ORCAMENTO_RESTANTE, cat = mercado), gastosDeNovembro, orcamentos = orcamentos),
+        )
+    }
+
+    @Test
+    fun orcamentoContaOGastoDaFaturaAbertaComoATela() {
+        val naFatura = gasto(100, mercado, dia = 28) // data depois de hoje (26): ainda não realizado, mas a tela soma
+        val orcamentos = listOf(Orcamento(1, mercado, "2026-11", 100000))
+        assertEquals(
+            "Do orçamento de Mercado em novembro ainda restam R\$ 80 de R\$ 1.000 (92% usado).",
+            responder(pergunta(Intencao.ORCAMENTO_RESTANTE, cat = mercado), gastosDeNovembro + naFatura, orcamentos = orcamentos),
+        )
+    }
 }

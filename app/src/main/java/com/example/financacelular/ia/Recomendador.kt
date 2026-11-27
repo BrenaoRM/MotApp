@@ -196,15 +196,6 @@ object Recomendador {
         }
     }
 
-    /**
-     * Limite vigente da categoria no mês, como `OrcamentoViewModel.itens`: vale o orçamento mais recente com
-     * `anoMes <= mes` (o limite é herdado dos meses seguintes) e limite 0 significa "sem orçamento".
-     */
-    private fun limiteDoMes(orcamentos: List<Orcamento>, categoriaId: Long, mes: YearMonth): Long? =
-        orcamentos.filter { it.categoriaId == categoriaId && it.anoMes <= mes.toString() }
-            .maxWithOrNull(compareBy({ it.anoMes }, { it.id }))
-            ?.valorLimiteCentavos?.takeIf { it > 0 }
-
     private fun atipicos(c: Contexto): List<Recomendacao> {
         if (c.e.atipicos.isEmpty()) return emptyList()
         val total = c.e.atipicos.sumOf {
