@@ -107,6 +107,8 @@ android {
         // `-Dia.exportar=true` chega aos testes da JVM (ia/avaliar_atipicos.py grava as pontuações do Kotlin)
         unitTests.all { test ->
             providers.systemProperty("ia.exportar").orNull?.let { test.systemProperty("ia.exportar", it) }
+            // `-Dexportar.fatos=<saida.jsonl>` liga o ExportarFatosParaTreino (dados de treino do LLM)
+            providers.systemProperty("exportar.fatos").orNull?.let { test.systemProperty("exportar.fatos", it) }
         }
     }
     // Os schemas exportados do Room (schemas/) chegam ao teste de migração como assets do build debug
