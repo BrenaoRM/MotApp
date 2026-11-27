@@ -173,9 +173,26 @@ class GerenciadorDeModeloTest {
     }
 
     @Test fun jobAntigoNaoEVigenteDepoisDeSubstituido() {
+        GerenciadorDeModelo.reiniciarParaTeste()
         assertTrue(GerenciadorDeModelo.jobVigente(111L)) // adota o primeiro
         assertFalse(GerenciadorDeModelo.jobVigente(222L))
         assertTrue(GerenciadorDeModelo.jobVigente(111L))
+    }
+
+    @Test fun restaurarNaoSobrescreveEstadoQueMudouNoMeioDaConsulta() {
+        val g = GerenciadorDeModelo
+        g.reiniciarParaTeste()
+        // Estado muda durante a consulta (ex.: um download concluiu): a foto velha não vale
+        g.restaurarCom { g.definirEstado(0L, EstadoModelo.Pronto(ModoIa.MEDIA)); EstadoModelo.Baixando(ModoIa.MEDIA, 0.5f) }
+        assertEquals(EstadoModelo.Pronto(ModoIa.MEDIA), g.estado.value)
+        // Job muda durante a consulta (cancelar/desativar/ativar): o resultado também é descartado
+        g.reiniciarParaTeste()
+        g.restaurarCom { g.invalidarJob(); EstadoModelo.Baixando(ModoIa.RAPIDA, 0.1f) }
+        assertEquals(EstadoModelo.Desativado, g.estado.value)
+        // Sem interferência, aplica
+        g.restaurarCom { EstadoModelo.Pronto(ModoIa.RAPIDA) }
+        assertEquals(EstadoModelo.Pronto(ModoIa.RAPIDA), g.estado.value)
+        g.reiniciarParaTeste()
     }
 
     @Test fun modosSuportadosFiltraPorRam() {

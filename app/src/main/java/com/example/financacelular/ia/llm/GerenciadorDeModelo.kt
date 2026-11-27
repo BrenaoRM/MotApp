@@ -73,23 +73,38 @@ object GerenciadorDeModelo {
     fun restaurar(context: Context) {
         if (_estado.value is EstadoModelo.Baixando) return
         val app = context.applicationContext
-        CoroutineScope(Dispatchers.IO).launch {
-            val infos = try { WorkManager.getInstance(app).getWorkInfosForUniqueWork(NOME_TRABALHO).get() } catch (_: Exception) { emptyList() }
-            val ativo = infos.firstOrNull {
-                it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.BLOCKED
-            }
-            val baixando = modoDaPref(app, PREF_BAIXANDO)
-            val falhou = modoDaPref(app, PREF_FALHOU)
-            val modoAtual = modoDaPref(app, PREF_MODO)
-            val novo = when {
-                ativo != null && baixando != null -> EstadoModelo.Baixando(baixando, ativo.progress.getFloat(CHAVE_PROGRESSO, 0f))
-                falhou != null -> EstadoModelo.Falhou(falhou)
-                modoAtual != null && caminhoPronto(app) != null -> EstadoModelo.Pronto(modoAtual)
-                else -> EstadoModelo.Desativado
-            }
-            synchronized(this@GerenciadorDeModelo) { if (_estado.value !is EstadoModelo.Baixando) _estado.value = novo }
+        CoroutineScope(Dispatchers.IO).launch { restaurarCom { lerEstado(app) } }
+    }
+
+    private fun lerEstado(app: Context): EstadoModelo {
+        val infos = try { WorkManager.getInstance(app).getWorkInfosForUniqueWork(NOME_TRABALHO).get() } catch (_: Exception) { emptyList() }
+        val ativo = infos.firstOrNull {
+            it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.BLOCKED
+        }
+        val baixando = modoDaPref(app, PREF_BAIXANDO)
+        val falhou = modoDaPref(app, PREF_FALHOU)
+        val modoAtual = modoDaPref(app, PREF_MODO)
+        return when {
+            ativo != null && baixando != null -> EstadoModelo.Baixando(baixando, ativo.progress.getFloat(CHAVE_PROGRESSO, 0f))
+            falhou != null -> EstadoModelo.Falhou(falhou)
+            modoAtual != null && caminhoPronto(app) != null -> EstadoModelo.Pronto(modoAtual)
+            else -> EstadoModelo.Desativado
         }
     }
+
+    /** Fotografa job e estado, calcula o novo estado (lento, fora da trava) e só o aplica se nada mudou nesse meio tempo. */
+    internal fun restaurarCom(calcular: () -> EstadoModelo) {
+        val (job, antes) = synchronized(this) { jobAtual to _estado.value }
+        aplicarSeIgual(job, antes, calcular())
+    }
+
+    @Synchronized private fun aplicarSeIgual(job: Long, antes: EstadoModelo, novo: EstadoModelo) {
+        if (jobAtual == job && _estado.value == antes) _estado.value = novo
+    }
+
+    @Synchronized internal fun invalidarJob() { jobAtual = novoJob() }
+
+    @Synchronized internal fun reiniciarParaTeste() { jobAtual = 0L; _estado.value = EstadoModelo.Desativado }
 
     fun modosSuportados(context: Context): List<ModeloDisponivel> {
         val info = ActivityManager.MemoryInfo()
@@ -226,6 +241,7 @@ object GerenciadorDeModelo {
                         verificarAtivo()
                         val n = entrada.read(buf)
                         if (n < 0) break
+                        verificarAtivo()
                         saida.write(buf, 0, n)
                         gravado += n
                         aoBytes(gravado)
