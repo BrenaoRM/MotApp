@@ -69,6 +69,11 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- ONNX Runtime traz um provider de telemetria por HTTP; removido para nada da IA sair do aparelho -->
+        <provider
+            android:name="ai.onnxruntime.TelemetryInitializer"
+            android:authorities="${applicationId}.onnxruntime_telemetry_initializer"
+            tools:node="remove" />
     </application>
 
 </manifest>

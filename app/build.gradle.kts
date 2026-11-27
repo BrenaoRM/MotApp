@@ -92,6 +92,12 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    // .so comprimido dentro do APK: o ONNX Runtime cai de ~33 MB para ~12 MB no download (extraído na instalação)
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
     buildFeatures {
         compose = true
         buildConfig = true
