@@ -29,7 +29,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -54,22 +56,25 @@ class AssistenteViewModel(application: Application) : AndroidViewModel(applicati
         val mes: YearMonth,
     )
 
-    @Volatile private var entradas: Entradas? = null
-    @Volatile private var analise: AnaliseCompleta? = null
+    /** Entradas e análise da mesma rodada, trocadas juntas para o chat nunca ler um par misturado. */
+    @Volatile private var ultima: Pair<Entradas, AnaliseCompleta>? = null
     private var genericasCache: Pair<List<Pair<Long, String>>, Map<Long, String>>? = null
 
-    val categorias: StateFlow<List<Categoria>> = repository.listarCategorias()
+    private val categoriasCompartilhadas = repository.listarCategorias().distinctUntilChanged()
+        .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5000), replay = 1)
+
+    val categorias: StateFlow<List<Categoria>> = categoriasCompartilhadas
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val cartoes: StateFlow<List<CartaoEntity>> = repository.listarTodosCartoes()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val estado: StateFlow<EstadoAssistente> = combine(
-        repository.listarTransacoes(),
-        repository.listarCategorias(),
-        repository.listarRecorrentes(),
-        repository.listarHistoricoOrcamentos("9999-12"),
-        alertas.listarIds(),
+        repository.listarTransacoes().distinctUntilChanged(),
+        categoriasCompartilhadas,
+        repository.listarRecorrentes().distinctUntilChanged(),
+        repository.listarHistoricoOrcamentos("9999-12").distinctUntilChanged(),
+        alertas.listarIds().distinctUntilChanged(),
         MesGlobal.mes,
     ) { valores ->
         @Suppress("UNCHECKED_CAST")
@@ -79,15 +84,15 @@ class AssistenteViewModel(application: Application) : AndroidViewModel(applicati
         )
     }.mapLatest { e ->
         IaFinanceira.iniciar(getApplication())
-        val cfg = IaFinanceira.config() ?: return@mapLatest EstadoAssistente.Carregando
+        // Depois de iniciar, config() só espera a leitura do asset: null aqui é falha definitiva, não demora
+        val cfg = IaFinanceira.config() ?: return@mapLatest EstadoAssistente.Indisponivel
         val genericas = genericasDe(e.categorias)
         val resultado = withContext(Dispatchers.Default) {
             AnaliseDoAssistente.analisar(
                 e.transacoes, e.categorias, e.recorrentes, e.orcamentos, e.dispensados, e.mes, cfg, genericas, LocalDate.now(),
             )
         }
-        entradas = e
-        analise = resultado
+        ultima = e to resultado
         resultado.estado
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), EstadoAssistente.Carregando)
 
@@ -96,7 +101,7 @@ class AssistenteViewModel(application: Application) : AndroidViewModel(applicati
         val despesas = categorias.filter { it.tipo == TipoTransacao.DESPESA && it.id != faturaId }
         val assinatura = despesas.map { it.id to it.nome }
         genericasCache?.takeIf { it.first == assinatura }?.let { return it.second }
-        return IaFinanceira.genericasDasCategorias(despesas).also { genericasCache = assinatura to it }
+        return withContext(Dispatchers.Default) { IaFinanceira.genericasDasCategorias(despesas) }.also { genericasCache = assinatura to it }
     }
 
     /** "Está certo": o alerta não volta (fica gravado no banco). */
@@ -104,7 +109,7 @@ class AssistenteViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch(Dispatchers.IO) { alertas.dispensar(AlertaDispensado(transacaoId, System.currentTimeMillis())) }
     }
 
-    fun transacao(id: Long): Transacao? = entradas?.transacoes?.firstOrNull { it.id == id }
+    fun transacao(id: Long): Transacao? = ultima?.first?.transacoes?.firstOrNull { it.id == id }
 
     fun atualizar(transacao: Transacao) {
         if (transacao.id < 0) return
@@ -151,7 +156,7 @@ class AssistenteViewModel(application: Application) : AndroidViewModel(applicati
         val cfg = IaFinanceira.config()
         val vetor = if (cfg == null) null else IaFinanceira.vetorizarPergunta(texto)
         if (cfg == null || vetor == null) return TEXTO_INDISPONIVEL to Perguntas.SUGESTOES_INICIAIS
-        val e = entradas ?: return TEXTO_NAO_ENTENDI to Perguntas.SUGESTOES_INICIAIS
+        val (e, analiseAtual) = ultima ?: return TEXTO_NAO_ENTENDI to Perguntas.SUGESTOES_INICIAIS
         val faturaId = idDaCategoriaFatura(e.categorias)
         val despesas = e.categorias.filter { it.tipo == TipoTransacao.DESPESA && it.id != faturaId }
         val vetoresCategorias = IaFinanceira.vetoresDasCategorias(despesas)
@@ -159,10 +164,10 @@ class AssistenteViewModel(application: Application) : AndroidViewModel(applicati
         val entendida: Pergunta = withContext(Dispatchers.Default) {
             Perguntas.entender(texto, vetor, vetoresCategorias, despesas.associate { it.id to it.nome }, e.mes, hoje, cfg.intencoes)
         }
-        val pronto = analise?.estado as? EstadoAssistente.Pronto
+        val pronto = analiseAtual.estado as? EstadoAssistente.Pronto
         val r = RespondedorDePerguntas.responderEmSegundoPlano(
             entendida, e.transacoes, e.categorias, e.recorrentes, e.orcamentos,
-            pronto?.recomendacoes.orEmpty(), analise?.atipicos.orEmpty(), hoje,
+            pronto?.recomendacoes.orEmpty(), analiseAtual.atipicos, hoje,
         )
         return r.texto to r.sugestoes
     }

@@ -49,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -78,6 +79,9 @@ private sealed interface FolhaDoAssistente {
     data class Editar(val transacaoId: Long) : FolhaDoAssistente
     data object Perguntas : FolhaDoAssistente
 }
+
+/** Conteúdo sobre o violet, escolhido pela luminância como o `BotaoPrincipal` faz. */
+private val CorSobreRoxo = if (RoxoHero.luminance() > 0.5f) Color.Black else Color.White
 
 private const val MASCARA = "R$ ••••••"
 private val TEXTO_DE_VALOR = Regex("-?R\\$ [\\d.]+")
@@ -114,6 +118,9 @@ fun AssistenteScreen(viewModel: AssistenteViewModel = viewModel()) {
         Spacer(modifier = Modifier.height(LocalEspacoCabecalho.current + 4.dp))
         when (val e = estado) {
             EstadoAssistente.Carregando -> Unit
+            EstadoAssistente.Indisponivel -> Box(Modifier.padding(top = 72.dp)) {
+                EstadoVazio(Icons.Outlined.AutoAwesome, "Análise indisponível neste aparelho")
+            }
             is EstadoAssistente.PoucosDados -> PoucosDados(e)
             is EstadoAssistente.Pronto -> Pronto(e, formato, aoAbrir = { folha = it })
         }
@@ -140,7 +147,7 @@ fun AssistenteScreen(viewModel: AssistenteViewModel = viewModel()) {
         )
         is FolhaDoAssistente.Editar -> {
             val transacao = viewModel.transacao(f.transacaoId)
-            if (transacao == null) folha = null else BottomSheetEditarTransacao(
+            if (transacao == null) LaunchedEffect(f) { folha = null } else BottomSheetEditarTransacao(
                 transacao = transacao,
                 categorias = categorias,
                 cartoes = cartoes,
@@ -289,7 +296,7 @@ private fun SecaoPerguntas(aoAbrir: (String?) -> Unit) {
                 modifier = Modifier.size(40.dp).background(RoxoHero, RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = null, tint = CorSobreRoxo, modifier = Modifier.size(18.dp))
             }
         }
     }
@@ -381,7 +388,7 @@ private fun Balao(m: Mensagem) {
             Text(
                 if (m.deUsuario) m.texto else protegido(m.texto),
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (m.deUsuario) Color.White else MaterialTheme.colorScheme.onSurface,
+                color = if (m.deUsuario) CorSobreRoxo else MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
             )
         }

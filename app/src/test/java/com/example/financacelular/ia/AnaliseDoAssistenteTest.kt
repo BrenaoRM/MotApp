@@ -41,8 +41,12 @@ class AnaliseDoAssistenteTest {
     private val posto = despesa(901, LocalDate.of(2026, 11, 12), 180000, "Posto Shell")
     private val tudo = historico() + joalheria + posto
 
-    private fun montar(t: List<Transacao>, mes: YearMonth = novembro, dispensados: Set<Long> = emptySet(), genericas: Map<Long, String> = emptyMap()) =
-        AnaliseDoAssistente.montar(t, categorias, emptyList(), emptyList(), dispensados, mes, cfg, genericas, hoje)
+    private fun montar(
+        t: List<Transacao>, mes: YearMonth = novembro, dispensados: Set<Long> = emptySet(),
+        genericas: Map<Long, String> = emptyMap(), cats: List<Categoria> = categorias,
+    ) = AnaliseDoAssistente.montar(t, cats, emptyList(), emptyList(), dispensados, mes, cfg, genericas, hoje)
+
+    private fun avulsas(n: Int) = historico().filter { it.tipo == TipoTransacao.DESPESA && it.recorrenteId == null }.take(n)
 
     @Test
     fun poucosDadosAbaixoDe20() {
@@ -56,6 +60,49 @@ class AnaliseDoAssistenteTest {
         val pronto = montar(tudo) as EstadoAssistente.Pronto
         assertTrue(pronto.recomendacoes.isNotEmpty())
         assertEquals(pronto.recomendacoes.sumOf { it.economiaMensalCentavos }, pronto.economiaTotalCentavos)
+    }
+
+    @Test
+    fun economiaTotalTemValorConhecido() {
+        // Jul a out: renda 4000, despesa 3000 + 700 = 3700 por mês. Guarda 7,5%; para chegar a 10% faltam R$ 100.
+        val pronto = montar(historico()) as EstadoAssistente.Pronto
+        assertEquals(listOf(CodigoRecomendacao.POUPANCA_BAIXA), pronto.recomendacoes.map { it.codigo })
+        assertEquals(10000L, pronto.economiaTotalCentavos)
+    }
+
+    @Test
+    fun pagamentoDeFaturaECategoriaFaturaNaoContam() {
+        val cats = categorias + Categoria(9, "Fatura", TipoTransacao.DESPESA)
+        val pagamento = despesa(800, LocalDate.of(2026, 11, 10), 300000, "Pagamento fatura").copy(pagaFaturaDoCartaoId = 1)
+        val naFatura = despesa(801, LocalDate.of(2026, 11, 11), 120000, "Ajuste", categoria = 9)
+        assertEquals(EstadoAssistente.PoucosDados(19, 20), montar(avulsas(19) + pagamento + naFatura, cats = cats))
+    }
+
+    @Test
+    fun parcelasDeUmaCompraContamComoUmGasto() {
+        val parcelas = (1..3).map { n ->
+            despesa(950L + n, LocalDate.of(2026, 10, 25).plusMonths(n - 1L), 100000, "Loja X").copy(
+                numeroParcela = n, totalParcelas = 3, grupoParcelamentoId = "g1", dataCompra = LocalDate.of(2026, 10, 20),
+            )
+        }
+        // 18 avulsas + 1 compra = 19 (se as 3 parcelas contassem separadas seriam 21)
+        assertEquals(EstadoAssistente.PoucosDados(19, 20), montar(avulsas(18) + parcelas))
+    }
+
+    @Test
+    fun mesDaCompraParceladaEhODaDataDeCompra() {
+        val parcelas = (1..2).map { n ->
+            despesa(950L + n, LocalDate.of(2026, 10, 25).plusMonths(n - 1L), 250000, "Loja X").copy(
+                numeroParcela = n, totalParcelas = 2, grupoParcelamentoId = "g1", dataCompra = LocalDate.of(2026, 10, 20),
+            )
+        }
+        val base = historico() + parcelas
+        val out = montar(base, outubro) as EstadoAssistente.Pronto
+        val nov = montar(base, novembro) as EstadoAssistente.Pronto
+        val ids = out.atipicosDoMes.map { it.atipico.transacaoId }
+        assertTrue(951L in ids)
+        assertEquals(LocalDate.of(2026, 10, 20), out.atipicosDoMes.first { it.atipico.transacaoId == 951L }.data)
+        assertTrue(nov.atipicosDoMes.none { it.atipico.transacaoId == 951L })
     }
 
     @Test

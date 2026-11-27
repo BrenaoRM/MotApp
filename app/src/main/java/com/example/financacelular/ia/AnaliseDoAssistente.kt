@@ -16,6 +16,10 @@ data class AtipicoParaTela(val atipico: Atipico, val descricao: String, val data
 
 sealed interface EstadoAssistente {
     data object Carregando : EstadoAssistente
+
+    /** O config da IA não abriu (asset ausente ou corrompido): sem ele não há como analisar. */
+    data object Indisponivel : EstadoAssistente
+
     data class PoucosDados(val gastos: Int, val minimo: Int) : EstadoAssistente
     data class Pronto(
         val economiaTotalCentavos: Long,
