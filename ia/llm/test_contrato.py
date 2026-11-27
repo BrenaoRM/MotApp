@@ -140,11 +140,18 @@ def test_gramatica_nomes_especiais_e_sem_categorias_no_llama():
                     assert c["categoria"] in cats
             print(cats, "->", corpo["content"])
         # força uma chamada com o nome exato: gramática só com a ferramenta de categoria
-        gram = contrato.gramatica_plano("2026-11", ["Bar\\Café"]).replace(
-            "chamada ::= ", 'chamada ::= c-gasto-categoria #', 1)
-        r = requests.post(base + "/completion", json={
-            "prompt": "x", "grammar": gram, "temperature": 0, "n_predict": 200}, timeout=120)
-        plano = json.loads(r.json()["content"])
-        assert plano["chamadas"][0]["categoria"] == "Bar\\Café"
+        # root exige exatamente 1 chamada gasto_categoria (substitui a 1a linha da gramática)
+        raiz = 'root ::= "{\\"chamadas\\":[" c-gasto-categoria "]}"'
+        for nome in ("Bar\\Café", "🍔 Lanche", "A\nB"):
+            linhas = contrato.gramatica_plano("2026-11", [nome]).split("\n")
+            assert linhas[0].startswith("root ::= ")
+            gram = "\n".join([raiz] + linhas[1:])
+            r = requests.post(base + "/completion", json={
+                "prompt": "x", "grammar": gram, "temperature": 0, "n_predict": 200}, timeout=120)
+            assert r.status_code == 200, r.text
+            plano = json.loads(r.json()["content"])
+            assert len(plano["chamadas"]) == 1
+            assert plano["chamadas"][0]["f"] == "gasto_categoria"
+            assert plano["chamadas"][0]["categoria"] == nome
     finally:
         proc.terminate()
