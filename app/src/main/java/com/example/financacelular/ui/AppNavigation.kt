@@ -133,6 +133,7 @@ private const val ROTA_CONFIGURACOES = "configuracoes"
 private const val ROTA_PARCELADOS = "parcelados"
 private const val ROTA_CATEGORIAS = "categorias"
 private const val ROTA_PERMISSOES = "permissoes"
+private const val ROTA_CONVERSA = "conversa"
 private val ROTAS_INTERNAS_COM_CABECALHO = setOf(ROTA_CARTAO, ROTA_RECORRENTES, ROTA_PARCELADOS, ROTA_METAS, ROTA_ORCAMENTO)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -307,7 +308,7 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
     @Suppress("UnusedMaterial3ScaffoldPaddingParameter")
     Scaffold(
         bottomBar = {
-            if (!emTelaDeFormulario && !emTelaConfiguracoes) {
+            if (!emTelaDeFormulario && !emTelaConfiguracoes && currentDestination?.route != ROTA_CONVERSA) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -537,7 +538,13 @@ fun AppNavigation(configuracoesViewModel: ConfiguracoesViewModel) {
                         )
                     }
                     composable(DestinoPrincipal.ASSISTENTE.rota) {
-                        AssistenteScreen(viewModel = assistenteViewModel)
+                        AssistenteScreen(
+                            viewModel = assistenteViewModel,
+                            aoConversar = { navController.navigate(ROTA_CONVERSA) { launchSingleTop = true } }
+                        )
+                    }
+                    composable(ROTA_CONVERSA) {
+                        ConversaScreen(viewModel = assistenteViewModel, aoVoltar = { navController.navigateUp() })
                     }
                     composable(ROTA_CONFIGURACOES) {
                         ConfiguracoesScreen(

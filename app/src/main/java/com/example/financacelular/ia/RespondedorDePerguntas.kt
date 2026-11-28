@@ -111,6 +111,12 @@ object RespondedorDePerguntas {
         }
     }
 
+    /** Receitas e despesas realizadas do mês, em centavos, pela mesma regra das respostas. */
+    fun rendaEGasto(transacoes: List<Transacao>, categorias: List<Categoria>, mes: YearMonth, hoje: LocalDate): Pair<Long, Long> {
+        val base = Base(transacoes, categorias, hoje)
+        return base.receitas(mes).sumOf { it.valorCentavos } to base.despesas(mes).sumOf { it.valorCentavos }
+    }
+
     // ---------------------------------------------------------------- base de cálculo
 
     private class Base(private val transacoes: List<Transacao>, categorias: List<Categoria>, val hoje: LocalDate) {

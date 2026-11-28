@@ -1,5 +1,7 @@
 package com.example.financacelular.ui
 
+import com.example.financacelular.ia.Atalhos
+import com.example.financacelular.ia.GastoPedido
 import com.example.financacelular.ia.Mensagem
 import com.example.financacelular.ia.Perguntas
 import com.example.financacelular.ia.llm.AssistenteLlm
@@ -56,7 +58,21 @@ class ConversaDoAssistente(
         }
     }
 
+    /** Marca o cartão da mensagem [indice] como gravado; false = não há gasto ali ou ele já foi gravado. */
+    fun marcarRegistrado(indice: Int, gravado: GastoPedido): Boolean {
+        val m = _conversa.value.getOrNull(indice)
+        if (m?.gasto == null || m.registrado) return false
+        _conversa.value = _conversa.value.toMutableList().also { it[indice] = m.copy(gasto = gravado, registrado = true) }
+        return true
+    }
+
     private suspend fun responder(pergunta: String) {
+        // Falha ao ler os dados não derruba a pergunta: segue o caminho normal, que trata o erro
+        val atalho = runCatching { dados()?.let { Atalhos.responder(pergunta, it.transacoes, it.categorias, it.mesAtual, it.hoje) } }.getOrNull()
+        if (atalho != null) {
+            _conversa.value = _conversa.value + Mensagem(false, atalho.texto, atalho.gasto)
+            return
+        }
         var mostrou = false
         try {
             val assistente = llm()

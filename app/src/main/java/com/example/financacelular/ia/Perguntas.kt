@@ -15,7 +15,7 @@ enum class Intencao {
 data class Pergunta(val intencao: Intencao, val confianca: Float, val mes: YearMonth, val categoriaId: Long?)
 
 /** Linha da conversa do Assistente. A conversa fica só em memória: o texto das perguntas nunca é gravado. */
-data class Mensagem(val deUsuario: Boolean, val texto: String)
+data class Mensagem(val deUsuario: Boolean, val texto: String, val gasto: GastoPedido? = null, val registrado: Boolean = false)
 
 /** Entende a pergunta (intenção + mês + categoria) a partir do embedding dela. Puro e sem Android. */
 object Perguntas {

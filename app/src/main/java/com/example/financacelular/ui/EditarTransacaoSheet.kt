@@ -101,6 +101,8 @@ internal fun BottomSheetEditarTransacao(
     categorias: List<Categoria>,
     onDismiss: () -> Unit,
     cartoes: List<CartaoEntity> = emptyList(),
+    /** Ainda não gravado: "Cancelar" no lugar de "Excluir", sem confirmação. */
+    nova: Boolean = false,
     onSalvar: (Transacao) -> Unit,
     onExcluir: () -> Unit
 ) {
@@ -141,7 +143,7 @@ internal fun BottomSheetEditarTransacao(
           ) {
           Column(modifier = Modifier.fillMaxWidth()) {
             CabecalhoDeFolha(
-                titulo = "Editar lançamento",
+                titulo = if (nova) "Novo lançamento" else "Editar lançamento",
                 aoFechar = onDismiss,
                 subtitulo = if (transacao.tipo == TipoTransacao.DESPESA) "Gasto" else "Ganho"
             )
@@ -197,13 +199,13 @@ internal fun BottomSheetEditarTransacao(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 BotaoSecundario(
-                    texto = "Excluir",
+                    texto = if (nova) "Cancelar" else "Excluir",
                     onClick = {
                         focusManager.clearFocus()
-                        confirmando = true
+                        if (nova) onDismiss() else confirmando = true
                     },
                     modifier = Modifier.weight(1f),
-                    cor = MaterialTheme.cores.textoGasto,
+                    cor = if (nova) MaterialTheme.colorScheme.onSurface else MaterialTheme.cores.textoGasto,
                 )
                 BotaoPrincipal(
                     texto = "Salvar",

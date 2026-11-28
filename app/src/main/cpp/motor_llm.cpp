@@ -142,6 +142,13 @@ Java_com_example_financacelular_ia_llm_MotorLlm_nativeCarregar(JNIEnv *env, jcla
     cp.abort_callback = [](void *dados) { return cancelado(static_cast<Motor *>(dados)); };
     cp.abort_callback_data = m;
     m->ctx = llama_init_from_model(model, cp);
+    if (m->ctx == nullptr && kvQuantizado) {  // alguns modelos (arquiteturas híbridas) rejeitam KV q8_0 + FA: tenta f16 e FA automático
+        __android_log_print(ANDROID_LOG_WARN, TAG, "contexto com KV q8_0 + flash attention falhou: tentando KV f16");
+        cp.type_k = GGML_TYPE_F16;
+        cp.type_v = GGML_TYPE_F16;
+        cp.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_AUTO;
+        m->ctx = llama_init_from_model(model, cp);
+    }
     if (m->ctx == nullptr) {
         llama_model_free(model);
         delete m;

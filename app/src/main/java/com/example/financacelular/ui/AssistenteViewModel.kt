@@ -18,6 +18,7 @@ import com.example.financacelular.ia.AlertaDispensado
 import com.example.financacelular.ia.AnaliseCompleta
 import com.example.financacelular.ia.AnaliseDoAssistente
 import com.example.financacelular.ia.EstadoAssistente
+import com.example.financacelular.ia.GastoPedido
 import com.example.financacelular.ia.IaFinanceira
 import com.example.financacelular.ia.Mensagem
 import com.example.financacelular.ia.Pergunta
@@ -45,6 +46,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.YearMonth
+import java.util.Locale
 
 /**
  * Aba Assistente: análise (atípicos + recomendações) e conversa. Todo cálculo de IA roda em `Dispatchers.Default`.
@@ -139,10 +141,29 @@ class AssistenteViewModel(application: Application) : AndroidViewModel(applicati
         textoNaoEntendi = TEXTO_NAO_ENTENDI,
     )
     val conversa: StateFlow<List<Mensagem>> = conversaDoAssistente.conversa
-    val sugestoes: StateFlow<List<String>> = conversaDoAssistente.sugestoes
     val pensando: StateFlow<Boolean> = conversaDoAssistente.pensando
 
     fun perguntar(texto: String) = conversaDoAssistente.perguntar(texto)
+
+    /** Categoria para um gasto anotado no chat: a usada antes nessa descrição ou, sem ela, a da IA. */
+    suspend fun categoriaDoGasto(descricao: String): Categoria? {
+        if (descricao.isBlank()) return null
+        IaFinanceira.iniciar(getApplication())
+        val memoria = repository.sugerirCategoria(descricao, TipoTransacao.DESPESA)
+        return escolherSugestao(memoria, IaFinanceira.sugerir(descricao, TipoTransacao.DESPESA), categorias.value, null)
+    }
+
+    /** Grava o gasto confirmado no chat, uma vez só. */
+    fun registrarGasto(indice: Int, transacao: Transacao) {
+        val gravado = GastoPedido(transacao.descricao.orEmpty(), transacao.valorCentavos)
+        if (!conversaDoAssistente.marcarRegistrado(indice, gravado)) return
+        // Como na Nova Transação: sem descrição, vale o nome da categoria
+        val nome = categorias.value.firstOrNull { it.id == transacao.categoriaId }?.nome
+        val mes = String.format(Locale.ROOT, "%04d-%02d", transacao.data.year, transacao.data.monthValue)
+        viewModelScope.launch {
+            repository.salvarTransacao(transacao.copy(descricao = transacao.descricao ?: nome, anoMes = transacao.anoMes ?: mes))
+        }
+    }
 
     // ---------------------------------------------------------------- IA avançada (LLM local)
 

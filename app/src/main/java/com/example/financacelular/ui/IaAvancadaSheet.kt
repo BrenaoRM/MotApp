@@ -64,20 +64,21 @@ internal fun textoDoEstadoIa(estado: EstadoModelo): String = when (estado) {
     is EstadoModelo.Falhou -> "Falhou · toque para tentar de novo"
 }
 
-private class ModoNaLista(val modo: ModoIa, val tamanho: String, val tempo: String)
+/** [tempo] null = ainda não medido no aparelho. */
+private class ModoNaLista(val modo: ModoIa, val tamanho: String, val tempo: String?)
 
 // Tamanho e tempo por pergunta medidos no S20 FE (iguais aos do protótipo aprovado)
 private val ModosNaLista = listOf(
     ModoNaLista(ModoIa.RAPIDA, "~400 MB", "~6 s"),
     ModoNaLista(ModoIa.MEDIA, "~1,1 GB", "~14 s"),
-    ModoNaLista(ModoIa.INTELIGENTE, "~1,1 GB", "~14 s"),
+    ModoNaLista(ModoIa.INTELIGENTE, "~1,3 GB", null),
 )
 
 private enum class Vista { PRINCIPAL, TROCAR, DESATIVAR }
 
-private enum class Etiqueta(val texto: String) { EM_BREVE("Em breve"), EM_USO("Em uso"), PRONTA("Pronta") }
+private enum class Etiqueta(val texto: String) { EM_USO("Em uso"), PRONTA("Pronta") }
 
-/** Pílula "IA avançada" ao lado do título Perguntas: abre a folha; mostra o progresso do download e o estado. */
+/** Pílula "IA avançada" no topo do chat: abre a folha; mostra o progresso do download e o estado. */
 @Composable
 internal fun PilulaIaAvancada(estado: EstadoModelo, onClick: () -> Unit) {
     val pronta = estado is EstadoModelo.Pronto
@@ -233,18 +234,13 @@ private fun tamanhoDe(modo: ModoIa) = ModosNaLista.first { it.modo == modo }.tam
 @Composable
 private fun ListaDeModos(suportados: List<ModoIa>, selecionado: ModoIa, emUso: ModoIa?, aoEscolher: (ModoIa) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 14.dp)) {
-        ModosNaLista.filter { it.modo in suportados || it.modo == ModoIa.INTELIGENTE }.forEach { m ->
-            val embreve = m.modo == ModoIa.INTELIGENTE // mesmo modelo da Média por enquanto: prometer mais seria enganoso
+        ModosNaLista.filter { it.modo in suportados }.forEach { m ->
             LinhaDeModo(
                 m,
-                selecionado = !embreve && selecionado == m.modo,
-                etiqueta = when {
-                    embreve -> Etiqueta.EM_BREVE
-                    m.modo == emUso -> Etiqueta.EM_USO
-                    else -> null
-                },
-                radio = !embreve,
-                habilitado = !embreve,
+                selecionado = selecionado == m.modo,
+                etiqueta = if (m.modo == emUso) Etiqueta.EM_USO else null,
+                radio = true,
+                habilitado = true,
                 onClick = { aoEscolher(m.modo) },
             )
         }
@@ -261,7 +257,6 @@ private fun LinhaDeModo(
     onClick: () -> Unit = {},
 ) {
     val forma = RoundedCornerShape(16.dp)
-    val opacidade = if (!habilitado && etiqueta == Etiqueta.EM_BREVE) 0.55f else 1f
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -280,24 +275,22 @@ private fun LinhaDeModo(
                 m.modo.titulo,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = opacidade)
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                "${m.tamanho} · ${m.tempo} por pergunta",
+                m.tamanho + (m.tempo?.let { " · $it por pergunta" } ?: ""),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = opacidade)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         if (etiqueta != null) {
             val corTexto = when (etiqueta) {
                 Etiqueta.PRONTA -> MaterialTheme.cores.textoGanho
                 Etiqueta.EM_USO -> MaterialTheme.colorScheme.onSurface
-                Etiqueta.EM_BREVE -> MaterialTheme.colorScheme.onSurfaceVariant
             }
             val fundo = when (etiqueta) {
                 Etiqueta.PRONTA -> MaterialTheme.cores.textoGanho.copy(alpha = 0.14f)
                 Etiqueta.EM_USO -> RoxoHero.copy(alpha = 0.18f)
-                Etiqueta.EM_BREVE -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
             }
             Text(
                 etiqueta.texto,

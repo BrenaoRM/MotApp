@@ -14,9 +14,10 @@ object ModelosIa {
     const val RAM_MINIMA_INTELIGENTE = 5_000_000_000L
 
     private const val BASE = "https://github.com/BrenaoRM/MotApp/releases/download/modelo-ia-v1"
+    private const val BASE_V2 = "https://github.com/BrenaoRM/MotApp/releases/download/modelo-ia-v2"
 
-    // O "Inteligente" fica de fora até sair com outro modelo; a tela o mostra como "Em breve".
     // tempoLimiteMs: ~5x (Rápida) e ~3x (Média) o tempo por pergunta medido no S20 FE (5,6-6,2 s e 13,7-13,9 s).
+    // O da Inteligente (Qwen3.5 2B) ainda não foi medido no aparelho: limite provisório e folgado.
     val disponiveis: List<ModeloDisponivel> = listOf(
         ModeloDisponivel(
             ModoIa.RAPIDA,
@@ -37,6 +38,16 @@ object ModelosIa {
                 ),
             ),
             RAM_MINIMA_MEDIA, 45_000L,
+        ),
+        ModeloDisponivel(
+            ModoIa.INTELIGENTE,
+            listOf(
+                ArquivoDeModelo(
+                    "motapp-inteligente-q4km.gguf", "$BASE_V2/motapp-inteligente-q4km.gguf",
+                    "c0d040954bb5fba31b9fbd48755f85e037cb832e67d373c46eb1a34d84a6e830", 1_285_207_680L,
+                ),
+            ),
+            RAM_MINIMA_INTELIGENTE, 90_000L,
         ),
     )
 }
