@@ -71,21 +71,77 @@ q8_0 fica dentro do limite: plano_exato igual à referência (0,917; −0,017 co
 
 ## Teste fim a fim (2026-11-27)
 
-**Status: bloqueado no passo 1.** O download da IA avançada não anda no build **release** (R8), então nenhum modo foi ativado e as medições (tempo até a 1ª frase, total por pergunta, pico de RAM, curva térmica) e os 4 itens do Review Focus **não foram feitos**. Nada foi inventado: as tabelas abaixo ficam pendentes.
+Release de `9b8f889` + as keep rules do WorkManager em `proguard-rules.pro` (ainda não commitadas), assinado com um keystore temporário (não o de produção), instalado no S20 FE (`RQ8R6003G0J`, Android 13). Dados de teste: 20 gastos e 1 ganho lançados pela tela em novembro/2026 (não há semente de dados nem importação; sem lançamentos em outubro). Mesmas 15 perguntas nos dois modos (índices 0, 1, 2, 3, 4, 6, 10, 12, 17, 25, 28, 31, 50, 52, 57 de `perguntas.jsonl`: 9 compostas, 3 simples, 3 fora de escopo), digitadas sem acento e sem pontuação (limite do `adb input text`), na mesma conversa (o histórico cresce).
 
-Preparo feito: release de `9b8f889` com `assembleRelease` assinado por um keystore temporário (gerado só para este teste; o de produção não foi usado), debug desinstalado, app instalado no S20 FE (`RQ8R6003G0J`), perfil criado ("Usar só neste aparelho") e 20 gastos + 1 ganho lançados pela tela (não há semente de dados nem importação no app; a IA do Assistente só abre com 20 gastos). Folha "IA avançada" mostra Rápida, Média e Inteligente (Em breve), como esperado.
+**Como mediu:** script no aparelho (`uiautomator dump` em laço, ~2,2 s por amostra) marca o envio e acompanha o balão "pensando…". **Primeira frase** = primeira amostra sem "pensando…" (valor = ponto médio, erro de ±1,1 s); **total** = última mudança do texto da tela. O próprio `dump` pesa na CPU, então os tempos são um pouco pessimistas. RAM: `dumpsys meminfo` a cada ~0,7 s (TOTAL PSS e RSS do processo do app).
 
-### Bug 1 (bloqueante): R8 remove o construtor de `OverwritingInputMerger` e o `BaixarModeloWorker` nunca roda
+### Download (passo 1, release)
 
-- Passos: instalar o release, Assistente → IA avançada → Média → Baixar.
-- Observado: a pílula fica em "Baixando… 0%" para sempre (80 s+ medidos, sem nenhum byte). Logcat: `E WM-InputMerger: Trouble instantiating androidx.work.OverwritingInputMerger` / `NoSuchMethodException: androidx.work.OverwritingInputMerger.<init> []` e `E WM-WorkerWrapper: Could not create Input Merger`. O worker falha antes do `doWork`.
-- Causa: `app/proguard-rules.pro` confia nas regras embutidas do WorkManager 2.9.0, mas com o R8 da release (`optimization { enable = true }`) o construtor sem argumentos é removido. No debug (sem R8) o download funcionou, por isso só aparece na release. Provavelmente o worker de backup do Drive (`MainActivity`) sofre do mesmo problema.
-- Sugestão de correção (não aplicada; a regra de não mexer no código do app valeu, e a tentativa de rebuild com ela foi negada pelo ambiente): em `proguard-rules.pro`, `-keep class androidx.work.OverwritingInputMerger { <init>(); }` e `-keep class * extends androidx.work.InputMerger { <init>(); }`; depois rebuild e repetir o passo 1.
+| Verificação | Resultado |
+|---|---|
+| Média (1,1 GB) baixa no release | Sim, ~3 min no Wi-Fi 2,4 GHz, 0 a 100 % com a pílula "Baixando N %"; ficou "Média · pronta" |
+| Sair da tela e voltar durante o download | O progresso segue (4 % → 18 % → 29 %); o estado reaparece na folha e na pílula |
+| Wi-Fi desligado no meio (30 %) | Fica em "Baixando 30 %" (parado por mais de 1 min), **sem** virar "Falhou"; com o Wi-Fi de volta retoma sozinho (30 % → 52 % em ~40 s, backoff de 30 s do WorkManager) e termina; a IA fica pronta |
+| Rápida (397 MB) pelo "Trocar de modo" | Baixou em menos de 1 min e ficou pronta |
 
-### Bug 2: falha do worker antes do `doWork` não vira "Falhou"
+### Perguntas: tempo até a primeira frase e total
 
-O estado da IA fica em `Baixando 0%` (pílula e Configurações) em vez de `Falhou · toque para tentar de novo`, porque quem chama `GerenciadorDeModelo.falhar` é o próprio `doWork`. Sugestão: observar o `WorkInfo` (estado FAILED/CANCELLED) e chamar `falhar`, ou um tempo limite sem progresso.
+| Modo | Tipo (n) | 1ª frase (média, faixa) | Total (média, faixa) |
+|---|---|---|---|
+| Rápida (0.6B) | compostas (9) | 5,5 s (3,7 a 8,3) | 7,2 s (6,7 a 9,4) |
+| Rápida | simples (3) | 3,5 s (3,4 a 3,6) | 4,6 s (4,5 a 4,7) |
+| Rápida | fora de escopo (3) | < 2,3 s (recusa imediata: "Só consigo falar sobre os seus gastos e receitas.") | < 2,3 s |
+| Média (1.7B) | compostas (9) | 9,2 s (8,3 a 11,0) | 12,4 s (9,6 a 14,5) |
+| Média | simples (3) | 6,0 s (5,8 a 6,2) | 7,2 s (7,0 a 7,4) |
+| Média | fora de escopo (3) | 5,9 s (5,7 a 6,0) | 7,1 s (6,9 a 7,2) |
 
-### Pendente depois da correção
+A 1ª pergunta de cada modo inclui a carga do modelo (~2,5 s a mais: Rápida 8,3 s, Média 11,0 s). Nenhuma das 30 perguntas travou ou deu erro. Os valores citados conferem com os dados lançados (gasto R$ 1.346, recebido R$ 5.000, sobra R$ 3.654, maior gasto R$ 300 em Contas).
 
-Tabela por modo (15 perguntas de `perguntas.jsonl`, com compostas e fora de escopo: 1ª frase, total, erros), pico de RAM (`dumpsys meminfo`, 1 amostra/s), 5 min de perguntas na Média com bateria/CPU/`thermalservice` por minuto, e o Review Focus (modo avião após ativar, apagar o arquivo pelo adb, sair da tela durante a geração, Wi-Fi off no meio do download). Screenshots: `.superpowers/sdd/2026-11-27-ia-llm-local/t15-01-folha-ia.png`, `t15-02-baixando-media.png`, `t15-03-travado-0pct.png`.
+Qualidade observada (não são erros de execução):
+- Média: nas 3 perguntas fora de escopo respondeu "Não vi nada para ajustar agora." (sem relação com a pergunta, em vez de recusar); a Rápida recusou direito.
+- Frases repetidas nos dois modos (P1 e P5 da Média repetem "Não encontrei gastos em outubro"; a Rápida repete "Em novembro, você…" em P2 e P3).
+- P2 (categorias inexistentes "mercado" e "academia"): a Média listou outras categorias como se fosse a resposta; a Rápida disse que não há dados de academia (melhor).
+- Para meses sem dados as duas dizem "Não encontrei gastos em outubro" e param.
+
+### Pico de RAM do processo do app
+
+| Modo | PSS máx. nas 15 perguntas | RSS máx. | Observação |
+|---|---|---|---|
+| Rápida | 1.153 MB | 1.196 MB | PSS mínimo de 202 MB antes da 1ª pergunta (modelo ainda não carregado) |
+| Média | 1.596 MB | 1.594 MB | amostras manuais logo depois da carga deram 2.110 a 2.210 MB (perto dos 2.433 MB do teste instrumentado); no ciclo de 5 min o máximo foi 1.473 MB (o Android devolve páginas do modelo mapeado) |
+
+Mesmo PID durante toda a sessão: nenhum processo morto pelo lowmemorykiller.
+
+### Térmico: 5 min de perguntas na Média
+
+12 perguntas em ciclo (compostas e simples), sem pausa, 15 respostas em 300 s. Partida com o aparelho aquecido pelas rodadas anteriores (esperei até o `ThermalStatus` cair a 1).
+
+| t (s) | Bateria (°C) | `ThermalStatus` | Pico CPU (zonas `cpu-1-*-usr`, °C) |
+|---|---|---|---|
+| 0 | 35,6 | 1 | 55,7 |
+| ~67 | 37,7 | 3 | 84,5 |
+| ~135 | 38,6 | 3 | 84,5 |
+| ~203 | 39,2 | 3 | 84,1 |
+| ~271 | 39,7 | 3 | 84,5 |
+| ~300 (fim) | 40,0 | 4 | 85,3 |
+
+Tempo total por resposta no ciclo (s): 13,9, 11,8, 14,7, 14,1, 14,2, 12,3, 14,6, 9,5, 12,2, 9,7, 7,1, 7,6, 17,2, 14,8, 17,3. As 3 últimas (t a partir de 230 s) ficaram 20 a 25 % mais lentas que as primeiras do mesmo tipo (compostas: 11,8 a 14,7 s no início contra 14,8 a 17,3 s no fim). O núcleo grande alternou entre 0,84 e 2,84 GHz o tempo todo (`scaling_max_freq` nunca baixou), então a perda vem do controle térmico dinâmico (status 3 a partir de ~45 s, 4 no fim) e do histórico que cresce. Conclusão: a Média aguenta 5 min seguidos sem travar, mas chega ao status 4 e perde ~20 % de velocidade; com perguntas espaçadas o aparelho esfria entre elas.
+
+### Review Focus
+
+| Item | Resultado |
+|---|---|
+| Modo avião depois de ativada (Média) | Passou: `airplane_mode_on=1`, sem rede, pergunta composta respondida pelo LLM em ~12 s (1ª frase ~8 s); `t15-07-modo-aviao.png` |
+| Apagar o arquivo pelo adb | **Não foi possível:** o release não é debuggable (`run-as` negado) e o arquivo fica no armazenamento interno. Substituto: "Desativar" pela folha (o app apaga o modelo): o estado vai para "Desligada", a pergunta seguinte é respondida pelo sistema atual ("Em novembro você gastou R$ 1.346.") e não há crash (`t15-10-apos-desativar.png`). Falta testar o arquivo sumindo com o estado "Pronta" (build debug) |
+| Sair durante a geração | Passou: pergunta enviada e Home 1 s depois; 25 s depois o mesmo PID (sem `FATAL`), a resposta apareceu completa e não ficou "pensando…" preso (`t15-08-saiu-durante-geracao.png`) |
+| Wi-Fi no meio do download | Passou com ressalva: pausa e retoma sozinho; o estado fica em "Baixando 30 %" sem avisar que parou (Bug 2) |
+
+### Bugs
+
+1. **(bloqueante, R8)** No release, `OverwritingInputMerger` fica sem construtor, o worker nunca roda e o download fica em 0 % (`WM-InputMerger NoSuchMethodException`). **Correção confirmada localmente:** com `-keep class androidx.work.OverwritingInputMerger { <init>(); }` e `-keep class * extends androidx.work.InputMerger { <init>(); }` em `proguard-rules.pro` o download roda (4 % em 8 s) e termina, sem erro de `InputMerger` no logcat. Falta entrar no repositório; conferir também o worker de backup do Drive.
+2. **(menor)** Falha do worker antes do `doWork`, ou rede parada, mantém "Baixando N %" para sempre: observar o `WorkInfo` e chamar `falhar`, ou avisar "sem conexão, retomando".
+3. **(qualidade, Média)** Pergunta fora de escopo responde "Não vi nada para ajustar agora." em vez de recusar como a Rápida; olhar o caminho de plano vazio no `AssistenteLlm`.
+4. **(qualidade)** Frases repetidas ("Não encontrei gastos em outubro" duas vezes; "Em novembro, você…" várias vezes): deduplicar fatos iguais antes de escrever.
+5. **(UI)** Na folha "Perguntas", com conversa longa e teclado aberto, o campo de texto e o botão enviar saem da tela (a folha passa da altura visível); só voltam ao fechar o teclado.
+
+Screenshots em `.superpowers/sdd/2026-11-27-ia-llm-local/` (pasta ignorada pelo git): `t15-01-folha-ia.png`, `t15-04-wifi-off.png`, `t15-05-media-pronta.png`, `t15-06-media-fora-de-escopo.png`, `t15-07` a `t15-10`.
