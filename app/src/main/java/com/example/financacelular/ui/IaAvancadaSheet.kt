@@ -31,6 +31,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -121,8 +122,8 @@ internal fun FolhaIaAvancada(aoFechar: () -> Unit) {
     val mensagem = LocalMensagem.current
     val estado by GerenciadorDeModelo.estado.collectAsStateWithLifecycle()
     val suportados = remember { GerenciadorDeModelo.modosSuportados(context).map { it.modo } }
-    var vista by remember { mutableStateOf(Vista.PRINCIPAL) }
-    var alvo by remember { mutableStateOf(if (ModoIa.MEDIA in suportados) ModoIa.MEDIA else suportados.firstOrNull() ?: ModoIa.RAPIDA) }
+    var vista by rememberSaveable { mutableStateOf(Vista.PRINCIPAL) }
+    var alvo by rememberSaveable { mutableStateOf(if (ModoIa.MEDIA in suportados) ModoIa.MEDIA else suportados.firstOrNull() ?: ModoIa.RAPIDA) }
     var baixou by remember { mutableStateOf(estado is EstadoModelo.Baixando) }
 
     LaunchedEffect(estado) {
@@ -313,13 +314,11 @@ private fun LinhaDeModo(
                     .border(1.5.dp, if (selecionado) RoxoHero else MaterialTheme.colorScheme.outline, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                if (selecionado) Icon(Icons.Outlined.Check, contentDescription = null, tint = CorSobreVioleta, modifier = Modifier.size(12.dp))
+                if (selecionado) Icon(Icons.Outlined.Check, contentDescription = null, tint = CorSobreRoxo, modifier = Modifier.size(12.dp))
             }
         }
     }
 }
-
-private val CorSobreVioleta = Color.White
 
 @Composable
 private fun AvisoDeWifi() {

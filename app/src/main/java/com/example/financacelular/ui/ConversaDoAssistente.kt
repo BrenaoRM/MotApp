@@ -57,34 +57,32 @@ class ConversaDoAssistente(
     }
 
     private suspend fun responder(pergunta: String) {
-        val assistente = llm()
-        val d = dados()
         var mostrou = false
-        if (assistente != null && d != null) {
-            try {
+        try {
+            val assistente = llm()
+            val d = dados()
+            if (assistente != null && d != null) {
                 assistente.responder(pergunta, historico.toList(), d).flowOn(contexto).collect { evento ->
                     when (evento) {
                         is EventoResposta.Frase -> {
                             colocar(evento.texto, anexar = mostrou)
                             mostrou = true
                         }
-                        is EventoResposta.Fim -> {
+                        is EventoResposta.Fim -> if (mostrou) {
                             historico += pergunta to evento.planoJson
                             while (historico.size > 2) historico.removeAt(0)
                             _sugestoes.value = evento.sugestoes
-                            mostrou = true
                         }
                         EventoResposta.UsarSistemaAtual -> Unit
                     }
                 }
-                if (mostrou) return
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Throwable) {
-                // Exception ou Error (UnsatisfiedLinkError, OutOfMemoryError): o que já saiu fica; senão responde o sistema atual
-                if (mostrou) return
             }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            // Exception ou Error (UnsatisfiedLinkError, OutOfMemoryError, E/S): o que já saiu fica; senão responde o sistema atual
         }
+        if (mostrou) return
         val (texto, sugestoes) = sistemaAtual(pergunta)
         colocar(texto, anexar = false)
         _sugestoes.value = sugestoes

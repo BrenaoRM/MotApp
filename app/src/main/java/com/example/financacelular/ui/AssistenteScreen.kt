@@ -86,7 +86,7 @@ private sealed interface FolhaDoAssistente {
 }
 
 /** Conteúdo sobre o violet, escolhido pela luminância como o `BotaoPrincipal` faz. */
-private val CorSobreRoxo = if (RoxoHero.luminance() > 0.5f) Color.Black else Color.White
+internal val CorSobreRoxo = if (RoxoHero.luminance() > 0.5f) Color.Black else Color.White
 
 private const val MASCARA = "R$ ••••••"
 private val TEXTO_DE_VALOR = Regex("-?R\\$ [\\d.]+")

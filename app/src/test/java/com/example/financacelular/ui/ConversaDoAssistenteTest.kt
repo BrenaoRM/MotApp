@@ -142,4 +142,64 @@ class ConversaDoAssistenteTest {
         }
         assertEquals(listOf("pergunta 1", "pergunta 2"), c.historicoParaTeste().map { it.first })
     }
+
+    private fun conversaCom(scope: CoroutineScope, llm: suspend () -> AssistenteLlm?, dados: () -> DadosDaConversa? = { this.dados }) =
+        ConversaDoAssistente(
+            scope = scope,
+            llm = llm,
+            dados = dados,
+            sistemaAtual = { "do sistema atual" to listOf("outra") },
+            textoNaoEntendi = "não entendi",
+            contexto = EmptyCoroutineContext,
+        )
+
+    @Test
+    fun `excecao ao obter o pipeline usa o sistema atual`() = runTest {
+        val c = conversaCom(backgroundScope, { throw java.io.IOException("disco") })
+        c.perguntar("Quanto gastei?")
+        aguardar(c)
+        assertEquals(Mensagem(false, "do sistema atual"), c.conversa.value.last())
+    }
+
+    @Test
+    fun `Error ao obter os dados usa o sistema atual`() = runTest {
+        val c = conversaCom(backgroundScope, { AssistenteLlm(MotorFalso(plano, fraseTotal), contrato, 30_000) }, { throw UnsatisfiedLinkError("x") })
+        c.perguntar("Quanto gastei?")
+        aguardar(c)
+        assertEquals(Mensagem(false, "do sistema atual"), c.conversa.value.last())
+        assertEquals(2, c.conversa.value.size)
+    }
+
+    @Test
+    fun `motor sem texto ainda deixa uma resposta na conversa`() = runTest {
+        // o AssistenteLlm completa com as frases prontas; o Fim sem frase (guarda na ConversaDoAssistente) nao da para forcar com a classe real
+        val vazio = object : MotorDeTexto {
+            override suspend fun gerar(prompt: String, gramatica: String?, maxTokens: Int, prefixo: String, aoPedaco: (String) -> Unit): String = ""
+            override fun liberar() = Unit
+        }
+        val c = conversaCom(backgroundScope, { AssistenteLlm(vazio, contrato, 30_000) })
+        c.perguntar("Quanto gastei?")
+        aguardar(c)
+        assertEquals(2, c.conversa.value.size)
+        assertFalse(c.conversa.value.last().deUsuario)
+        assertTrue(c.conversa.value.last().texto.isNotBlank())
+    }
+
+    @Test
+    fun `erro depois de uma frase mantem a resposta parcial`() = runTest {
+        val motor = object : MotorDeTexto {
+            override suspend fun gerar(prompt: String, gramatica: String?, maxTokens: Int, prefixo: String, aoPedaco: (String) -> Unit): String {
+                if (gramatica != null) return plano
+                "$fraseTotal ".chunked(3).forEach(aoPedaco)
+                throw IllegalStateException("falha no meio")
+            }
+
+            override fun liberar() = Unit
+        }
+        val c = conversa(backgroundScope, motor)
+        c.perguntar("Quanto gastei?")
+        aguardar(c)
+        assertEquals(2, c.conversa.value.size)
+        assertTrue(c.conversa.value.last().texto.startsWith(fraseTotal))
+    }
 }
