@@ -26,6 +26,7 @@ import com.example.financacelular.ia.RespondedorDePerguntas
 import com.example.financacelular.ia.llm.AssistenteLlm
 import com.example.financacelular.ia.llm.ContratoLlm
 import com.example.financacelular.ia.llm.DadosDaConversa
+import com.example.financacelular.ia.llm.EstadoModelo
 import com.example.financacelular.ia.llm.GerenciadorDeModelo
 import com.example.financacelular.ia.llm.ModelosIa
 import com.example.financacelular.ia.llm.MotorLlm
@@ -150,6 +151,7 @@ class AssistenteViewModel(application: Application) : AndroidViewModel(applicati
     private var caminhoDoMotor: String? = null
     private var caminhoQueFalhou: String? = null
     private val contratoLlm by lazy { ContratoLlm.doAsset(getApplication()) }
+    private val fechamento = Any()
     @Volatile private var encerrado = false
 
     private val aoFaltarMemoria = object : ComponentCallbacks2 {
@@ -167,6 +169,10 @@ class AssistenteViewModel(application: Application) : AndroidViewModel(applicati
         // O estado do download nasce Desativado a cada processo: reconstrói do WorkManager e do disco
         GerenciadorDeModelo.restaurar(application)
         application.registerComponentCallbacks(aoFaltarMemoria)
+        // Desativar, baixar de novo ou trocar de modo dá outra chance ao motor que tinha falhado (ex.: falta de memória passageira)
+        viewModelScope.launch {
+            GerenciadorDeModelo.estado.collect { if (it !is EstadoModelo.Pronto) travaDoMotor.withLock { caminhoQueFalhou = null } }
+        }
     }
 
     private fun liberarMotor() {
@@ -195,12 +201,15 @@ class AssistenteViewModel(application: Application) : AndroidViewModel(applicati
                 caminhoQueFalhou = caminho
                 return@withLock null
             }
-            if (encerrado) {
-                atual.liberar()
-                return@withLock null
+            // Checar e guardar juntos, sob o mesmo lock do onCleared: o motor carregado nunca fica sem dono
+            synchronized(fechamento) {
+                if (encerrado) {
+                    atual.liberar()
+                    return@withLock null
+                }
+                motor = atual
+                caminhoDoMotor = caminho
             }
-            motor = atual
-            caminhoDoMotor = caminho
             val modelo = ModelosIa.disponiveis.firstOrNull { GerenciadorDeModelo.caminhoPronto(GerenciadorDeModelo.pasta(app), it) == caminho }
             AssistenteLlm(atual, contratoLlm, modelo?.tempoLimiteMs ?: TEMPO_LIMITE_PADRAO_MS)
         }
@@ -216,10 +225,12 @@ class AssistenteViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     override fun onCleared() {
-        encerrado = true
         getApplication<Application>().unregisterComponentCallbacks(aoFaltarMemoria)
-        motor?.liberar()
-        motor = null
+        synchronized(fechamento) {
+            encerrado = true
+            motor?.liberar()
+            motor = null
+        }
     }
 
     private suspend fun responder(texto: String): Pair<String, List<String>> {

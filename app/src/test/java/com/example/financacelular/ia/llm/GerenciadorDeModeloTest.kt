@@ -1,5 +1,6 @@
 package com.example.financacelular.ia.llm
 
+import androidx.work.WorkInfo
 import com.sun.net.httpserver.HttpServer
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -203,5 +204,23 @@ class GerenciadorDeModeloTest {
         assertEquals(listOf(ModoIa.RAPIDA), GerenciadorDeModelo.filtrarPorRam(lista, 4_000_000_000L, true).map { it.modo })
         assertEquals(2, GerenciadorDeModelo.filtrarPorRam(lista, 5_760_000_000L, true).size)
         assertTrue(GerenciadorDeModelo.filtrarPorRam(lista, 8_000_000_000L, false).isEmpty())
+    }
+
+    @Test fun `reconciliar com o trabalho do download`() {
+        val g = GerenciadorDeModelo
+        val m = ModoIa.MEDIA
+        val baixando = EstadoModelo.Baixando(m, 0.4f)
+        // falhou ou foi cancelado sem o usuário pedir (o modo ainda está gravado como baixando): Falhou
+        assertEquals(EstadoModelo.Falhou(m), g.reconciliar(baixando, m, WorkInfo.State.FAILED, 0f))
+        assertEquals(EstadoModelo.Falhou(m), g.reconciliar(baixando, m, WorkInfo.State.CANCELLED, 0f))
+        // o usuário cancelou ou desativou (nada gravado): não mexe
+        assertNull(g.reconciliar(baixando, null, WorkInfo.State.CANCELLED, 0f))
+        assertNull(g.reconciliar(EstadoModelo.Desativado, null, WorkInfo.State.RUNNING, 0.3f))
+        // trabalho vivo adotado com a tela ainda em Desativado: vira Baixando com o progresso do WorkInfo
+        assertEquals(EstadoModelo.Baixando(m, 0.3f), g.reconciliar(EstadoModelo.Desativado, m, WorkInfo.State.RUNNING, 0.3f))
+        assertEquals(EstadoModelo.Baixando(m, 0f), g.reconciliar(EstadoModelo.Desativado, m, WorkInfo.State.ENQUEUED, 0f))
+        // já em Baixando, quem atualiza é o worker
+        assertNull(g.reconciliar(baixando, m, WorkInfo.State.RUNNING, 0.1f))
+        assertNull(g.reconciliar(baixando, m, WorkInfo.State.SUCCEEDED, 1f))
     }
 }

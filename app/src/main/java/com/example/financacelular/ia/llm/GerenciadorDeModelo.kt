@@ -11,8 +11,10 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -36,6 +38,7 @@ object GerenciadorDeModelo {
     internal const val CHAVE_MODO = "modo"
     internal const val CHAVE_JOB = "job"
     internal const val CHAVE_PROGRESSO = "p"
+    private const val TAG_JOB = "job:"
     internal const val FOLGA_BYTES = 50L * 1024 * 1024
     private const val PREFS = "ia_avancada"
     private const val PREF_MODO = "modo"
@@ -71,9 +74,54 @@ object GerenciadorDeModelo {
      * Trabalho agendado ou rodando vira Baixando (progresso do WorkInfo); depois vêm Falhou (persistido) e Pronto.
      */
     fun restaurar(context: Context) {
-        if (_estado.value is EstadoModelo.Baixando) return
         val app = context.applicationContext
+        observarTrabalho(app)
+        if (_estado.value is EstadoModelo.Baixando) return
         CoroutineScope(Dispatchers.IO).launch { restaurarCom { lerEstado(app) } }
+    }
+
+    private var observando = false
+
+    /** Acompanha o WorkInfo do download: o worker pode morrer ou ser cancelado sem passar por [falhar]. */
+    @Synchronized private fun observarTrabalho(app: Context) {
+        if (observando) return
+        observando = true
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            try {
+                WorkManager.getInstance(app).getWorkInfosForUniqueWorkFlow(NOME_TRABALHO).collect { aoMudarTrabalho(app, it) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                synchronized(this@GerenciadorDeModelo) { observando = false }
+            }
+        }
+    }
+
+    /** Só vale o trabalho do job vigente (tag `job:<n>`): um cancelado por substituição ou pelo usuário é ignorado. */
+    private fun aoMudarTrabalho(app: Context, infos: List<WorkInfo>) {
+        synchronized(this) {
+            val (job, trabalho) = infos.mapNotNull { i ->
+                i.tags.firstOrNull { it.startsWith(TAG_JOB) }?.removePrefix(TAG_JOB)?.toLongOrNull()?.let { j -> j to i }
+            }.firstOrNull { jobVigente(it.first) } ?: return
+            val novo = reconciliar(_estado.value, modoDaPref(app, PREF_BAIXANDO), trabalho.state, trabalho.progress.getFloat(CHAVE_PROGRESSO, 0f))
+                ?: return
+            if (novo is EstadoModelo.Falhou) falhar(app, job, novo.modo) else _estado.value = novo
+        }
+    }
+
+    /**
+     * O novo estado quando o trabalho do download mudou, ou null se nada muda. [baixando] é o modo gravado enquanto há
+     * download pedido (o usuário cancelar ou desativar apaga): sem ele não há o que reconciliar.
+     */
+    internal fun reconciliar(atual: EstadoModelo, baixando: ModoIa?, trabalho: WorkInfo.State, progresso: Float): EstadoModelo? {
+        if (baixando == null) return null
+        return when (trabalho) {
+            WorkInfo.State.FAILED, WorkInfo.State.CANCELLED -> EstadoModelo.Falhou(baixando)
+            // trabalho adotado depois de a tela restaurar o estado: a pílula não fica em Desativado até o primeiro progresso
+            WorkInfo.State.RUNNING, WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED ->
+                if (atual is EstadoModelo.Baixando) null else EstadoModelo.Baixando(baixando, progresso)
+            WorkInfo.State.SUCCEEDED -> null
+        }
     }
 
     private fun lerEstado(app: Context): EstadoModelo {
@@ -86,6 +134,7 @@ object GerenciadorDeModelo {
         val modoAtual = modoDaPref(app, PREF_MODO)
         return when {
             ativo != null && baixando != null -> EstadoModelo.Baixando(baixando, ativo.progress.getFloat(CHAVE_PROGRESSO, 0f))
+            baixando != null -> EstadoModelo.Falhou(baixando) // download pedido e nenhum trabalho vivo: morreu no caminho
             falhou != null -> EstadoModelo.Falhou(falhou)
             modoAtual != null && caminhoPronto(app) != null -> EstadoModelo.Pronto(modoAtual)
             else -> EstadoModelo.Desativado
@@ -95,6 +144,7 @@ object GerenciadorDeModelo {
     /** Fotografa job e estado, calcula o novo estado (lento, fora da trava) e só o aplica se nada mudou nesse meio tempo. */
     internal fun restaurarCom(calcular: () -> EstadoModelo) {
         val (job, antes) = synchronized(this) { jobAtual to _estado.value }
+        if (antes is EstadoModelo.Baixando) return // o download começou agora: o WorkManager ainda pode não o listar
         aplicarSeIgual(job, antes, calcular())
     }
 
@@ -123,6 +173,7 @@ object GerenciadorDeModelo {
         _estado.value = EstadoModelo.Baixando(modo, 0f)
         val pedido = OneTimeWorkRequestBuilder<BaixarModeloWorker>()
             .setInputData(workDataOf(CHAVE_MODO to modo.name, CHAVE_JOB to job))
+            .addTag(TAG_JOB + job)
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .build()
