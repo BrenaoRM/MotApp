@@ -10,10 +10,12 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -53,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -356,6 +359,8 @@ private fun FolhaDePerguntas(viewModel: AssistenteViewModel, aoFechar: () -> Uni
     val pensando by viewModel.pensando.collectAsStateWithLifecycle()
     var texto by remember { mutableStateOf("") }
     val lista = rememberLazyListState()
+    // Com o teclado aberto a lista encolhe, para o campo e o botão de enviar continuarem à vista
+    val tecladoAberto = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     // Entre a pergunta e a primeira frase (ou a resposta do sistema atual) aparece o "pensando…"
     val aPensar = pensando && conversa.lastOrNull()?.deUsuario == true
     val itensDaLista = conversa.size + if (aPensar) 1 else 0
@@ -374,7 +379,7 @@ private fun FolhaDePerguntas(viewModel: AssistenteViewModel, aoFechar: () -> Uni
             LazyColumn(
                 state = lista,
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp)
+                modifier = Modifier.fillMaxWidth().heightIn(max = if (tecladoAberto) 160.dp else 360.dp)
             ) {
                 items(conversa) { Balao(it) }
                 if (aPensar) item { BalaoPensando() }
