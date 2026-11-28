@@ -1,5 +1,6 @@
 package com.example.financacelular.ia
 
+import com.example.financacelular.data.Categoria
 import com.example.financacelular.data.TipoTransacao
 import com.example.financacelular.data.Transacao
 import org.junit.Assert.assertEquals
@@ -56,5 +57,54 @@ class AtalhosTest {
     @Test
     fun `investimento com conta negativa manda ajustar antes`() {
         assertTrue(r("quanto devo investir todo mês?")!!.texto.contains("Antes de investir"))
+    }
+
+    private val categorias = listOf(
+        Categoria(id = 1, nome = "Salário", tipo = TipoTransacao.RECEITA),
+        Categoria(id = 2, nome = "Alimentação", tipo = TipoTransacao.DESPESA),
+        Categoria(id = 3, nome = "Lazer", tipo = TipoTransacao.DESPESA),
+    )
+
+    private fun gasto(texto: String) = Atalhos.responder(texto, dados, categorias, YearMonth.of(2026, 11), hoje)?.gasto
+
+    @Test
+    fun `pedido generico de anotar abre o registro`() {
+        listOf("Vamos anotar um gasto", "quero registrar uma despesa", "preciso lançar um gasto", "bora anotar um gasto")
+            .forEach { assertEquals(it, GastoPedido("", null), gasto(it)) }
+        assertEquals(
+            "O que foi e quanto custou? Escreva, por exemplo: adiciona lanche 12 reais.",
+            r("Vamos anotar um gasto")!!.texto,
+        )
+    }
+
+    @Test
+    fun `categoria e data ditas saem da descricao`() {
+        assertEquals(
+            GastoPedido("Cachorro quente", 1200, LocalDate.of(2026, 11, 27), 2),
+            gasto("Adiciona cachorro quente 12 reais, Categoria alimentação no dia de ontem"),
+        )
+        assertEquals(
+            GastoPedido("Cinema", 3000, LocalDate.of(2026, 11, 26), 3),
+            gasto("anota cinema anteontem na categoria de lazer por 30 reais"),
+        )
+    }
+
+    @Test
+    fun `datas aceitas no registro`() {
+        fun data(texto: String) = gasto(texto)!!.data
+        assertEquals(hoje, data("adiciona pão 5 reais hoje"))
+        assertEquals(LocalDate.of(2026, 11, 5), data("adiciona pão 12 reais no dia 5"))
+        assertEquals(LocalDate.of(2026, 10, 30), data("adiciona pão 12 reais dia 30"))
+        assertEquals(LocalDate.of(2026, 11, 3), data("adiciona pão 12 reais em 03/11"))
+        assertEquals(LocalDate.of(2025, 12, 24), data("adiciona pão 12 reais em 24/12"))
+        assertEquals(LocalDate.of(2025, 1, 2), data("adiciona pão 12 reais em 02/01/2025"))
+        assertNull(data("adiciona pão 12 reais"))
+        assertEquals(GastoPedido("Pão", 1200, LocalDate.of(2026, 11, 5)), gasto("adiciona pão no dia 5, 12 reais"))
+        assertEquals(GastoPedido("Pão do dia", 700), gasto("adiciona pão do dia 7 reais"))
+    }
+
+    @Test
+    fun `categoria que nao existe fica na descricao`() {
+        assertEquals(GastoPedido("Ração categoria pet", 4000), gasto("adiciona ração categoria pet 40 reais"))
     }
 }
