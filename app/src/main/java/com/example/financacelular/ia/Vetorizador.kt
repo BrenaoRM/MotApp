@@ -74,7 +74,11 @@ class VetorizadorOnnx private constructor(
 
         internal fun criar(modelo: ByteArray, tokenizador: Tokenizador, config: ConfigIa): VetorizadorOnnx {
             val ambiente = OrtEnvironment.getEnvironment()
-            val opcoes = OrtSession.SessionOptions().apply { setIntraOpNumThreads(2) }
+            val opcoes = OrtSession.SessionOptions().apply {
+                setIntraOpNumThreads(2)
+                // Em x64 sem VNNI o int8 satura e o vetor sai diferente do Python; ignorado no arm64
+                addConfigEntry("session.x64quantprecision", "1")
+            }
             return VetorizadorOnnx(ambiente, ambiente.createSession(modelo, opcoes), tokenizador, config)
         }
     }

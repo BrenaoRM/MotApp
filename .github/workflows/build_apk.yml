@@ -6,10 +6,10 @@ on:
   pull_request:
     branches: [ "main", "master" ]
 
+# Push: "testes" e "apk" rodam em paralelo e "publicar" só sai se os dois passarem.
+# Pull request: roda só "testes" (sem versão, keystore, build release ou publicação).
 jobs:
-  # Em pull request roda só os testes e o lint: sem checagem de versão, keystore, build release ou publicação.
   testes:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
@@ -22,36 +22,47 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # NDK e CMake do llama.cpp (libmotor_llm.so), nas versões fixadas em app/build.gradle.kts.
-      # O CMake baixa o llama.cpp (tag de ia/llm/VERSAO_LLAMA_CPP) por FetchContent: precisa de rede.
-      - name: Instalar NDK e CMake
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.1.12297006" "cmake;3.22.1" > /dev/null
+      # Cache das dependências, do wrapper e do build cache entre execuções
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Testes unitários e lint
-        run: ./gradlew testDebugUnitTest lintDebug
+      # Os testes do modelo int8 dependem do processador: registra qual foi sorteado
+      - name: Processador da máquina
+        run: lscpu | grep -E "Model name|Flags" | grep -oE "Model name.*|avx[a-z0-9_]*vnni" | sort -u
 
-  build:
+      # Testes e lint barram a release. Não compilam código nativo, então não precisam do NDK.
+      - name: Testes unitários e lint
+        run: ./gradlew testDebugUnitTest lintDebug --build-cache -Dorg.gradle.jvmargs="-Xmx4g -Dfile.encoding=UTF-8"
+
+      - name: Guardar relatórios da falha
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorios
+          path: app/build/reports
+
+  apk:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: write
+    outputs:
+      versao: ${{ steps.versao.outputs.versao }}
+
+    env:
+      # ccache: reaproveita a compilação do llama.cpp (CMake lê os *_COMPILER_LAUNCHER do ambiente)
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      # O NDK é reinstalado a cada execução: compara o conteúdo do compilador, não a data
+      CCACHE_COMPILERCHECK: content
+      CCACHE_MAXSIZE: 400M
 
     steps:
-      # fetch-depth: 0 traz o histórico e as tags, necessários para gerar as notas do release
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
 
       # A versão do release vem do rótulo do commit mais recente do push ("1.1 - descrição" -> 1.1).
       # Antes usava o run_number, que conta execuções do workflow e não batia com o rótulo do commit.
@@ -70,39 +81,82 @@ jobs:
           fi
           echo "versao=$VERSAO" >> "$GITHUB_OUTPUT"
 
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       # NDK e CMake do llama.cpp (libmotor_llm.so), nas versões fixadas em app/build.gradle.kts.
       # O CMake baixa o llama.cpp (tag de ia/llm/VERSAO_LLAMA_CPP) por FetchContent: precisa de rede.
-      - name: Instalar NDK e CMake
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.1.12297006" "cmake;3.22.1" > /dev/null
+      - name: Instalar NDK, CMake e ccache
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.1.12297006" "cmake;3.22.1" > /dev/null
+          command -v ccache > /dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq ccache > /dev/null)
+
+      - name: Cache da compilação nativa
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-${{ runner.os }}-${{ hashFiles('ia/llm/VERSAO_LLAMA_CPP', 'app/src/main/cpp/**', 'app/build.gradle.kts') }}
+          restore-keys: ccache-${{ runner.os }}-
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # Testes e lint antes de publicar: um teste quebrado ou erro de lint barra a release
-      - name: Testes unitários e lint
-        run: ./gradlew testDebugUnitTest lintDebug
-
-      # --- NOVO: RESTAURA A KEYSTORE OFICIAL DOS SECRETS ---
       - name: Restaurar Keystore de Produção
         run: |
           echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > ${{ github.workspace }}/app/keystore-producao.jks
 
-      # --- ALTERADO: COMPILA A VERSÃO RELEASE USANDO A SUA CHAVE ---
+      # lintVital fica de fora: o job "testes" já roda o lint completo
       - name: Build Release APK
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleRelease -x lintVitalRelease --build-cache -Dorg.gradle.jvmargs="-Xmx4g -Dfile.encoding=UTF-8"
         env:
           SIGNING_STORE_FILE: ${{ github.workspace }}/app/keystore-producao.jks
           SIGNING_STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          # Mesmo número usado na tag/nome da release logo abaixo.
+          # Mesmo número usado na tag/nome da release.
           # Sem isso, o build.gradle.kts caía no fallback local e o versionName embutido
           # no APK nunca acompanhava a versão que estava sendo de fato publicada.
           APP_VERSION_NAME: ${{ steps.versao.outputs.versao }}
 
-      # --- ALTERADO: O CAMINHO AGORA APONTA PARA A PASTA RELEASE ---
+      - name: Uso do ccache
+        run: ccache -s
+
       - name: Renomear APK para MotApp
         run: mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/MotApp.apk
+
+      - name: Guardar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: app/build/outputs/apk/release/MotApp.apk
+          compression-level: 0
+          retention-days: 3
+
+  publicar:
+    if: github.event_name == 'push'
+    needs: [ testes, apk ]
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      # fetch-depth: 0 traz o histórico e as tags, necessários para gerar as notas do release
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Baixar APK
+        uses: actions/download-artifact@v4
+        with:
+          name: apk
 
       # Texto do release: títulos dos commits desde a tag anterior (ou os últimos 20, se não houver tag)
       - name: Gerar notas do release
@@ -118,9 +172,10 @@ jobs:
       - name: MotApp Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ steps.versao.outputs.versao }}
-          name: MotApp Versão v${{ steps.versao.outputs.versao }}
+          tag_name: v${{ needs.apk.outputs.versao }}
+          name: MotApp Versão v${{ needs.apk.outputs.versao }}
           body_path: notas.md
-          files: app/build/outputs/apk/release/MotApp.apk
+          files: MotApp.apk
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
