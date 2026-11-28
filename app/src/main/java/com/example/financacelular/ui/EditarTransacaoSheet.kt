@@ -116,6 +116,7 @@ internal fun BottomSheetEditarTransacao(
     // Confirmação de exclusão troca o conteúdo deste mesmo sheet (um sheet por vez)
     var confirmando by rememberSaveable { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
+    val mensagem = LocalMensagem.current
 
     val categoriasDoTipo = categorias.filter { it.tipo == transacao.tipo }
     val corTipo = if (transacao.tipo == TipoTransacao.DESPESA) Coral else Verde
@@ -152,6 +153,9 @@ internal fun BottomSheetEditarTransacao(
             CampoValor(valor = valor, aoMudar = { valor = it })
             Spacer(modifier = Modifier.height(Espaco.sm))
 
+            CampoApp(valor = descricao, aoMudar = { descricao = it }, rotulo = "Descrição")
+            Spacer(modifier = Modifier.height(Espaco.sm))
+
             ExposedDropdownMenuBox(
                 expanded = menuExpandido,
                 onExpandedChange = { menuExpandido = it }
@@ -179,9 +183,6 @@ internal fun BottomSheetEditarTransacao(
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(Espaco.sm))
-
-            CampoApp(valor = descricao, aoMudar = { descricao = it }, rotulo = "Descrição")
             Spacer(modifier = Modifier.height(Espaco.sm))
 
             CampoData(
@@ -212,7 +213,9 @@ internal fun BottomSheetEditarTransacao(
                     onClick = {
                         val valorDouble = valor.replace(",", ".").toDoubleOrNull()
                         val categoria = categoriaSelecionada
-                        if (valorDouble != null && categoria != null) {
+                        if (descricao.isBlank()) {
+                            mensagem("Informe a descrição", erro = true)
+                        } else if (valorDouble != null && categoria != null) {
                             // anoMes de compra no cartão é o mês da fatura; sem mudar a data, mantém o original
                             val cartao = cartoes.find { it.id == transacao.cartaoId }
                             val novoAnoMes = when {
@@ -225,7 +228,7 @@ internal fun BottomSheetEditarTransacao(
                                 transacao.copy(
                                     valorCentavos = reaisEmCentavos(valorDouble),
                                     categoriaId = categoria.id,
-                                    descricao = descricao.ifBlank { null },
+                                    descricao = descricao.trim(),
                                     data = dataSelecionada,
                                     anoMes = novoAnoMes
                                 )

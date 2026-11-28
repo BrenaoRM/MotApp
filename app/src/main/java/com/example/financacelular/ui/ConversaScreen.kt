@@ -280,10 +280,10 @@ private fun CartaoDoGasto(
                 }
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Sem categoria sugerida, "Registrar" abre a folha para escolher
+                    // Sem categoria sugerida ou sem descrição, "Registrar" abre a folha para completar
                     BotaoPrincipal(
                         "Registrar",
-                        { if (categoria == null) aoEditar(transacao()) else aoRegistrar(transacao()) },
+                        { if (categoria == null || gasto.descricao.isBlank()) aoEditar(transacao()) else aoRegistrar(transacao()) },
                         Modifier.weight(1f),
                     )
                     BotaoSecundario("Editar", { aoEditar(transacao()) }, modifier = Modifier.weight(1f))

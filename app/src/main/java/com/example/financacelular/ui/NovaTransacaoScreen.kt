@@ -638,6 +638,13 @@ fun NovaTransacaoScreen(
                         )
                     }
 
+                    CampoApp(
+                        valor = viewModel.descricao,
+                        aoMudar = viewModel::onDescricaoChange,
+                        rotulo = if (viewModel.ehRecorrente || viewModel.ehParcelado) "Nome (ex.: Salário, Netflix)" else "Descrição",
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
+                    )
+
                     SecaoCard {
                         Text("Categoria", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         val ladrilhos = naGrade.size + 1
@@ -671,7 +678,7 @@ fun NovaTransacaoScreen(
                         }
                     }
 
-                    // Data (campo + atalhos) e descrição
+                    // Data (campo + atalhos)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -709,13 +716,6 @@ fun NovaTransacaoScreen(
                             modifier = Modifier.weight(1f)
                         )
                     }
-
-                    CampoApp(
-                        valor = viewModel.descricao,
-                        aoMudar = viewModel::onDescricaoChange,
-                        rotulo = if (viewModel.ehRecorrente || viewModel.ehParcelado) "Nome (ex.: Salário, Netflix)" else "Descrição (opcional)",
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
-                    )
 
                     if (ehGasto) {
                         SecaoCard {
