@@ -145,3 +145,22 @@ Tempo total por resposta no ciclo (s): 13,9, 11,8, 14,7, 14,1, 14,2, 12,3, 14,6,
 5. **(UI)** Na folha "Perguntas", com conversa longa e teclado aberto, o campo de texto e o botão enviar saem da tela (a folha passa da altura visível); só voltam ao fechar o teclado.
 
 Screenshots em `.superpowers/sdd/2026-11-27-ia-llm-local/` (pasta ignorada pelo git): `t15-01-folha-ia.png`, `t15-04-wifi-off.png`, `t15-05-media-pronta.png`, `t15-06-media-fora-de-escopo.png`, `t15-07` a `t15-10`.
+
+## Verificação das correções (1.0.194–1.0.197)
+
+Verificado em 2026-11-27/28 no S20 FE com o release já instalado (versão com as correções 1.0.194 a 1.0.197, mesmos dados de teste, mesma assinatura temporária). A IA estava "Desligada" (desativada no teste anterior); baixei a Média de novo (~30 s no Wi-Fi) e usei a Média nos itens 1 a 3. Perguntas digitadas sem acento. Screenshots em `.superpowers/sdd/2026-11-27-ia-llm-local/` (`t15-11`, `t15-12`, `t15-13`).
+
+| Item | Resultado | Evidência |
+|---|---|---|
+| I5: campo e botão enviar com teclado aberto e conversa longa | **Passou** | Com 11 trocas na conversa e o teclado aberto, o campo "Pergunte sobre seus gastos" e o botão enviar ficam visíveis logo acima do teclado e a lista encolhe (`t15-11-teclado-aberto-conversa-longa.png`) |
+| I3: fora de escopo na Média | **Falhou** (mudou, mas ainda não recusa) | "qual a capital da Franca" (2 vezes) → "A capital da França é Paris. Em novembro você gastou R$ 316 com Lazer (23% do total)." / "…Seu maior gasto de novembro em Lazer foi R$ 120: Lazer, no dia 27." (o LLM respondeu a pergunta geral e colou um fato do histórico); "me recomenda um restaurante japones" → "Seu maior gasto de novembro em Lazer foi R$ 120…"; "quantos anos tem a lua" → "Não encontrei gastos em outubro para comparar." (repetiu o plano anterior). Nenhuma deu "Não vi nada para ajustar agora." nem a recusa "Só consigo falar sobre os seus gastos e receitas." Continuação legítima "e em outubro" → "Não encontrei gastos em outubro." (passou) |
+| I4: composta sem frase repetida | **Passou** | 7 compostas (total e sobra; recebi e gastei; transporte e lazer do mês; transporte e lazer em outubro; total de outubro vs novembro; mês passado e maior gasto): nenhuma frase idêntica repetida. As duas que antes repetiam ("transporte e lazer em outubro", "total de outubro vs novembro") agora dão uma só "Não encontrei gastos em outubro." |
+| I2a: Wi-Fi desligado no meio do download (Rápida) | **Passou na retomada, falhou no aviso** | Wi-Fi off aos 29 %: a folha mostrou "Baixando… 42 %" parado por mais de 3 min, sem "Falhou" nem texto de "sem conexão" (`t15-12-wifi-off-rapida.png`). Com o Wi-Fi de volta: 60 %, 97 % e "Pronta" em ~30 s |
+| I2b: `am force-stop` no meio do download (Média, 25 %) | **Passou** | Ao reabrir (~10 s depois) a folha já mostrava "Baixando… 32 %" e subiu 46, 61, 76, 91 % até "Média · pronta" em ~65 s; nunca ficou parada (`t15-13-apos-force-stop.png`) |
+
+Estado final: Média ativa e pronta.
+
+### Novo problema encontrado
+
+- **(qualidade, Média) fora de escopo com histórico:** com conversa anterior, a pergunta fora de escopo herda o plano ou um fato da pergunta anterior (responde "Lazer R$ 316", "maior gasto R$ 120"). Em conversa nova a Rápida recusa direito (1.0.193); sugestão: tratar plano vazio e pergunta geral como recusa antes de reaproveitar o histórico, e não deixar o LLM responder fora do tema.
+- **(menor) I2a:** sem aviso de "sem conexão" quando o Wi-Fi cai (a folha fica parada em N %); sugerir texto "Sem conexão, retoma sozinho" quando o `WorkInfo` estiver ENQUEUED com o download em andamento.
