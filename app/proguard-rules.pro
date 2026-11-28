@@ -28,3 +28,7 @@
 # LLM local (libmotor_llm.so): o JNI acha os métodos nativos e o callback pelo nome
 -keepclasseswithmembernames class com.example.financacelular.ia.llm.MotorLlm { native <methods>; }
 -keepclassmembers class com.example.financacelular.ia.llm.MotorLlm$Receptor { void pedaco(byte[]); }
+
+# WorkManager cria o InputMerger por reflexão; o consumer rule do work-runtime 2.9.0 não preserva
+# o construtor no R8 full mode, e sem isso nenhum Worker (download da IA, backup, lembrete) roda no release
+-keepclassmembers class * extends androidx.work.InputMerger { public <init>(); }
