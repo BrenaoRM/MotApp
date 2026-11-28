@@ -157,11 +157,9 @@ class AssistenteViewModel(application: Application) : AndroidViewModel(applicati
     fun registrarGasto(indice: Int, transacao: Transacao) {
         val gravado = GastoPedido(transacao.descricao.orEmpty(), transacao.valorCentavos)
         if (!conversaDoAssistente.marcarRegistrado(indice, gravado)) return
-        // Como na Nova Transação: sem descrição, vale o nome da categoria
-        val nome = categorias.value.firstOrNull { it.id == transacao.categoriaId }?.nome
         val mes = String.format(Locale.ROOT, "%04d-%02d", transacao.data.year, transacao.data.monthValue)
         viewModelScope.launch {
-            repository.salvarTransacao(transacao.copy(descricao = transacao.descricao ?: nome, anoMes = transacao.anoMes ?: mes))
+            repository.salvarTransacao(transacao.copy(anoMes = transacao.anoMes ?: mes))
         }
     }
 
