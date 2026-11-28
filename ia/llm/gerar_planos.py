@@ -459,6 +459,12 @@ def montar_exemplo(i, rnd=None):
     historico = []
     if k < 15:
         pergunta, chamadas = _fora_de_escopo(rnd), []
+        # Metade dos casos fora do escopo vem depois de 1-2 turnos de dados: sem isso o modelo aprende que
+        # "tem histórico" quer dizer "é continuação" e responde a pergunta fora do escopo com um plano de economia
+        if rnd.random() < 0.5:
+            for _ in range(rnd.choice([1, 1, 2])):
+                c, t = _sortear_chamada(rnd, mes_atual, categorias)
+                historico.append((_juntar([t], rnd), serializar_plano([c])))
     elif k < 29:
         for _ in range(rnd.choice([1, 1, 2])):
             c, t = _sortear_chamada(rnd, mes_atual, categorias)

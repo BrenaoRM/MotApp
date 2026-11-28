@@ -80,6 +80,7 @@ class AssistenteLlm(private val motor: MotorDeTexto, private val contrato: Contr
             var consumido = 0 // quanto do texto visível já virou frase
             var periodo: String? = null
             val aprovadas = ArrayList<String>()
+            val emitidas = HashSet<String>() // frases já mostradas, normalizadas
 
             leitura@ for (m in canal) {
                 when (m) {
@@ -100,6 +101,7 @@ class AssistenteLlm(private val motor: MotorDeTexto, private val contrato: Contr
                                 break@leitura
                             }
                             periodo = novo
+                            if (!emitidas.add(normalizada(frase))) continue // repetida: não conta para o limite
                             aprovadas += frase
                             emit(EventoResposta.Frase(frase))
                             if (aprovadas.size >= maxFrases(fatos)) {
@@ -127,13 +129,13 @@ class AssistenteLlm(private val motor: MotorDeTexto, private val contrato: Contr
                         // frase sem pontuação pode ter sido cortada no meio (o fato dela entra com a frase pronta).
                         val resto = semPensamento(bruto.toString())?.substring(consumido)?.trim()
                         if (!resto.isNullOrEmpty() && resto.last() in ".!?" && aprovadas.size < maxFrases(p.fatos) &&
-                            Verificador.verificarFrase(resto, p.fatos, periodo).first
+                            Verificador.verificarFrase(resto, p.fatos, periodo).first && emitidas.add(normalizada(resto))
                         ) {
                             aprovadas += resto
                             emit(EventoResposta.Frase(resto))
                         }
                     }
-                    for (f in fatosNaoCitados(aprovadas, p.fatos)) emit(EventoResposta.Frase(f.frase))
+                    for (f in fatosNaoCitados(aprovadas, p.fatos)) if (emitidas.add(normalizada(f.frase))) emit(EventoResposta.Frase(f.frase))
                     val sugestoes = RespondedorDePerguntas.SUGESTOES_DEPOIS[contrato.intencao(p.chamadas.first().ferramenta)]
                         ?: Perguntas.SUGESTOES_INICIAIS
                     emit(EventoResposta.Fim(p.json, sugestoes))
@@ -148,11 +150,23 @@ class AssistenteLlm(private val motor: MotorDeTexto, private val contrato: Contr
             val faturaId = idDaCategoriaFatura(dados.categorias)
             val despesas = dados.categorias.filter { it.tipo == TipoTransacao.DESPESA && it.id != faturaId }
             val nomes = despesas.map { it.nome }
-            val json = motor.gerar(
-                contrato.promptPlano(pergunta, dados.mesAtual, nomes, historico),
-                contrato.gramaticaPlano(dados.mesAtual, nomes), MAX_TOKENS_PLANO, contrato.prefixoPlano,
-            ) {}.trim()
-            val chamadas = contrato.lerPlano(json, dados.mesAtual, despesas.associate { it.id to it.nome }) ?: return
+            val idsParaNomes = despesas.associate { it.id to it.nome }
+            suspend fun planejar(hist: List<Pair<String, String>>): Pair<String, List<Chamada>?> {
+                val j = motor.gerar(
+                    contrato.promptPlano(pergunta, dados.mesAtual, nomes, hist),
+                    contrato.gramaticaPlano(dados.mesAtual, nomes), MAX_TOKENS_PLANO, contrato.prefixoPlano,
+                ) {}.trim()
+                return j to contrato.lerPlano(j, dados.mesAtual, idsParaNomes)
+            }
+            var (json, lido) = planejar(historico)
+            // Paliativo da v1.22: com histórico, o modelo Média responde pergunta fora do escopo com um plano só de
+            // "como_economizar". Refaz o plano sem o histórico: continuação legítima (quase sempre mês ou categoria) não
+            // tem esse plano, e "como economizar" legítimo volta igual; o que era fora do escopo vira recusa.
+            if (historico.isNotEmpty() && !lido.isNullOrEmpty() && lido.all { contrato.intencao(it.ferramenta) == Intencao.COMO_ECONOMIZAR }) {
+                val (j2, l2) = planejar(emptyList())
+                if (l2 != null) { json = j2; lido = l2 }
+            }
+            val chamadas = lido ?: return
             // lista vazia porque todas as chamadas foram descartadas não é recusa: sistema atual
             if (chamadas.isEmpty() && JSONObject(json).getJSONArray("chamadas").length() > 0) return
             val fatos = chamadas.distinct().map { c ->
@@ -165,7 +179,9 @@ class AssistenteLlm(private val motor: MotorDeTexto, private val contrato: Contr
             canal.send(Interno.Plano(json, chamadas, fatos))
             if (chamadas.isEmpty()) return
             // aoPedaco roda na thread do motor: trySend no canal sem limite nunca bloqueia
-            motor.gerar(contrato.promptResposta(pergunta, fatos), null, MAX_TOKENS_RESPOSTA, contrato.prefixoResposta) { canal.trySend(Interno.Pedaco(it)) }
+            // dois fatos sem itens com a mesma frase (ex.: dois meses sem dados) entram uma vez só no prompt
+            val fatosDoPrompt = fatos.filterIndexed { n, f -> f.itens.isNotEmpty() || fatos.indexOfFirst { it.itens.isEmpty() && it.frase == f.frase } == n }
+            motor.gerar(contrato.promptResposta(pergunta, fatosDoPrompt), null, MAX_TOKENS_RESPOSTA, contrato.prefixoResposta) { canal.trySend(Interno.Pedaco(it)) }
             canal.send(Interno.Terminou)
         } catch (e: CancellationException) {
             throw e
@@ -182,6 +198,9 @@ class AssistenteLlm(private val motor: MotorDeTexto, private val contrato: Contr
         private const val MAX_FRASES = 4
 
         private val ABREVIACOES = setOf("sr", "sra", "dr", "dra", "prof", "aprox", "obs")
+
+        /** Para comparar frases repetidas: sem espaços nas pontas, em minúsculas e sem a pontuação final. */
+        internal fun normalizada(frase: String) = frase.trim().lowercase().trimEnd('.', '!', '?', ' ')
 
         private fun maxFrases(fatos: List<Fato>): Int =
             MAX_FRASES + if (fatos.any { it.ferramenta == Intencao.COMO_ECONOMIZAR && it.itens.isNotEmpty() }) 1 else 0
@@ -237,9 +256,9 @@ class AssistenteLlm(private val motor: MotorDeTexto, private val contrato: Contr
         /** Fatos que nenhuma frase aprovada citou, na ordem do plano. Fato sem itens conta como citado se a frase dele saiu igual. */
         private fun fatosNaoCitados(aprovadas: List<String>, fatos: List<Fato>): List<Fato> {
             val citados = Verificador.fatosCitados(aprovadas, fatos)
-            val ditas = aprovadas.map { it.lowercase() }.toSet()
+            val ditas = aprovadas.map { normalizada(it) }.toSet()
             return fatos.filterIndexed { n, f ->
-                n !in citados && !(f.itens.isEmpty() && Verificador.frases(f.frase).all { it.lowercase() in ditas })
+                n !in citados && !(f.itens.isEmpty() && Verificador.frases(f.frase).all { normalizada(it) in ditas })
             }
         }
     }

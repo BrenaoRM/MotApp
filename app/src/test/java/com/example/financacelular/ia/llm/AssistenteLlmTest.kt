@@ -306,6 +306,66 @@ class AssistenteLlmTest {
     }
 
     @Test
+    fun `frase repetida pelo modelo sai uma vez e nao conta para o limite`() = runTest {
+        val motor = MotorFalso(planoComposto, "$fraseTotal ${fraseTotal.uppercase()} $fraseTotal $fraseAlimentacao $fraseReceita")
+        val eventos = coletar(motor)
+        assertEquals(listOf(Frase(fraseTotal), Frase(fraseAlimentacao), Frase(fraseReceita), Fim(planoComposto, sugestoesTotal)), eventos)
+    }
+
+    @Test
+    fun `frase pronta igual a uma ja emitida nao repete`() = runTest {
+        // a pronta do 2o fato e a frase que o modelo já disse (sem o ponto final): só entra a do 3o
+        val motor = MotorFalso(planoComposto, "$fraseTotal ${prontas[1].removeSuffix(".")} $fraseReceita")
+        val frases = coletar(motor).filterIsInstance<Frase>().map { it.texto }
+        assertEquals(frases.distinct(), frases)
+    }
+
+    @Test
+    fun `frases normalizadas ignoram caixa pontuacao final e espacos`() {
+        assertEquals(AssistenteLlm.normalizada("Não encontrei gastos em outubro."), AssistenteLlm.normalizada("  não encontrei gastos em outubro!  "))
+    }
+
+    /** Plano de economia quando há histórico na conversa (o defeito do modelo Média); sem histórico, [semHistorico]. */
+    private class MotorQueErraComHistorico(val semHistorico: String) : MotorDeTexto {
+        val prompts = ArrayList<String>()
+        override suspend fun gerar(prompt: String, gramatica: String?, maxTokens: Int, prefixo: String, aoPedaco: (String) -> Unit): String {
+            prompts += prompt
+            if (gramatica == null) return ""
+            return if (prompt.contains("Pergunta: Quanto gastei?")) """{"chamadas":[{"f":"como_economizar"}]}""" else semHistorico
+        }
+        override fun liberar() = Unit
+    }
+
+    private val historicoDeTotal = listOf("Quanto gastei?" to """{"chamadas":[{"f":"total_mes","mes":"atual"}]}""")
+
+    @Test
+    fun `fora do escopo com historico e plano de economia vira recusa`() = runTest {
+        val vazio = """{"chamadas":[]}"""
+        val motor = MotorQueErraComHistorico(vazio)
+        val eventos = coletar(motor, p = "Qual a capital da França?", historico = historicoDeTotal)
+        assertEquals(listOf(Frase(contrato.textoRecusa), Fim(vazio, Perguntas.SUGESTOES_INICIAIS)), eventos)
+        assertEquals(2, motor.prompts.size)
+        assertFalse(motor.prompts[1].contains("Quanto gastei?"))
+    }
+
+    @Test
+    fun `como economizar legitimo com historico continua igual`() = runTest {
+        val economizar = """{"chamadas":[{"f":"como_economizar"}]}"""
+        val motor = MotorQueErraComHistorico(economizar)
+        val eventos = coletar(motor, p = "E como economizo?", historico = historicoDeTotal)
+        assertTrue(eventos.last() is Fim)
+        assertEquals(economizar, (eventos.last() as Fim).planoJson)
+        assertFalse(eventos.contains(Frase(contrato.textoRecusa)))
+    }
+
+    @Test
+    fun `continuacao com historico nao e replanejada`() = runTest {
+        val motor = MotorFalso(planoComposto, fraseTotal)
+        coletar(motor, historico = historicoDeTotal)
+        assertEquals(2, motor.prompts.size) // plano + resposta
+    }
+
+    @Test
     fun `segmentacao nao corta valor nem abreviacao`() {
         assertNull(AssistenteLlm.proximaFrase("Você gastou R$ 1.234,56.", 0))
         assertEquals("Você gastou R$ 1.234,56." to 24, AssistenteLlm.proximaFrase("Você gastou R$ 1.234,56. Depois", 0))

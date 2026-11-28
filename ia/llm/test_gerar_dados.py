@@ -81,7 +81,7 @@ def test_planos_sao_deterministicos_e_retomaveis(tmp_path):
 
 def test_perguntas_de_teste_bem_formadas():
     linhas = [json.loads(l) for l in TESTE.read_text(encoding="utf-8").splitlines()]
-    assert len(linhas) == 60
+    assert len(linhas) == 65
     assert any(l["pergunta"] == "No que é melhor eu gastar menos? e em que eu gastei mais nesse mês, "
                                 "quero que me fale também no que gastei mais no mês passado" for l in linhas)
     compostas = simples = continuacao = fora = 0
@@ -91,15 +91,15 @@ def test_perguntas_de_teste_bem_formadas():
         plano = gp.serializar_plano(esperado)
         assert gp.aceita_pela_gramatica(plano, l["mes_atual"], l["categorias"]), l
         assert len(gp.ler_plano(plano, l["mes_atual"], l["categorias"])) == len(esperado), l
-        if l["historico"]:
+        if not esperado:
+            fora += 1  # inclui os fora do escopo que vêm depois de histórico
+        elif l["historico"]:
             continuacao += 1
-        elif not esperado:
-            fora += 1
         elif len(esperado) >= 2:
             compostas += 1
         else:
             simples += 1
-    assert (compostas, simples, continuacao, fora) == (25, 15, 10, 10)
+    assert (compostas, simples, continuacao, fora) == (25, 15, 10, 15)
 
 
 def _perguntas(planos_dir, nomes):
@@ -111,7 +111,7 @@ def _perguntas(planos_dir, nomes):
 def test_nenhuma_pergunta_de_teste_aparece_no_treino_nem_parecida(planos):
     _, pasta = planos
     guarda = gp.Guarda()
-    assert len(guarda.teste) == 60
+    assert len(guarda.teste) == 65
     for q in set(_perguntas(pasta, ("plano_treino.jsonl", "plano_valid.jsonl"))):
         assert not guarda.parecida_com_teste(q), q
 

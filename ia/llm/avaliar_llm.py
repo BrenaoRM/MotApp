@@ -4,7 +4,7 @@
     python avaliar_llm.py --sistema-atual         # grava ia/resultados/llm/atual.json
     python avaliar_llm.py --tabela                # junta os JSON em ia/resultados/llm.md
 
-Plano: 60 perguntas de teste/perguntas.jsonl, gramática por pergunta, temperatura 0, seed fixa.
+Plano: 65 perguntas de teste/perguntas.jsonl, gramática por pergunta, temperatura 0, seed fixa.
 O prompt é exatamente o de contrato.montar_prompt_* (igual ao treino e ao app).
 Fidelidade: respostas do modelo às perguntas de dados/gerados/resposta_valid.jsonl; vale se toda frase passa no verificador.
 O llama-server próprio sobe na porta 8082 (nunca a 8081, do professor) e é sempre encerrado.
@@ -403,7 +403,7 @@ def tabela():
     texto += "| métrica | " + " | ".join(d["nome"] for d in dados) + " |\n|---|" + "---|" * len(dados) + "\n"
     for nome, f in linhas:
         texto += "| %s | %s |\n" % (nome, " | ".join(f(d) for d in dados))
-    texto += ("\nPlano: 60 perguntas de `ia/llm/teste/perguntas.jsonl`. O sistema atual só prevê a intenção "
+    texto += ("\nPlano: 65 perguntas de `ia/llm/teste/perguntas.jsonl`. O sistema atual só prevê a intenção "
               "(mapeada para a ferramenta do contrato), então o plano exato dele só conta perguntas de 1 chamada. "
               "Fidelidade: respostas às perguntas de `resposta_valid.jsonl` com todas as frases aprovadas pelo verificador. "
               "Troca de papel: heurística de palavra de papel + número em respostas de poupança, orçamento e gasto atípico.\n")
