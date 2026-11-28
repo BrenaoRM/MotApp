@@ -68,3 +68,24 @@ Qualidade do q8_0 no PC (`avaliar_llm.py` com `-ngl 0 -fa on`, na CPU porque a G
 | referência `llm/rapida.json` (GPU, f16) | 0,917 | 0,947 | 1,000 | 0,979 | 0,000 |
 
 q8_0 fica dentro do limite: plano_exato igual à referência (0,917; −0,017 contra o f16 na mesma CPU, 1 caso), fidelidade 0,986 (melhor). Na CPU do PC o q8_0 com flash attention gerou bem mais devagar (17 contra 70 tok/s); no aparelho a geração não mudou (ARM), então a velocidade do PC não se aplica.
+
+## Teste fim a fim (2026-11-27)
+
+**Status: bloqueado no passo 1.** O download da IA avançada não anda no build **release** (R8), então nenhum modo foi ativado e as medições (tempo até a 1ª frase, total por pergunta, pico de RAM, curva térmica) e os 4 itens do Review Focus **não foram feitos**. Nada foi inventado: as tabelas abaixo ficam pendentes.
+
+Preparo feito: release de `9b8f889` com `assembleRelease` assinado por um keystore temporário (gerado só para este teste; o de produção não foi usado), debug desinstalado, app instalado no S20 FE (`RQ8R6003G0J`), perfil criado ("Usar só neste aparelho") e 20 gastos + 1 ganho lançados pela tela (não há semente de dados nem importação no app; a IA do Assistente só abre com 20 gastos). Folha "IA avançada" mostra Rápida, Média e Inteligente (Em breve), como esperado.
+
+### Bug 1 (bloqueante): R8 remove o construtor de `OverwritingInputMerger` e o `BaixarModeloWorker` nunca roda
+
+- Passos: instalar o release, Assistente → IA avançada → Média → Baixar.
+- Observado: a pílula fica em "Baixando… 0%" para sempre (80 s+ medidos, sem nenhum byte). Logcat: `E WM-InputMerger: Trouble instantiating androidx.work.OverwritingInputMerger` / `NoSuchMethodException: androidx.work.OverwritingInputMerger.<init> []` e `E WM-WorkerWrapper: Could not create Input Merger`. O worker falha antes do `doWork`.
+- Causa: `app/proguard-rules.pro` confia nas regras embutidas do WorkManager 2.9.0, mas com o R8 da release (`optimization { enable = true }`) o construtor sem argumentos é removido. No debug (sem R8) o download funcionou, por isso só aparece na release. Provavelmente o worker de backup do Drive (`MainActivity`) sofre do mesmo problema.
+- Sugestão de correção (não aplicada; a regra de não mexer no código do app valeu, e a tentativa de rebuild com ela foi negada pelo ambiente): em `proguard-rules.pro`, `-keep class androidx.work.OverwritingInputMerger { <init>(); }` e `-keep class * extends androidx.work.InputMerger { <init>(); }`; depois rebuild e repetir o passo 1.
+
+### Bug 2: falha do worker antes do `doWork` não vira "Falhou"
+
+O estado da IA fica em `Baixando 0%` (pílula e Configurações) em vez de `Falhou · toque para tentar de novo`, porque quem chama `GerenciadorDeModelo.falhar` é o próprio `doWork`. Sugestão: observar o `WorkInfo` (estado FAILED/CANCELLED) e chamar `falhar`, ou um tempo limite sem progresso.
+
+### Pendente depois da correção
+
+Tabela por modo (15 perguntas de `perguntas.jsonl`, com compostas e fora de escopo: 1ª frase, total, erros), pico de RAM (`dumpsys meminfo`, 1 amostra/s), 5 min de perguntas na Média com bateria/CPU/`thermalservice` por minuto, e o Review Focus (modo avião após ativar, apagar o arquivo pelo adb, sair da tela durante a geração, Wi-Fi off no meio do download). Screenshots: `.superpowers/sdd/2026-11-27-ia-llm-local/t15-01-folha-ia.png`, `t15-02-baixando-media.png`, `t15-03-travado-0pct.png`.
