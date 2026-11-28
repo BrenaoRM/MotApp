@@ -150,7 +150,7 @@ class AssistenteLlm(private val motor: MotorDeTexto, private val contrato: Contr
             val nomes = despesas.map { it.nome }
             val json = motor.gerar(
                 contrato.promptPlano(pergunta, dados.mesAtual, nomes, historico),
-                contrato.gramaticaPlano(dados.mesAtual, nomes), MAX_TOKENS_PLANO,
+                contrato.gramaticaPlano(dados.mesAtual, nomes), MAX_TOKENS_PLANO, contrato.prefixoPlano,
             ) {}.trim()
             val chamadas = contrato.lerPlano(json, dados.mesAtual, despesas.associate { it.id to it.nome }) ?: return
             // lista vazia porque todas as chamadas foram descartadas não é recusa: sistema atual
@@ -165,7 +165,7 @@ class AssistenteLlm(private val motor: MotorDeTexto, private val contrato: Contr
             canal.send(Interno.Plano(json, chamadas, fatos))
             if (chamadas.isEmpty()) return
             // aoPedaco roda na thread do motor: trySend no canal sem limite nunca bloqueia
-            motor.gerar(contrato.promptResposta(pergunta, fatos), null, MAX_TOKENS_RESPOSTA) { canal.trySend(Interno.Pedaco(it)) }
+            motor.gerar(contrato.promptResposta(pergunta, fatos), null, MAX_TOKENS_RESPOSTA, contrato.prefixoResposta) { canal.trySend(Interno.Pedaco(it)) }
             canal.send(Interno.Terminou)
         } catch (e: CancellationException) {
             throw e

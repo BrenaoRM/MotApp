@@ -72,7 +72,7 @@ class AssistenteLlmTest {
         var cancelados = 0
         var terminados = 0
 
-        override suspend fun gerar(prompt: String, gramatica: String?, maxTokens: Int, aoPedaco: (String) -> Unit): String {
+        override suspend fun gerar(prompt: String, gramatica: String?, maxTokens: Int, prefixo: String, aoPedaco: (String) -> Unit): String {
             prompts += prompt
             if (gramatica != null) return plano
             try {
@@ -210,7 +210,7 @@ class AssistenteLlmTest {
     @Test
     fun `erro no motor antes da primeira frase usa o sistema atual`() = runTest {
         val motor = object : MotorDeTexto {
-            override suspend fun gerar(prompt: String, gramatica: String?, maxTokens: Int, aoPedaco: (String) -> Unit): String =
+            override suspend fun gerar(prompt: String, gramatica: String?, maxTokens: Int, prefixo: String, aoPedaco: (String) -> Unit): String =
                 if (gramatica != null) planoComposto else throw IllegalStateException("contexto estourado")
             override fun liberar() = Unit
         }

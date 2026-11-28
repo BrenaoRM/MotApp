@@ -36,3 +36,35 @@ Comparar com `ActivityManager.MemoryInfo.totalMem`, a RAM total que o Android in
 - A carga foi medida com o arquivo já no cache de página (o teste copia o GGUF para o cache do app antes); a primeira abertura depois de reiniciar o aparelho deve ser mais lenta.
 - CPU sem dotprod/fp16 (anterior ao Snapdragon 845 e equivalentes): `MotorLlm.carregar` devolve `null`.
 - Cancelar no meio gera erros `graph_compute ... failed` no logcat (o abort do llama.cpp); são esperados.
+
+## Cache de prefixo e KV q8_0
+
+Task 11b, medido em 2026-11-27 no S20 FE com a **Rápida treinada** (`motapp-rapida-q4km.gguf`, 397 MB) e `MotorLlmTest#medicao` (as mesmas 5 perguntas; agora também registra o tempo do prompt e o tempo até o primeiro token de cada geração). As quatro configurações rodaram em sequência, 120 s de pausa entre elas, depois de um "antes" com o código da 1.0.185. A configuração escolhe-se com `-Pandroid.testInstrumentationRunnerArguments.kv=f16` e `...cache=nao`.
+
+O prefixo cacheado é o turno de sistema: 60 tokens no plano, 64 na resposta (de ~127 por prompt). Snapshot guardado por prefixo: 3,66 / 3,90 MB com q8_0 (6,88 / 7,34 MB com f16); o 1.7B tem as mesmas dimensões de KV (28 camadas, 8 cabeças KV de 128), então dá o mesmo ~7,6 MB no total, bem abaixo do limite de 60 MB.
+
+Tempos em ms, perguntas 1→5 (a 1ª sempre processa e guarda o prefixo):
+
+| Configuração | Prompt plano | Prompt resposta | 1º token plano | 1º token resposta | Prompt (tok/s) | PSS máx. |
+|---|---|---|---|---|---|---|
+| antes (1.0.185: f16, sem cache) | 963/753/751/761/766 | 823/810/836/837/849 | 1022/808/809/817/823 | 863/823/854/849/866 | 156,5 | 1.209 MB |
+| f16, sem cache (repetição do antes) | 789/756/764/776/765 | 817/816/828/832/853 | 864/815/823/830/820 | 845/830/840/849/865 | 159,5 | 1.218 MB |
+| f16 + cache | 1036/462/436/426/430 | 864/534/457/473/485 | 1087/517/493/480/482 | 894/552/473/488/501 | 139,0 | 1.219 MB |
+| q8_0, sem cache | 925/844/850/857/870 | 887/885/898/912/922 | 1003/895/904/910/919 | 914/895/906/924/931 | 144,0 | 1.114 MB |
+| **q8_0 + cache (o app)** | 949/481/490/518/544 | 916/494/520/517/584 | 1016/533/543/572/599 | 943/505/533/529/594 | 129,5 | **1.109 MB** |
+
+"Prompt (tok/s)" conta só os tokens processados de verdade (com cache: 779 dos 1.275; 496 vieram do cache), por isso cai com o cache. A geração ficou igual em todas (20,7–21,1 tok/s).
+
+- **Cache:** da 2ª pergunta em diante o prompt cai de ~760 para ~480 ms no plano e de ~830 para ~520 ms na resposta (−37 %); o primeiro token chega ~300 ms antes em cada geração, ~0,6 s por pergunta. RAM extra: os ~7,6 MB dos snapshots (não aparece no PSS, dentro do ruído).
+- **KV q8_0:** −105 MB de PSS (1.218 → 1.109–1.114 MB; o KV de 2.048 posições cai de 224 para 119 MB). O prompt fica ~8 % mais lento (flash attention com V quantizado na CPU: 885 vs 820 ms sem cache, 500 vs 460 ms com cache). Não é queda grande e a RAM pesa mais no 1.7B (2,4 GB de PSS num aparelho com 2,4–2,8 GB livres): ficam K e V em q8_0.
+- **Igualdade:** `cacheDoPrefixoNaoMudaASaida` — com o cache, plano e resposta saem byte a byte iguais aos sem cache nas 5 perguntas (q8_0). `kvQ8ContraF16`: 7 das 10 saídas iguais entre q8_0 e f16; os 5 planos iguais, 3 respostas com outra redação (mesmos valores em R$).
+
+Qualidade do q8_0 no PC (`avaliar_llm.py` com `-ngl 0 -fa on`, na CPU porque a GPU está treinando a Média; o script não aceita argumentos do servidor, então rodou por um wrapper que só acrescenta `-ctk/-ctv`):
+
+| KV | plano_exato | plano_parcial | recusa_correta | fidelidade | troca_de_papel |
+|---|---|---|---|---|---|
+| f16 (CPU) | 0,933 | 0,964 | 1,000 | 0,977 | 0,008 |
+| q8_0 (CPU) | 0,917 | 0,947 | 1,000 | 0,986 | 0,008 |
+| referência `llm/rapida.json` (GPU, f16) | 0,917 | 0,947 | 1,000 | 0,979 | 0,000 |
+
+q8_0 fica dentro do limite: plano_exato igual à referência (0,917; −0,017 contra o f16 na mesma CPU, 1 caso), fidelidade 0,986 (melhor). Na CPU do PC o q8_0 com flash attention gerou bem mais devagar (17 contra 70 tok/s); no aparelho a geração não mudou (ARM), então a velocidade do PC não se aplica.

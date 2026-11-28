@@ -9,17 +9,27 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 interface MotorDeTexto {
-    /** Bloqueante; chamar fora da Main. aoPedaco recebe só UTF-8 completo. Para quando a coroutine for cancelada. */
-    suspend fun gerar(prompt: String, gramatica: String?, maxTokens: Int, aoPedaco: (String) -> Unit): String
+    /**
+     * Bloqueante; chamar fora da Main. aoPedaco recebe só UTF-8 completo. Para quando a coroutine for cancelada.
+     * `prefixo`: início fixo do prompt cujo processamento fica guardado entre gerações ("" = sem cache).
+     */
+    suspend fun gerar(prompt: String, gramatica: String?, maxTokens: Int, prefixo: String = "", aoPedaco: (String) -> Unit): String
     fun liberar()
 }
 
-/** Tokens e tempos da última geração (prompt processado e tokens gerados). */
-data class EstatisticasGeracao(val tokensPrompt: Long, val microsPrompt: Long, val tokensGerados: Long, val microsGeracao: Long)
+/** Tokens e tempos da última geração (prompt processado, sem o prefixo que veio do cache, e tokens gerados). */
+data class EstatisticasGeracao(
+    val tokensPrompt: Long,
+    val microsPrompt: Long,
+    val tokensGerados: Long,
+    val microsGeracao: Long,
+    val tokensDoCache: Long,
+)
 
 /**
- * llama.cpp via JNI (libmotor_llm.so), decodificação gulosa. As gerações rodam uma de cada vez numa thread própria;
- * [liberar] entra na mesma fila, então nunca solta o modelo no meio de uma geração.
+ * llama.cpp via JNI (libmotor_llm.so), decodificação gulosa, KV cache em q8_0. Guarda o estado depois dos dois últimos
+ * prefixos usados (plano e resposta), então só o resto do prompt é processado. As gerações rodam uma de cada vez numa
+ * thread própria; [liberar] entra na mesma fila, então nunca solta o modelo no meio de uma geração.
  *
  * `aoPedaco` roda nessa thread interna, não no dispatcher de quem chamou: para mexer na UI, trocar para a Main.
  * Sem [liberar], a thread e o modelo (1–3 GB) ficam presos até o processo morrer; quem carrega é dono do ciclo de vida.
@@ -38,8 +48,11 @@ class MotorLlm private constructor(handle: Long) : MotorDeTexto {
     var ultimaGeracao: EstatisticasGeracao? = null
         private set
 
-    override suspend fun gerar(prompt: String, gramatica: String?, maxTokens: Int, aoPedaco: (String) -> Unit): String =
-        suspendCancellableCoroutine { cont ->
+    override suspend fun gerar(prompt: String, gramatica: String?, maxTokens: Int, prefixo: String, aoPedaco: (String) -> Unit): String {
+        // resto nunca vazio: a geração precisa dos logits do último token processado
+        require(prefixo.isEmpty() || (prompt.length > prefixo.length && prompt.startsWith(prefixo))) { "prefixo não é início do prompt" }
+        val tamanhoPrefixo = prefixo.toByteArray().size
+        return suspendCancellableCoroutine { cont ->
             val tarefa = fun(id: Long) = Runnable {
                 val h = synchronized(trava) { handle }
                 if (h == 0L) {
@@ -50,11 +63,11 @@ class MotorLlm private constructor(handle: Long) : MotorDeTexto {
                 emAndamento.set(id)
                 try {
                     if (!cont.isActive) return@Runnable
-                    val est = LongArray(5)
+                    val est = LongArray(6)
                     val resultado = runCatching {
-                        nativeGerar(h, id, prompt.toByteArray(), gramatica?.toByteArray(), maxTokens, Receptor(aoPedaco), est)
+                        nativeGerar(h, id, prompt.toByteArray(), tamanhoPrefixo, gramatica?.toByteArray(), maxTokens, Receptor(aoPedaco), est)
                     }
-                    ultimaGeracao = EstatisticasGeracao(est[0], est[1], est[2], est[3])
+                    ultimaGeracao = EstatisticasGeracao(est[0], est[1], est[2], est[3], est[5])
                     resultado.fold(
                         { bytes ->
                             when {
@@ -84,6 +97,7 @@ class MotorLlm private constructor(handle: Long) : MotorDeTexto {
             }
             cont.invokeOnCancellation { cancelar(id) }
         }
+    }
 
     /** Cancela só a geração `id`, e só se ela já estiver no llama.cpp (na fila, a própria tarefa vê o cancelamento e não roda). */
     private fun cancelar(id: Long) = synchronized(trava) {
@@ -111,14 +125,17 @@ class MotorLlm private constructor(handle: Long) : MotorDeTexto {
     }
 
     companion object {
-        /** Abre o GGUF (leva segundos: chamar fora da Main). null se o arquivo não abrir ou a CPU não tiver dotprod/fp16. */
-        fun carregar(caminho: String, threads: Int = 4, contexto: Int = 2048): MotorLlm? {
+        /**
+         * Abre o GGUF (leva segundos: chamar fora da Main). null se o arquivo não abrir ou a CPU não tiver dotprod/fp16.
+         * `kvQuantizado` = false deixa o KV cache em f16 (só para comparar).
+         */
+        fun carregar(caminho: String, threads: Int = 4, contexto: Int = 2048, kvQuantizado: Boolean = true): MotorLlm? {
             System.loadLibrary("motor_llm")
-            val h = nativeCarregar(caminho, threads, contexto)
+            val h = nativeCarregar(caminho, threads, contexto, kvQuantizado)
             return if (h == 0L) null else MotorLlm(h)
         }
 
-        @JvmStatic private external fun nativeCarregar(caminho: String, threads: Int, contexto: Int): Long
+        @JvmStatic private external fun nativeCarregar(caminho: String, threads: Int, contexto: Int, kvQuantizado: Boolean): Long
 
         @JvmStatic private external fun nativeCancelar(handle: Long, geracao: Long)
 
@@ -126,6 +143,7 @@ class MotorLlm private constructor(handle: Long) : MotorDeTexto {
             handle: Long,
             geracao: Long,
             prompt: ByteArray,
+            tamanhoPrefixo: Int,
             gramatica: ByteArray?,
             maxTokens: Int,
             receptor: Any,

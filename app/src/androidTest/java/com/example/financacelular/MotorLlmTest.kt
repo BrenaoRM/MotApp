@@ -123,42 +123,117 @@ class MotorLlmTest {
         assertTrue("esperava IllegalStateException: $erro", erro is IllegalStateException)
     }
 
-    /** Medição da Task 9: 5 perguntas seguidas (plano com gramática + resposta), PSS e temperatura. */
+    /** Com decodificação gulosa, o cache do prefixo não muda nenhum byte da saída; plano e resposta ficam os dois no cache. */
+    @Test
+    fun cacheDoPrefixoNaoMudaASaida(): Unit = runBlocking(Dispatchers.Default) {
+        val m = motor!!
+        val gramatica = contrato.gramaticaPlano(mes, categorias.values.toList())
+        PERGUNTAS.forEachIndexed { i, p ->
+            val semPlano = m.gerar(promptPlano(p), gramatica, 96) {}
+            val semResposta = m.gerar(contrato.promptResposta(p, listOf(FATO)), null, 120) {}
+            val comPlano = m.gerar(promptPlano(p), gramatica, 96, contrato.prefixoPlano) {}
+            val cachePlano = m.ultimaGeracao!!.tokensDoCache
+            val comResposta = m.gerar(contrato.promptResposta(p, listOf(FATO)), null, 120, contrato.prefixoResposta) {}
+            val cacheResposta = m.ultimaGeracao!!.tokensDoCache
+            Log.i(TAG, "pergunta $i: prefixo do cache plano=$cachePlano resposta=$cacheResposta")
+            assertEquals("plano mudou com o cache", semPlano, comPlano)
+            assertEquals("resposta mudou com o cache", semResposta, comResposta)
+            if (i > 0) assertTrue("prefixo não veio do cache", cachePlano > 0 && cacheResposta > 0)
+        }
+    }
+
+    /** Cancelamento e exceção no aoPedaco com o prefixo em cache não estragam o cache. */
+    @Test
+    fun cacheSobreviveACancelamentoEExcecao(): Unit = runBlocking(Dispatchers.Default) {
+        val m = motor!!
+        val prompt = contrato.promptResposta("me conta uma história longa", emptyList())
+        val referencia = m.gerar(prompt, null, 80) {}
+        m.gerar(prompt, null, 80, contrato.prefixoResposta) {}
+        val primeiroPedaco = CompletableDeferred<Unit>()
+        val geracao = async { m.gerar(prompt, null, 400, contrato.prefixoResposta) { primeiroPedaco.complete(Unit) } }
+        primeiroPedaco.await()
+        geracao.cancelAndJoin()
+        assertTrue(geracao.isCancelled)
+        val erro = runCatching { m.gerar(prompt, null, 16, contrato.prefixoResposta) { error("falhou no pedaço") } }.exceptionOrNull()
+        assertTrue("esperava IllegalStateException: $erro", erro is IllegalStateException)
+        assertEquals(referencia, m.gerar(prompt, null, 80, contrato.prefixoResposta) {})
+        assertTrue(m.ultimaGeracao!!.tokensDoCache > 0)
+    }
+
+    /** KV q8_0 contra f16: aceita diferença, mas mede (logcat, tag MotorLlmTest). */
+    @Test
+    fun kvQ8ContraF16(): Unit = runBlocking(Dispatchers.Default) {
+        val gramatica = contrato.gramaticaPlano(mes, categorias.values.toList())
+        suspend fun saidas(m: MotorLlm) = PERGUNTAS.flatMap { p ->
+            listOf(
+                m.gerar(promptPlano(p), gramatica, 96, contrato.prefixoPlano) {},
+                m.gerar(contrato.promptResposta(p, listOf(FATO)), null, 120, contrato.prefixoResposta) {},
+            )
+        }
+        val q8 = saidas(motor!!)
+        motor!!.liberar()
+        val f16 = MotorLlm.carregar(modelo().absolutePath, kvQuantizado = false)!!
+        motor = f16
+        val referencia = saidas(f16)
+        val iguais = q8.indices.count { q8[it] == referencia[it] }
+        Log.i(TAG, "KV q8_0 x f16: $iguais de ${q8.size} saídas iguais")
+        q8.indices.filter { q8[it] != referencia[it] }.forEach { Log.i(TAG, "diferente:\n f16=${referencia[it]}\n q8 =${q8[it]}") }
+        q8.filterIndexed { i, _ -> i % 2 == 0 }.forEach { assertNotNull("plano inválido com q8_0: $it", contrato.lerPlano(it, mes, categorias)) }
+    }
+
+    /**
+     * Medição da Task 9: 5 perguntas seguidas (plano com gramática + resposta), PSS e temperatura. Com o cache do prefixo,
+     * como no app; `-e kv f16` troca o KV q8_0 pelo f16 e `-e cache nao` desliga o cache.
+     */
     @Test
     fun medicao(): Unit = runBlocking(Dispatchers.Default) {
-        val nome = InstrumentationRegistry.getArguments().getString("medir")
+        val args = InstrumentationRegistry.getArguments()
+        val nome = args.getString("medir")
         assumeTrue("sem -e medir", nome != null)
+        if (args.getString("kv") == "f16") {
+            motor!!.liberar()
+            motor = MotorLlm.carregar(modelo().absolutePath, kvQuantizado = false)
+        }
         val m = motor!!
+        val comCache = args.getString("cache") != "nao"
+        val prefixoPlano = if (comCache) contrato.prefixoPlano else ""
+        val prefixoResposta = if (comCache) contrato.prefixoResposta else ""
         val pss = ArrayList<Int>()
         pss.add(pssKb())
         val tempAntes = temperaturaBateria()
-        val perguntas = listOf(
-            "quanto gastei no mercado esse mês?",
-            "qual foi meu total do mês passado?",
-            "em que categoria eu mais gastei em novembro?",
-            "quanto ainda resta do meu orçamento de lazer?",
-            "compara meus gastos desse mês com o anterior",
-        )
-        val fato = Fato(Intencao.TOTAL_DO_MES, "2026-11", "Você gastou R$ 1.234,56 em novembro de 2026, sendo R$ 412,30 em Mercado.", emptyList())
-        var promptTok = 0L; var promptUs = 0L; var genTok = 0L; var genUs = 0L
+        var promptTok = 0L; var cacheTok = 0L; var promptUs = 0L; var genTok = 0L; var genUs = 0L
         val tempos = ArrayList<Double>()
-        for (p in perguntas) {
+        val ttftPlano = ArrayList<Double>(); val ttftResposta = ArrayList<Double>()
+        val msPromptPlano = ArrayList<Double>(); val msPromptResposta = ArrayList<Double>()
+        for (p in PERGUNTAS) {
             val inicio = System.nanoTime()
-            val plano = m.gerar(promptPlano(p), contrato.gramaticaPlano(mes, categorias.values.toList()), 96) {}
-            m.ultimaGeracao!!.let { promptTok += it.tokensPrompt; promptUs += it.microsPrompt; genTok += it.tokensGerados; genUs += it.microsGeracao }
+            var primeiro = 0L
+            val plano = m.gerar(promptPlano(p), contrato.gramaticaPlano(mes, categorias.values.toList()), 96, prefixoPlano) { if (primeiro == 0L) primeiro = System.nanoTime() }
+            ttftPlano.add((primeiro - inicio) / 1e6)
+            m.ultimaGeracao!!.let { promptTok += it.tokensPrompt; cacheTok += it.tokensDoCache; promptUs += it.microsPrompt; genTok += it.tokensGerados; genUs += it.microsGeracao; msPromptPlano.add(it.microsPrompt / 1e3) }
             pss.add(pssKb())
-            val resposta = m.gerar(contrato.promptResposta(p, listOf(fato)), null, 120) {}
-            m.ultimaGeracao!!.let { promptTok += it.tokensPrompt; promptUs += it.microsPrompt; genTok += it.tokensGerados; genUs += it.microsGeracao }
+            val inicioResposta = System.nanoTime()
+            primeiro = 0L
+            val resposta = m.gerar(contrato.promptResposta(p, listOf(FATO)), null, 120, prefixoResposta) { if (primeiro == 0L) primeiro = System.nanoTime() }
+            ttftResposta.add((primeiro - inicioResposta) / 1e6)
+            m.ultimaGeracao!!.let { promptTok += it.tokensPrompt; cacheTok += it.tokensDoCache; promptUs += it.microsPrompt; genTok += it.tokensGerados; genUs += it.microsGeracao; msPromptResposta.add(it.microsPrompt / 1e3) }
             pss.add(pssKb())
             val s = (System.nanoTime() - inicio) / 1e9
             tempos.add(s)
             Log.i(MEDICAO, "$nome pergunta '%s': %.1f s plano=%s resposta=%s".format(p, s, plano, resposta.replace('\n', ' ')))
         }
+        val lista = { l: List<Double> -> l.joinToString("/") { "%.0f".format(it) } }
+        Log.i(
+            MEDICAO,
+            "$nome TEMPOS ms promptPlano=%s promptResposta=%s ttftPlano=%s ttftResposta=%s".format(
+                lista(msPromptPlano), lista(msPromptResposta), lista(ttftPlano), lista(ttftResposta),
+            ),
+        )
         val tempDepois = temperaturaBateria()
         Log.i(
             MEDICAO,
-            "$nome RESUMO prompt=%.1f tok/s (%d tok) geracao=%.1f tok/s (%d tok) pssMax=%d MB porPergunta=%s s tempBateria=%.1f->%.1f C termico=%s".format(
-                promptTok * 1e6 / promptUs, promptTok, genTok * 1e6 / genUs, genTok, pss.max() / 1024,
+            "$nome RESUMO prompt=%.1f tok/s (%d tok, %d do cache) geracao=%.1f tok/s (%d tok) pssMax=%d MB porPergunta=%s s tempBateria=%.1f->%.1f C termico=%s".format(
+                promptTok * 1e6 / promptUs, promptTok, cacheTok, genTok * 1e6 / genUs, genTok, pss.max() / 1024,
                 tempos.joinToString("/") { "%.1f".format(it) }, tempAntes, tempDepois, shell("dumpsys thermalservice").lineSequence()
                     .firstOrNull { it.contains("Thermal Status") }?.trim(),
             ),
@@ -197,5 +272,13 @@ class MotorLlmTest {
         const val TAG = "MotorLlmTest"
         const val MEDICAO = "MedicaoLlm"
         const val CAMINHO = "/data/local/tmp/motapp-teste.gguf"
+        val PERGUNTAS = listOf(
+            "quanto gastei no mercado esse mês?",
+            "qual foi meu total do mês passado?",
+            "em que categoria eu mais gastei em novembro?",
+            "quanto ainda resta do meu orçamento de lazer?",
+            "compara meus gastos desse mês com o anterior",
+        )
+        val FATO = Fato(Intencao.TOTAL_DO_MES, "2026-11", "Você gastou R$ 1.234,56 em novembro de 2026, sendo R$ 412,30 em Mercado.", emptyList())
     }
 }

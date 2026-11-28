@@ -16,6 +16,15 @@ namespace {
 
 constexpr const char *TAG = "MotorLlm";
 
+// Estado da seq 0 logo depois de um prefixo fixo do prompt. É um snapshot completo (llama_state_seq_get_data), não um
+// pedaço do KV: serve também para memória recorrente/híbrida, que não aceita cortar a sequência no meio.
+struct Prefixo {
+    std::string texto;
+    std::vector<uint8_t> estado;
+    int32_t tokens = 0;
+    uint64_t uso = 0;  // para trocar o usado há mais tempo
+};
+
 struct Motor {
     llama_model *model = nullptr;
     llama_context *ctx = nullptr;
@@ -25,6 +34,8 @@ struct Motor {
     std::atomic<int64_t> cancelar_id{0};
     std::atomic<bool> cancelar_tudo{false};
     std::atomic<int64_t> geracao{0};
+    Prefixo prefixos[2];  // plano e resposta, um não expulsa o outro
+    uint64_t usos = 0;
 };
 
 bool cancelado(const Motor *m) { return m->cancelar_tudo.load() || m->cancelar_id.load() == m->geracao.load(); }
@@ -59,6 +70,31 @@ std::string texto_de(JNIEnv *env, jbyteArray a) {
     return s;
 }
 
+std::vector<llama_token> tokenizar(const llama_vocab *vocab, const std::string &s, bool especiais) {
+    const int32_t n = -llama_tokenize(vocab, s.data(), static_cast<int32_t>(s.size()), nullptr, 0, especiais, true);
+    std::vector<llama_token> t(static_cast<size_t>(std::max(n, 0)));
+    if (n > 0) llama_tokenize(vocab, s.data(), static_cast<int32_t>(s.size()), t.data(), n, especiais, true);
+    return t;
+}
+
+/** Processa `tokens` na seq 0 a partir da posição `inicio`, em lotes de n_batch. true se deu erro (ou foi cancelado). */
+bool processar(llama_context *ctx, llama_batch_ext *lote, const std::vector<llama_token> &tokens, llama_pos inicio, bool logitsNoFim) {
+    const auto n = static_cast<int32_t>(tokens.size());
+    const auto nBatch = static_cast<int32_t>(llama_n_batch(ctx));
+    for (int32_t i = 0; i < n; i += nBatch) {
+        const int32_t fim = std::min(n, i + nBatch);
+        llama_batch_ext_clear(lote);
+        for (int32_t j = i; j < fim; j++) {
+            const int32_t idx = llama_batch_ext_add_token(lote, 0, tokens[j]);
+            const llama_pos pos = inicio + j;
+            llama_batch_ext_set_pos(lote, idx, &pos);
+        }
+        llama_batch_ext_set_output_logits(lote, fim - i - 1, logitsNoFim && fim == n);
+        if (llama_process(ctx, LLAMA_PROCESS_TYPE_DECODE, lote) != 0) return true;
+    }
+    return false;
+}
+
 int64_t micros_desde(std::chrono::steady_clock::time_point t) {
     return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - t).count();
 }
@@ -66,7 +102,7 @@ int64_t micros_desde(std::chrono::steady_clock::time_point t) {
 }  // namespace
 
 extern "C" JNIEXPORT jlong JNICALL
-Java_com_example_financacelular_ia_llm_MotorLlm_nativeCarregar(JNIEnv *env, jclass, jstring caminho, jint threads, jint contexto) {
+Java_com_example_financacelular_ia_llm_MotorLlm_nativeCarregar(JNIEnv *env, jclass, jstring caminho, jint threads, jint contexto, jboolean kvQuantizado) {
     // ggml foi compilado para armv8.2+dotprod+fp16: em CPU sem isso a primeira conta daria SIGILL
     const unsigned long hw = getauxval(AT_HWCAP);
     if ((hw & HWCAP_ASIMDDP) == 0 || (hw & HWCAP_ASIMDHP) == 0) {
@@ -97,6 +133,11 @@ Java_com_example_financacelular_ia_llm_MotorLlm_nativeCarregar(JNIEnv *env, jcla
     cp.n_threads = threads;
     cp.n_threads_batch = threads;
     cp.no_perf = true;
+    if (kvQuantizado) {  // metade da RAM do KV; V quantizado exige flash attention
+        cp.type_k = GGML_TYPE_Q8_0;
+        cp.type_v = GGML_TYPE_Q8_0;
+        cp.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_ENABLED;
+    }
     // cancela também no meio do processamento do prompt
     cp.abort_callback = [](void *dados) { return cancelado(static_cast<Motor *>(dados)); };
     cp.abort_callback_data = m;
@@ -119,31 +160,58 @@ Java_com_example_financacelular_ia_llm_MotorLlm_nativeCancelar(JNIEnv *, jclass,
 /**
  * Gera com decodificação gulosa (e gramática GBNF, se houver). Devolve os bytes UTF-8 do texto, ou null em erro.
  * `receptor.pedaco(byte[])` recebe só UTF-8 completo. `estatisticas` = [tokens do prompt, µs do prompt, tokens gerados,
- * µs da geração, 1 se parou por cancelamento]. Se `pedaco` lançar exceção, solta tudo e volta na hora (a exceção sobe).
- * Erro se prompt + maxTokens não couber no contexto.
+ * µs da geração, 1 se parou por cancelamento, tokens do prefixo que vieram do cache]; "tokens do prompt" não conta os do cache.
+ * Os primeiros `tamanhoPrefixo` bytes do prompt são um prefixo fixo (0 = nenhum): o estado logo depois dele fica guardado
+ * e a próxima geração com o mesmo prefixo só processa o resto. Se `pedaco` lançar exceção, solta tudo e volta na hora
+ * (a exceção sobe). Erro se prompt + maxTokens não couber no contexto.
  */
 extern "C" JNIEXPORT jbyteArray JNICALL
 Java_com_example_financacelular_ia_llm_MotorLlm_nativeGerar(
-        JNIEnv *env, jclass, jlong handle, jlong geracao, jbyteArray promptUtf8, jbyteArray gramaticaUtf8, jint maxTokens,
-        jobject receptor, jlongArray estatisticas) {
+        JNIEnv *env, jclass, jlong handle, jlong geracao, jbyteArray promptUtf8, jint tamanhoPrefixo, jbyteArray gramaticaUtf8,
+        jint maxTokens, jobject receptor, jlongArray estatisticas) {
     auto *m = reinterpret_cast<Motor *>(handle);
     m->geracao = geracao;
-    llama_memory_clear(llama_get_memory(m->ctx), true);
+    llama_memory_t memoria = llama_get_memory(m->ctx);
+    llama_memory_clear(memoria, true);
 
     const std::string prompt = texto_de(env, promptUtf8);
+    const size_t corte = std::min(static_cast<size_t>(std::max(tamanhoPrefixo, 0)), prompt.size());
+    const std::string prefixo = prompt.substr(0, corte);
+
+    // prefixo já guardado: restaura o estado e processa só o resto
+    Prefixo *guardado = nullptr;
+    int32_t doCache = 0;
+    if (!prefixo.empty()) {
+        for (auto &p : m->prefixos) {
+            if (p.texto == prefixo) guardado = &p;
+        }
+        if (guardado != nullptr && llama_state_seq_set_data(m->ctx, guardado->estado.data(), guardado->estado.size(), 0) != 0) {
+            doCache = guardado->tokens;
+            guardado->uso = ++m->usos;
+        } else if (guardado != nullptr) {
+            __android_log_print(ANDROID_LOG_WARN, TAG, "estado do prefixo não restaurou: processa de novo");
+            llama_memory_clear(memoria, true);
+            guardado->texto.clear();
+            guardado->uso = 0;  // é o próximo a ser trocado
+        }
+    }
+    // Prefixo e resto tokenizados separados (o resto sem tokens especiais de início), também quando o prefixo é novo:
+    // assim a geração que guarda o prefixo e a que o reaproveita veem os mesmos tokens.
+    std::vector<llama_token> tokensPrefixo;
+    if (!prefixo.empty() && doCache == 0) tokensPrefixo = tokenizar(m->vocab, prefixo, true);
+    const std::vector<llama_token> tokens = tokenizar(m->vocab, prompt.substr(corte), prefixo.empty());
 
     const int32_t nCtx = static_cast<int32_t>(llama_n_ctx(m->ctx));
-    const int32_t n = -llama_tokenize(m->vocab, prompt.data(), static_cast<int32_t>(prompt.size()), nullptr, 0, true, true);
+    const auto nPrefixo = static_cast<int32_t>(tokensPrefixo.size()) + doCache;
+    const auto n = static_cast<int32_t>(tokens.size());
     if (n <= 0) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "prompt vazio");
         return nullptr;
     }
-    if (maxTokens <= 0 || static_cast<int64_t>(n) + maxTokens > nCtx) {
-        __android_log_print(ANDROID_LOG_ERROR, TAG, "prompt de %d tokens + %d gerados não cabe no contexto de %d", n, maxTokens, nCtx);
+    if (maxTokens <= 0 || static_cast<int64_t>(nPrefixo) + n + maxTokens > nCtx) {
+        __android_log_print(ANDROID_LOG_ERROR, TAG, "prompt de %d tokens + %d gerados não cabe no contexto de %d", nPrefixo + n, maxTokens, nCtx);
         return nullptr;
     }
-    std::vector<llama_token> tokens(static_cast<size_t>(n));
-    llama_tokenize(m->vocab, prompt.data(), static_cast<int32_t>(prompt.size()), tokens.data(), n, true, true);
 
     jmethodID pedaco = env->GetMethodID(env->GetObjectClass(receptor), "pedaco", "([B)V");
     if (pedaco == nullptr) return nullptr;  // NoSuchMethodError pendente sobe para o Kotlin
@@ -165,26 +233,30 @@ Java_com_example_financacelular_ia_llm_MotorLlm_nativeGerar(
     std::string texto;      // tudo o que foi gerado
     size_t entregue = 0;    // bytes de `texto` já passados ao receptor
     bool erro = false;
-    jlong est[5] = {n, 0, 0, 0, 0};
+    jlong est[6] = {static_cast<jlong>(tokensPrefixo.size()) + n, 0, 0, 0, 0, doCache};
 
-    // prompt, em lotes de n_batch
     auto t = std::chrono::steady_clock::now();
-    const int32_t nBatch = static_cast<int32_t>(llama_n_batch(m->ctx));
-    for (int32_t i = 0; i < n && !erro; i += nBatch) {
-        const int32_t fim = std::min(n, i + nBatch);
-        llama_batch_ext_clear(lote);
-        for (int32_t j = i; j < fim; j++) {
-            const int32_t idx = llama_batch_ext_add_token(lote, 0, tokens[j]);
-            const llama_pos pos = j;
-            llama_batch_ext_set_pos(lote, idx, &pos);
+    if (!tokensPrefixo.empty()) {
+        erro = processar(m->ctx, lote, tokensPrefixo, 0, false);
+        if (!erro && !cancelado(m)) {
+            // guarda no lugar vazio ou no usado há mais tempo
+            Prefixo *p = &m->prefixos[0];
+            for (auto &q : m->prefixos) {
+                if (q.uso < p->uso) p = &q;
+            }
+            p->estado.resize(llama_state_seq_get_size(m->ctx, 0));
+            p->estado.resize(llama_state_seq_get_data(m->ctx, p->estado.data(), p->estado.size(), 0));
+            p->texto = p->estado.empty() ? std::string() : prefixo;
+            p->tokens = nPrefixo;
+            p->uso = ++m->usos;
+            __android_log_print(ANDROID_LOG_INFO, TAG, "prefixo de %d tokens guardado (%zu bytes)", nPrefixo, p->estado.size());
         }
-        llama_batch_ext_set_output_logits(lote, fim - i - 1, fim == n);
-        erro = llama_process(m->ctx, LLAMA_PROCESS_TYPE_DECODE, lote) != 0;
     }
+    if (!erro) erro = processar(m->ctx, lote, tokens, nPrefixo, true);
     est[1] = micros_desde(t);
 
     t = std::chrono::steady_clock::now();
-    llama_pos pos = n;
+    llama_pos pos = nPrefixo + n;
     while (!erro && !cancelado(m) && est[2] < maxTokens) {
         const llama_token tok = llama_sampler_sample(amostrador, m->ctx, -1);
         if (llama_vocab_is_eog(m->vocab, tok)) break;
@@ -222,7 +294,7 @@ Java_com_example_financacelular_ia_llm_MotorLlm_nativeGerar(
     if (env->ExceptionCheck()) return nullptr;  // a exceção pendente sobe para o Kotlin
 
     est[4] = cancelado(m) ? 1 : 0;
-    env->SetLongArrayRegion(estatisticas, 0, 5, est);
+    env->SetLongArrayRegion(estatisticas, 0, 6, est);
     if (erro && !cancelado(m)) {
         __android_log_print(ANDROID_LOG_ERROR, TAG, "llama_process falhou");
         return nullptr;

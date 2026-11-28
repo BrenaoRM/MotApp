@@ -33,8 +33,12 @@ class ContratoLlm(json: String) {
 
     val textoRecusa: String = raiz.getString("texto_recusa")
 
+    /** Início fixo de cada prompt (o turno de sistema): o motor guarda o processamento dele entre gerações. */
+    val prefixoPlano: String = turno("system", sistemaPlano)
+    val prefixoResposta: String = turno("system", sistemaResposta)
+
     fun promptPlano(pergunta: String, mesAtual: YearMonth, categorias: List<String>, historico: List<Pair<String, String>>): String {
-        val texto = StringBuilder(turno("system", sistemaPlano))
+        val texto = StringBuilder(prefixoPlano)
         for ((p, plano) in historico.takeLast(2)) {
             texto.append(turno("user", "Pergunta: $p")).append(turno("assistant", plano))
         }
@@ -47,7 +51,7 @@ class ContratoLlm(json: String) {
     fun promptResposta(pergunta: String, fatos: List<Fato>): String {
         val linhas = fatos.withIndex().joinToString("") { (i, f) -> "${i + 1}. ${f.frase}\n" }
         val usuario = "Pergunta: $pergunta\nFatos:\n" + linhas.trimEnd('\n')
-        return turno("system", sistemaResposta) + turno("user", usuario) + "<|im_start|>assistant\n"
+        return prefixoResposta + turno("user", usuario) + "<|im_start|>assistant\n"
     }
 
     fun gramaticaPlano(mesAtual: YearMonth, categorias: List<String>): String {
