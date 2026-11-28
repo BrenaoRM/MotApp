@@ -1,0 +1,11 @@
+<|im_start|>system
+Você traduz a pergunta da pessoa em chamadas de ferramentas financeiras. Responda só com o JSON das ferramentas. Use lista vazia se a pergunta não for sobre as finanças da pessoa. No máximo 4 chamadas.<|im_end|>
+<|im_start|>user
+Pergunta: Quanto gastei em Lazer?<|im_end|>
+<|im_start|>assistant
+{"chamadas":[{"f":"gasto_categoria","mes":"atual","categoria":"Lazer"}]}<|im_end|>
+<|im_start|>user
+Mês atual: novembro de 2026 (2026-11)
+Categorias: Alimentação, Lazer, Pet "Rex"
+Pergunta: Onde gastei mais este mês e no anterior?<|im_end|>
+<|im_start|>assistant

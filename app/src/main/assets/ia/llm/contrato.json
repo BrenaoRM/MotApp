@@ -1,0 +1,19 @@
+{
+  "ferramentas": [
+    {"nome": "ranking", "intencao": "RANKING_CATEGORIAS", "usa_mes": true, "usa_categoria": false, "categoria_obrigatoria": false, "descricao": "ranking das categorias com mais gastos no mês"},
+    {"nome": "gasto_categoria", "intencao": "GASTO_EM_CATEGORIA", "usa_mes": true, "usa_categoria": true, "categoria_obrigatoria": true, "descricao": "quanto foi gasto numa categoria no mês"},
+    {"nome": "total_mes", "intencao": "TOTAL_DO_MES", "usa_mes": true, "usa_categoria": false, "categoria_obrigatoria": false, "descricao": "total gasto no mês"},
+    {"nome": "comparar_mes_anterior", "intencao": "COMPARAR_MES_ANTERIOR", "usa_mes": true, "usa_categoria": false, "categoria_obrigatoria": false, "descricao": "compara o mês com o anterior"},
+    {"nome": "maior_gasto", "intencao": "MAIOR_GASTO", "usa_mes": true, "usa_categoria": true, "categoria_obrigatoria": false, "descricao": "maior gasto individual do mês, opcionalmente numa categoria"},
+    {"nome": "orcamento_restante", "intencao": "ORCAMENTO_RESTANTE", "usa_mes": true, "usa_categoria": true, "categoria_obrigatoria": false, "descricao": "quanto resta do orçamento, opcionalmente de uma categoria"},
+    {"nome": "assinaturas", "intencao": "ASSINATURAS", "usa_mes": false, "usa_categoria": false, "categoria_obrigatoria": false, "descricao": "assinaturas e gastos recorrentes"},
+    {"nome": "poupanca", "intencao": "POUPANCA", "usa_mes": true, "usa_categoria": false, "categoria_obrigatoria": false, "descricao": "quanto sobrou ou foi poupado no mês"},
+    {"nome": "receitas", "intencao": "RECEITAS", "usa_mes": true, "usa_categoria": false, "categoria_obrigatoria": false, "descricao": "receitas do mês"},
+    {"nome": "media_mensal", "intencao": "MEDIA_MENSAL", "usa_mes": false, "usa_categoria": true, "categoria_obrigatoria": false, "descricao": "média mensal de gastos, opcionalmente de uma categoria"},
+    {"nome": "atipicos", "intencao": "ATIPICOS", "usa_mes": true, "usa_categoria": false, "categoria_obrigatoria": false, "descricao": "gastos fora do padrão no mês"},
+    {"nome": "como_economizar", "intencao": "COMO_ECONOMIZAR", "usa_mes": false, "usa_categoria": false, "categoria_obrigatoria": false, "descricao": "onde dá para economizar"}
+  ],
+  "sistema_plano": "Você traduz a pergunta da pessoa em chamadas de ferramentas financeiras. Responda só com o JSON das ferramentas. Use lista vazia se a pergunta não for sobre as finanças da pessoa. No máximo 4 chamadas.",
+  "sistema_resposta": "Você responde sobre as finanças da pessoa em português. Use só os fatos dados, não invente números, cite mês e categoria junto de cada valor. No máximo 4 frases curtas e 1 conselho se houver fato de economia.",
+  "texto_recusa": "Só consigo falar sobre os seus gastos e receitas."
+}

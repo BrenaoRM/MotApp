@@ -44,6 +44,8 @@ fun resolverVersionCode(versionName: String): Int {
 android {
     namespace = "com.example.financacelular"
     compileSdk = 37
+    // NDK e CMake do llama.cpp (MotorLlm); o CI instala as mesmas versões
+    ndkVersion = "27.1.12297006"
 
     // --- CONFIGURAÇÃO DA ASSINATURA OFICIAL ---
     signingConfigs {
@@ -71,6 +73,20 @@ android {
         // ONNX Runtime só no arm64 (celulares atuais); em outras ABIs o modelo não abre e a IA desliga sozinha
         ndk {
             abiFilters += listOf("arm64-v8a")
+        }
+
+        // llama.cpp estático dentro de libmotor_llm.so (ver src/main/cpp/CMakeLists.txt)
+        externalNativeBuild {
+            cmake {
+                arguments += listOf("-DGGML_OPENMP=OFF", "-DLLAMA_CURL=OFF", "-DBUILD_SHARED_LIBS=OFF")
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
         }
     }
 
@@ -107,6 +123,8 @@ android {
         // `-Dia.exportar=true` chega aos testes da JVM (ia/avaliar_atipicos.py grava as pontuações do Kotlin)
         unitTests.all { test ->
             providers.systemProperty("ia.exportar").orNull?.let { test.systemProperty("ia.exportar", it) }
+            // `-Dexportar.fatos=<saida.jsonl>` liga o ExportarFatosParaTreino (dados de treino do LLM)
+            providers.systemProperty("exportar.fatos").orNull?.let { test.systemProperty("exportar.fatos", it) }
         }
     }
     // Os schemas exportados do Room (schemas/) chegam ao teste de migração como assets do build debug
@@ -172,6 +190,7 @@ dependencies {
     testImplementation("androidx.test:core:1.6.1")
     testImplementation(libs.androidx.junit)
     testImplementation("androidx.room:room-testing:2.8.5")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

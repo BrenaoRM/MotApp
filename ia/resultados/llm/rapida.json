@@ -1,0 +1,48 @@
+{
+ "plano_exato": 0.9166666666666666,
+ "plano_parcial": 0.9472222222222223,
+ "recusa_correta": 1.0,
+ "n_perguntas": 60,
+ "n_fora_do_escopo": 10,
+ "n_planos_invalidos": 0,
+ "fidelidade": 0.979296066252588,
+ "troca_de_papel": 0.0,
+ "n_respostas": 483,
+ "n_respostas_puladas": 0,
+ "n_respostas_com_papeis": 132,
+ "n_fatos_ambiguos_na_troca": 7,
+ "tokens_por_s_pc": 154.20759991187546,
+ "modelo": "motapp-rapida-q4km.gguf",
+ "nome": "rapida",
+ "seed": 42,
+ "com_think": false,
+ "gpu_compartilhada": true,
+ "processos_na_gpu": 15,
+ "falhas_plano": [
+  {
+   "pergunta": "quanto gastei c mercado e com a academia esse mes?",
+   "saida": "{\"chamadas\":[{\"f\":\"gasto_categoria\",\"mes\":\"2026-09\",\"categoria\":\"Mercado\"},{\"f\":\"gasto_categoria\",\"mes\":\"atual\",\"categoria\":\"Academia\"}]}",
+   "exato": false
+  },
+  {
+   "pergunta": "qual meu maior gasto de alimentacao e quanto resta do orçamento dela",
+   "saida": "{\"chamadas\":[{\"f\":\"maior_gasto\",\"mes\":\"2026-01\",\"categoria\":\"Alimentação\"},{\"f\":\"orcamento_restante\",\"mes\":\"2026-01\",\"categoria\":\"Alimentação\"}]}",
+   "exato": false
+  },
+  {
+   "pergunta": "total de outubro vs total de novembro",
+   "saida": "{\"chamadas\":[{\"f\":\"comparar_mes_anterior\",\"mes\":\"2026-10\"},{\"f\":\"comparar_mes_anterior\",\"mes\":\"2026-11\"}]}",
+   "exato": false
+  },
+  {
+   "pergunta": "quanto gastei com viagem e roupas em agosto e em julho",
+   "saida": "{\"chamadas\":[{\"f\":\"gasto_categoria\",\"mes\":\"2026-08\",\"categoria\":\"Viagem\"},{\"f\":\"gasto_categoria\",\"mes\":\"2026-07\",\"categoria\":\"Roupas\"}]}",
+   "exato": false
+  },
+  {
+   "pergunta": "me mostra de agosto os dois",
+   "saida": "{\"chamadas\":[{\"f\":\"poupanca\",\"mes\":\"2026-08\"}]}",
+   "exato": false
+  }
+ ]
+}

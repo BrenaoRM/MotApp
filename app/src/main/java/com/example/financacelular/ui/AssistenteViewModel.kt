@@ -1,6 +1,8 @@
 package com.example.financacelular.ui
 
 import android.app.Application
+import android.content.ComponentCallbacks2
+import android.content.res.Configuration
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.financacelular.data.AppDatabase
@@ -21,11 +23,15 @@ import com.example.financacelular.ia.Mensagem
 import com.example.financacelular.ia.Pergunta
 import com.example.financacelular.ia.Perguntas
 import com.example.financacelular.ia.RespondedorDePerguntas
-import kotlinx.coroutines.CancellationException
+import com.example.financacelular.ia.llm.AssistenteLlm
+import com.example.financacelular.ia.llm.ContratoLlm
+import com.example.financacelular.ia.llm.DadosDaConversa
+import com.example.financacelular.ia.llm.EstadoModelo
+import com.example.financacelular.ia.llm.GerenciadorDeModelo
+import com.example.financacelular.ia.llm.ModelosIa
+import com.example.financacelular.ia.llm.MotorLlm
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -34,6 +40,8 @@ import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.YearMonth
@@ -123,31 +131,105 @@ class AssistenteViewModel(application: Application) : AndroidViewModel(applicati
 
     // ---------------------------------------------------------------- perguntas
 
-    private val _conversa = MutableStateFlow<List<Mensagem>>(emptyList())
-    val conversa: StateFlow<List<Mensagem>> = _conversa
-    private val _sugestoes = MutableStateFlow(Perguntas.SUGESTOES_INICIAIS)
-    val sugestoes: StateFlow<List<String>> = _sugestoes
-    private val _pensando = MutableStateFlow(false)
-    val pensando: StateFlow<Boolean> = _pensando
-    private var respondendo: Job? = null
+    private val conversaDoAssistente = ConversaDoAssistente(
+        scope = viewModelScope,
+        llm = ::assistenteLlm,
+        dados = ::dadosDaConversa,
+        sistemaAtual = ::responder,
+        textoNaoEntendi = TEXTO_NAO_ENTENDI,
+    )
+    val conversa: StateFlow<List<Mensagem>> = conversaDoAssistente.conversa
+    val sugestoes: StateFlow<List<String>> = conversaDoAssistente.sugestoes
+    val pensando: StateFlow<Boolean> = conversaDoAssistente.pensando
 
-    fun perguntar(texto: String) {
-        val pergunta = texto.trim()
-        if (pergunta.isEmpty() || _pensando.value) return
-        _conversa.value = _conversa.value + Mensagem(true, pergunta)
-        _pensando.value = true
-        respondendo = viewModelScope.launch {
-            try {
-                val resposta = responder(pergunta)
-                _conversa.value = _conversa.value + Mensagem(false, resposta.first)
-                _sugestoes.value = resposta.second
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _conversa.value = _conversa.value + Mensagem(false, TEXTO_NAO_ENTENDI)
-            } finally {
-                _pensando.value = false
+    fun perguntar(texto: String) = conversaDoAssistente.perguntar(texto)
+
+    // ---------------------------------------------------------------- IA avançada (LLM local)
+
+    private val travaDoMotor = Mutex()
+    private var motor: MotorLlm? = null
+    private var caminhoDoMotor: String? = null
+    private var caminhoQueFalhou: String? = null
+    private val contratoLlm by lazy { ContratoLlm.doAsset(getApplication()) }
+    private val fechamento = Any()
+    @Volatile private var encerrado = false
+
+    private val aoFaltarMemoria = object : ComponentCallbacks2 {
+        override fun onTrimMemory(level: Int) {
+            if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND) {
+                viewModelScope.launch(Dispatchers.Default) { travaDoMotor.withLock { liberarMotor() } }
             }
+        }
+        override fun onConfigurationChanged(newConfig: Configuration) = Unit
+        @Deprecated("Sem uso", ReplaceWith("Unit"))
+        override fun onLowMemory() = Unit
+    }
+
+    init {
+        // O estado do download nasce Desativado a cada processo: reconstrói do WorkManager e do disco
+        GerenciadorDeModelo.restaurar(application)
+        application.registerComponentCallbacks(aoFaltarMemoria)
+        // Desativar, baixar de novo ou trocar de modo dá outra chance ao motor que tinha falhado (ex.: falta de memória passageira)
+        viewModelScope.launch {
+            GerenciadorDeModelo.estado.collect { if (it !is EstadoModelo.Pronto) travaDoMotor.withLock { caminhoQueFalhou = null } }
+        }
+    }
+
+    private fun liberarMotor() {
+        motor?.liberar()
+        motor = null
+        caminhoDoMotor = null
+    }
+
+    /** O pipeline do modelo ativo, carregando o motor na primeira pergunta; null = sem modelo pronto ou o motor não abriu. */
+    private suspend fun assistenteLlm(): AssistenteLlm? = withContext(Dispatchers.Default) {
+        travaDoMotor.withLock {
+            val app = getApplication<Application>()
+            val caminho = GerenciadorDeModelo.caminhoPronto(app)
+            if (caminho == null || encerrado) {
+                liberarMotor()
+                return@withLock null
+            }
+            if (caminhoDoMotor != caminho) liberarMotor()
+            if (caminho == caminhoQueFalhou) return@withLock null
+            val atual = motor ?: try {
+                MotorLlm.carregar(caminho)
+            } catch (e: Throwable) {
+                null // UnsatisfiedLinkError, OutOfMemoryError…: cai no sistema atual
+            }
+            if (atual == null) {
+                caminhoQueFalhou = caminho
+                return@withLock null
+            }
+            // Checar e guardar juntos, sob o mesmo lock do onCleared: o motor carregado nunca fica sem dono
+            synchronized(fechamento) {
+                if (encerrado) {
+                    atual.liberar()
+                    return@withLock null
+                }
+                motor = atual
+                caminhoDoMotor = caminho
+            }
+            val modelo = ModelosIa.disponiveis.firstOrNull { GerenciadorDeModelo.caminhoPronto(GerenciadorDeModelo.pasta(app), it) == caminho }
+            AssistenteLlm(atual, contratoLlm, modelo?.tempoLimiteMs ?: TEMPO_LIMITE_PADRAO_MS)
+        }
+    }
+
+    private fun dadosDaConversa(): DadosDaConversa? {
+        val (e, analise) = ultima ?: return null
+        val pronto = analise.estado as? EstadoAssistente.Pronto
+        return DadosDaConversa(
+            e.transacoes, e.categorias, e.recorrentes, e.orcamentos,
+            pronto?.recomendacoes.orEmpty(), analise.atipicos, e.mes, LocalDate.now(),
+        )
+    }
+
+    override fun onCleared() {
+        getApplication<Application>().unregisterComponentCallbacks(aoFaltarMemoria)
+        synchronized(fechamento) {
+            encerrado = true
+            motor?.liberar()
+            motor = null
         }
     }
 
@@ -175,5 +257,6 @@ class AssistenteViewModel(application: Application) : AndroidViewModel(applicati
     private companion object {
         const val TEXTO_INDISPONIVEL = "As perguntas não estão disponíveis neste aparelho."
         const val TEXTO_NAO_ENTENDI = "Ainda não sei responder isso."
+        const val TEMPO_LIMITE_PADRAO_MS = 60_000L
     }
 }

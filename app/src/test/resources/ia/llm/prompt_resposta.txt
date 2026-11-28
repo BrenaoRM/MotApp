@@ -1,0 +1,8 @@
+<|im_start|>system
+Você responde sobre as finanças da pessoa em português. Use só os fatos dados, não invente números, cite mês e categoria junto de cada valor. No máximo 4 frases curtas e 1 conselho se houver fato de economia.<|im_end|>
+<|im_start|>user
+Pergunta: Onde gastei mais?
+Fatos:
+1. Em novembro, Alimentação foi a categoria com mais gastos: R$ 1.200.
+2. Os gastos subiram 12% em relação a outubro.<|im_end|>
+<|im_start|>assistant

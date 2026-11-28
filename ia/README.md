@@ -91,3 +91,18 @@ Os golden são a referência numérica entre Python e Kotlin. Quem gera e quem c
 - Latência da vetorização, tempo de treino e memória no aparelho: a medir (T11).
 
 Não há números oficiais disso no repositório. Os relatórios T3 e T5 têm medições provisórias no S20 FE, mas o plano manda que a tabela oficial saia da T11.
+
+## 9. Como reproduzir o treino do LLM (QLoRA)
+
+Ambiente e dados: ver `ia/llm/README.md` (venv, `preparar_ambiente.py`, `gerar_planos.py`, `gerar_respostas.py`). Pesos, dados gerados e GGUFs não vão para o git.
+
+```
+cd ia/llm
+.venv/Scripts/python treinar_lora.py --base 0.6B --saida modelos/lora/rapida      # 1.7B -> media, 4B -> inteligente
+.venv/Scripts/python exportar_gguf.py --lora modelos/lora/rapida/final --saida modelos/gguf/motapp-rapida-q4km.gguf
+.venv/Scripts/python avaliar_llm.py --modelo modelos/gguf/motapp-rapida-q4km.gguf --nome rapida
+.venv/Scripts/python avaliar_llm.py --tabela
+```
+
+- Treino: QLoRA 4 bits (Unsloth), r=16, alpha=32, 2 épocas, contexto 1.024, lote efetivo 16; plano e resposta misturados; perda só na saída. Retomável do último `checkpoint-*`; o melhor (perda de validação) vira `final/`. Log em `modelos/lora/<modo>/treino.log`.
+- Tudo de uma vez, sem supervisão: `.venv/Scripts/python rodar_treinos.py` (espera o gerador, encerra o professor, teste de fumaça, três modos, tabela; log em `modelos/treinos.log`; pode ser relançado, pula o que já existe).

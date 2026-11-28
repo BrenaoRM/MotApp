@@ -20,3 +20,10 @@ local.properties
 ia/.cache/
 __pycache__/
 .pytest_cache/
+
+# IA LLM local (pesos, binarios, dados gerados e venv nao vao pro git)
+ia/llm/modelos/
+ia/llm/bin/
+ia/llm/dados/gerados/
+ia/llm/.venv/
+ia/llm/unsloth_compiled_cache/

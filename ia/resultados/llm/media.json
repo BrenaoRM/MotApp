@@ -1,0 +1,48 @@
+{
+ "plano_exato": 0.9166666666666666,
+ "plano_parcial": 0.9555555555555556,
+ "recusa_correta": 1.0,
+ "n_perguntas": 60,
+ "n_fora_do_escopo": 10,
+ "n_planos_invalidos": 0,
+ "fidelidade": 0.9917184265010351,
+ "troca_de_papel": 0.007575757575757576,
+ "n_respostas": 483,
+ "n_respostas_puladas": 0,
+ "n_respostas_com_papeis": 132,
+ "n_fatos_ambiguos_na_troca": 7,
+ "tokens_por_s_pc": 132.0417722797176,
+ "modelo": "motapp-media-q4km.gguf",
+ "nome": "media",
+ "seed": 42,
+ "com_think": false,
+ "gpu_compartilhada": true,
+ "processos_na_gpu": 14,
+ "falhas_plano": [
+  {
+   "pergunta": "ranking de gastos de setembro, agosto e julho",
+   "saida": "{\"chamadas\":[{\"f\":\"ranking\",\"mes\":\"2026-07\"}]}",
+   "exato": false
+  },
+  {
+   "pergunta": "qual meu maior gasto de alimentacao e quanto resta do orçamento dela",
+   "saida": "{\"chamadas\":[{\"f\":\"maior_gasto\",\"mes\":\"atual\",\"categoria\":\"Alimentação\"},{\"f\":\"orcamento_restante\",\"mes\":\"atual\"}]}",
+   "exato": false
+  },
+  {
+   "pergunta": "total de outubro vs total de novembro",
+   "saida": "{\"chamadas\":[{\"f\":\"comparar_mes_anterior\",\"mes\":\"2026-10\"}]}",
+   "exato": false
+  },
+  {
+   "pergunta": "quanto gastei com viagem e roupas em agosto e em julho",
+   "saida": "{\"chamadas\":[{\"f\":\"gasto_categoria\",\"mes\":\"2026-08\",\"categoria\":\"Viagem\"},{\"f\":\"gasto_categoria\",\"mes\":\"2026-07\",\"categoria\":\"Roupas\"}]}",
+   "exato": false
+  },
+  {
+   "pergunta": "me mostra de agosto os dois",
+   "saida": "{\"chamadas\":[{\"f\":\"poupanca\",\"mes\":\"2026-08\"}]}",
+   "exato": false
+  }
+ ]
+}
