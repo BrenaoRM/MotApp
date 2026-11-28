@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit
 
 sealed interface EstadoModelo {
     data object Desativado : EstadoModelo
-    data class Baixando(val modo: ModoIa, val progresso: Float) : EstadoModelo
+    data class Baixando(val modo: ModoIa, val progresso: Float, val semConexao: Boolean = false) : EstadoModelo
     data class Pronto(val modo: ModoIa) : EstadoModelo
     data class Falhou(val modo: ModoIa) : EstadoModelo
 }
@@ -119,7 +119,13 @@ object GerenciadorDeModelo {
             WorkInfo.State.FAILED, WorkInfo.State.CANCELLED -> EstadoModelo.Falhou(baixando)
             // trabalho adotado depois de a tela restaurar o estado: a pílula não fica em Desativado até o primeiro progresso
             WorkInfo.State.RUNNING, WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED ->
-                if (atual is EstadoModelo.Baixando) null else EstadoModelo.Baixando(baixando, progresso)
+                when {
+                    atual !is EstadoModelo.Baixando -> EstadoModelo.Baixando(baixando, progresso)
+                    // já começou e voltou para a fila: está esperando rede (ou o recuo do retry); o worker limpa ao progredir
+                    trabalho == WorkInfo.State.ENQUEUED && atual.progresso > 0f && !atual.semConexao -> atual.copy(semConexao = true)
+                    trabalho == WorkInfo.State.RUNNING && atual.semConexao -> atual.copy(semConexao = false)
+                    else -> null
+                }
             WorkInfo.State.SUCCEEDED -> null
         }
     }

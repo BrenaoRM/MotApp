@@ -158,14 +158,9 @@ class AssistenteLlm(private val motor: MotorDeTexto, private val contrato: Contr
                 ) {}.trim()
                 return j to contrato.lerPlano(j, dados.mesAtual, idsParaNomes)
             }
-            var (json, lido) = planejar(historico)
-            // Paliativo da v1.22: com histórico, o modelo Média responde pergunta fora do escopo com um plano só de
-            // "como_economizar". Refaz o plano sem o histórico: continuação legítima (quase sempre mês ou categoria) não
-            // tem esse plano, e "como economizar" legítimo volta igual; o que era fora do escopo vira recusa.
-            if (historico.isNotEmpty() && !lido.isNullOrEmpty() && lido.all { contrato.intencao(it.ferramenta) == Intencao.COMO_ECONOMIZAR }) {
-                val (j2, l2) = planejar(emptyList())
-                if (l2 != null) { json = j2; lido = l2 }
-            }
+            // Só pergunta com cara de continuação recebe o histórico: com ele, o modelo trata qualquer pergunta como
+            // continuação e cola fatos da conversa anterior numa pergunta fora do escopo
+            val (json, lido) = planejar(if (ehContinuacao(pergunta)) historico else emptyList())
             val chamadas = lido ?: return
             // lista vazia porque todas as chamadas foram descartadas não é recusa: sistema atual
             if (chamadas.isEmpty() && JSONObject(json).getJSONArray("chamadas").length() > 0) return
@@ -198,6 +193,30 @@ class AssistenteLlm(private val motor: MotorDeTexto, private val contrato: Contr
         private const val MAX_FRASES = 4
 
         private val ABREVIACOES = setOf("sr", "sra", "dr", "dra", "prof", "aprox", "obs")
+
+        private val PREFIXOS_CONTINUACAO = listOf("ah", "beleza", "ok", "valeu", "show", "boa", "certo", "entao", "opa")
+        private val INICIOS_CONTINUACAO = listOf(
+            "e ", "agora ", "mesma coisa", "o mesmo", "mesmo ", "troca ", "como foi ", "como ficou ", "me mostra ", "pode ver ", "vê ", "ve ",
+        )
+        private val ANAFORAS = setOf("isso", "disso", "nisso", "nesse", "nessa", "desse", "dessa", "dele", "dela", "mesmo", "mesma")
+
+        /**
+         * A pergunta parece continuar a anterior ("e em outubro?", "e com Lazer?", "quanto foi isso em setembro?")? Só então o
+         * histórico vai para o plano. Muito curta (até 2 palavras), começando como continuação ou com anáfora.
+         */
+        private val ACENTOS = Regex("""\p{Mn}+""")
+
+        private fun semAcento(t: String) = java.text.Normalizer.normalize(t, java.text.Normalizer.Form.NFD).replace(ACENTOS, "")
+
+        internal fun ehContinuacao(pergunta: String): Boolean {
+            var t = semAcento(pergunta.lowercase()).replace(Regex("[^a-z0-9 ]"), " ").replace(Regex("""\s+"""), " ").trim()
+            for (p in PREFIXOS_CONTINUACAO) if (t.startsWith("$p ")) { t = t.removePrefix("$p ").trim(); break }
+            val palavras = t.split(' ').filter { it.isNotEmpty() }
+            if (palavras.isEmpty()) return false
+            if (palavras.size <= 2) return true
+            if (INICIOS_CONTINUACAO.any { "$t ".startsWith(semAcento(it)) }) return true
+            return palavras.any { it in ANAFORAS }
+        }
 
         /** Para comparar frases repetidas: sem espaços nas pontas, em minúsculas e sem a pontuação final. */
         internal fun normalizada(frase: String) = frase.trim().lowercase().trimEnd('.', '!', '?', ' ')

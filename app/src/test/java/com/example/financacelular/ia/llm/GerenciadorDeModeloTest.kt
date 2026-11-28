@@ -221,6 +221,12 @@ class GerenciadorDeModeloTest {
         assertEquals(EstadoModelo.Baixando(m, 0f), g.reconciliar(EstadoModelo.Desativado, m, WorkInfo.State.ENQUEUED, 0f))
         // já em Baixando, quem atualiza é o worker
         assertNull(g.reconciliar(baixando, m, WorkInfo.State.RUNNING, 0.1f))
+        // voltou para a fila depois de começar: sem conexão; ao rodar de novo, some
+        val semRede = baixando.copy(semConexao = true)
+        assertEquals(semRede, g.reconciliar(baixando, m, WorkInfo.State.ENQUEUED, 0f))
+        assertNull(g.reconciliar(semRede, m, WorkInfo.State.ENQUEUED, 0f))
+        assertEquals(baixando, g.reconciliar(semRede, m, WorkInfo.State.RUNNING, 0.4f))
+        assertNull(g.reconciliar(EstadoModelo.Baixando(m, 0f), m, WorkInfo.State.ENQUEUED, 0f)) // ainda nem começou
         assertNull(g.reconciliar(baixando, m, WorkInfo.State.SUCCEEDED, 1f))
     }
 }

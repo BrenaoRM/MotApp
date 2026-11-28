@@ -288,7 +288,7 @@ class AssistenteLlmTest {
     fun `historico entra no prompt do plano`() = runTest {
         val anterior = """{"chamadas":[{"f":"total_mes","mes":"atual"}]}"""
         val motor = MotorFalso(planoComposto, fraseTotal)
-        coletar(motor, historico = listOf("Quanto gastei?" to anterior))
+        coletar(motor, p = "E no mês passado?", historico = listOf("Quanto gastei?" to anterior))
         val esperado = "<|im_start|>user\nPergunta: Quanto gastei?<|im_end|>\n<|im_start|>assistant\n$anterior<|im_end|>\n"
         assertTrue(motor.prompts[0], motor.prompts[0].contains(esperado))
     }
@@ -325,44 +325,35 @@ class AssistenteLlmTest {
         assertEquals(AssistenteLlm.normalizada("Não encontrei gastos em outubro."), AssistenteLlm.normalizada("  não encontrei gastos em outubro!  "))
     }
 
-    /** Plano de economia quando há histórico na conversa (o defeito do modelo Média); sem histórico, [semHistorico]. */
-    private class MotorQueErraComHistorico(val semHistorico: String) : MotorDeTexto {
-        val prompts = ArrayList<String>()
-        override suspend fun gerar(prompt: String, gramatica: String?, maxTokens: Int, prefixo: String, aoPedaco: (String) -> Unit): String {
-            prompts += prompt
-            if (gramatica == null) return ""
-            return if (prompt.contains("Pergunta: Quanto gastei?")) """{"chamadas":[{"f":"como_economizar"}]}""" else semHistorico
-        }
-        override fun liberar() = Unit
-    }
-
     private val historicoDeTotal = listOf("Quanto gastei?" to """{"chamadas":[{"f":"total_mes","mes":"atual"}]}""")
 
     @Test
-    fun `fora do escopo com historico e plano de economia vira recusa`() = runTest {
+    fun `pergunta fora do escopo nao leva o historico ao plano e vira recusa`() = runTest {
         val vazio = """{"chamadas":[]}"""
-        val motor = MotorQueErraComHistorico(vazio)
+        val motor = MotorFalso(vazio)
         val eventos = coletar(motor, p = "Qual a capital da França?", historico = historicoDeTotal)
         assertEquals(listOf(Frase(contrato.textoRecusa), Fim(vazio, Perguntas.SUGESTOES_INICIAIS)), eventos)
-        assertEquals(2, motor.prompts.size)
-        assertFalse(motor.prompts[1].contains("Quanto gastei?"))
+        assertEquals(1, motor.prompts.size)
+        assertFalse(motor.prompts[0].contains("Quanto gastei?"))
     }
 
     @Test
-    fun `como economizar legitimo com historico continua igual`() = runTest {
-        val economizar = """{"chamadas":[{"f":"como_economizar"}]}"""
-        val motor = MotorQueErraComHistorico(economizar)
-        val eventos = coletar(motor, p = "E como economizo?", historico = historicoDeTotal)
-        assertTrue(eventos.last() is Fim)
-        assertEquals(economizar, (eventos.last() as Fim).planoJson)
-        assertFalse(eventos.contains(Frase(contrato.textoRecusa)))
-    }
-
-    @Test
-    fun `continuacao com historico nao e replanejada`() = runTest {
+    fun `continuacao leva o historico ao plano`() = runTest {
         val motor = MotorFalso(planoComposto, fraseTotal)
-        coletar(motor, historico = historicoDeTotal)
-        assertEquals(2, motor.prompts.size) // plano + resposta
+        coletar(motor, p = "E em outubro?", historico = historicoDeTotal)
+        assertTrue(motor.prompts[0].contains("Pergunta: Quanto gastei?"))
+    }
+
+    @Test
+    fun `ehContinuacao separa continuacao de pergunta nova`() {
+        listOf(
+            "e em outubro?", "E no mês passado?", "e em Lazer?", "Quanto foi isso em setembro?", "outubro?", "ah, e com Alimentação",
+            "agora Lazer", "mesma coisa pra Transporte", "e quanto a Lazer", "e o mês passado",
+        ).forEach { assertTrue(it, AssistenteLlm.ehContinuacao(it)) }
+        listOf(
+            "qual a capital da Franca", "me recomenda um restaurante japones", "quantos anos tem a lua",
+            "Quanto gastei esse mês, quanto foi com Alimentação e quanto recebi?", "escreve um email pro meu chefe pedindo ferias", "",
+        ).forEach { assertFalse(it, AssistenteLlm.ehContinuacao(it)) }
     }
 
     @Test

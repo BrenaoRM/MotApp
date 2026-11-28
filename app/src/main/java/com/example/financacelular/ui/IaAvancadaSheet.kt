@@ -54,10 +54,12 @@ import com.example.financacelular.ui.theme.cores
 /** A IA avançada só aparece em aparelho arm64 com RAM para algum modo do catálogo (catálogo vazio = sem suporte). */
 internal fun iaAvancadaSuportada(context: Context): Boolean = GerenciadorDeModelo.modosSuportados(context).isNotEmpty()
 
+private const val TEXTO_SEM_CONEXAO = "Sem conexão · retoma sozinho"
+
 /** Estado em uma linha, para a linha de Configurações. */
 internal fun textoDoEstadoIa(estado: EstadoModelo): String = when (estado) {
     EstadoModelo.Desativado -> "Desligada"
-    is EstadoModelo.Baixando -> "Baixando… ${(estado.progresso * 100).toInt()}%"
+    is EstadoModelo.Baixando -> if (estado.semConexao) TEXTO_SEM_CONEXAO else "Baixando… ${(estado.progresso * 100).toInt()}%"
     is EstadoModelo.Pronto -> "${estado.modo.titulo} · pronta"
     is EstadoModelo.Falhou -> "Falhou · toque para tentar de novo"
 }
@@ -80,7 +82,7 @@ private enum class Etiqueta(val texto: String) { EM_BREVE("Em breve"), EM_USO("E
 internal fun PilulaIaAvancada(estado: EstadoModelo, onClick: () -> Unit) {
     val pronta = estado is EstadoModelo.Pronto
     val falhou = estado is EstadoModelo.Falhou
-    val texto = if (estado is EstadoModelo.Baixando) "Baixando ${(estado.progresso * 100).toInt()}%" else "IA avançada"
+    val texto = if (estado is EstadoModelo.Baixando) (if (estado.semConexao) TEXTO_SEM_CONEXAO else "Baixando ${(estado.progresso * 100).toInt()}%") else "IA avançada"
     Box(
         modifier = Modifier
             .heightIn(min = 48.dp)
@@ -187,7 +189,7 @@ internal fun FolhaIaAvancada(aoFechar: () -> Unit) {
                     Spacer(Modifier.height(18.dp))
                     BarraDeProgresso(atual.progresso, "$pct%")
                     Text(
-                        if (atual.progresso >= 1f) "Instalando…" else "Baixando… $pct%",
+                        if (atual.progresso >= 1f) "Instalando…" else if (atual.semConexao) TEXTO_SEM_CONEXAO else "Baixando… $pct%",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 8.dp)
