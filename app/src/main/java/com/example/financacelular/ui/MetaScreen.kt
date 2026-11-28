@@ -75,6 +75,7 @@ fun MetaScreen(
     aoGuardarValorAcionado: () -> Unit = {},
     estadoLista: LazyListState
 ) {
+    val mensagem = LocalMensagem.current
     val metasCarregadas by viewModel.metas.collectAsStateWithLifecycle()
     val metas = metasCarregadas ?: emptyList()
     val formato = remember { NumberFormat.getCurrencyInstance(LocalePtBr) }
@@ -241,11 +242,11 @@ fun MetaScreen(
 
                             Spacer(modifier = Modifier.height(Espaco.md))
 
-                            CampoApp(valor = novoNome, aoMudar = { novoNome = it }, rotulo = "Nome")
+                            CampoValor(valor = novoValorAlvo, aoMudar = { novoValorAlvo = it }, legenda = "Valor alvo")
 
                             Spacer(modifier = Modifier.height(Espaco.sm))
 
-                            CampoValor(valor = novoValorAlvo, aoMudar = { novoValorAlvo = it }, legenda = "Valor alvo")
+                            CampoApp(valor = novoNome, aoMudar = { novoNome = it }, rotulo = "Nome")
 
                             Spacer(modifier = Modifier.height(Espaco.lg))
 
@@ -266,7 +267,11 @@ fun MetaScreen(
                                     texto = if (metaParaEditar == null) "Criar" else "Salvar",
                                     onClick = {
                                         val valorDouble = novoValorAlvo.replace(",", ".").toDoubleOrNull() ?: 0.0
-                                        if (novoNome.isNotBlank() && valorDouble > 0) {
+                                        if (valorDouble <= 0) {
+                                            mensagem("Informe o valor", erro = true)
+                                        } else if (novoNome.isBlank()) {
+                                            mensagem("Informe o nome", erro = true)
+                                        } else {
                                             if (metaParaEditar == null) {
                                                 viewModel.criar(novoNome, valorDouble)
                                             } else {
