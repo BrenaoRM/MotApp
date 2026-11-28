@@ -98,7 +98,8 @@ fun FolhaApp(
 fun CabecalhoDeFolha(
     titulo: String,
     aoFechar: () -> Unit,
-    subtitulo: String? = null
+    subtitulo: String? = null,
+    fecharAtivo: Boolean = true
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -125,6 +126,7 @@ fun CabecalhoDeFolha(
         // X solto, sem círculo; o offset encosta o ícone na margem como a seta de voltar das telas.
         IconButton(
             onClick = aoFechar,
+            enabled = fecharAtivo,
             modifier = Modifier
                 .size(Tamanho.toque)
                 .offset(x = 12.dp)
@@ -132,7 +134,7 @@ fun CabecalhoDeFolha(
             Icon(
                 Icons.Outlined.Close,
                 contentDescription = "Fechar",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (fecharAtivo) 1f else 0.3f),
                 modifier = Modifier.size(Tamanho.iconeGrande)
             )
         }

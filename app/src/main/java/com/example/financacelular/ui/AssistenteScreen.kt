@@ -48,7 +48,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -66,6 +68,8 @@ import com.example.financacelular.ia.EstadoAssistente
 import com.example.financacelular.ia.Mensagem
 import com.example.financacelular.ia.Perguntas
 import com.example.financacelular.ia.Recomendacao
+import com.example.financacelular.ia.llm.EstadoModelo
+import com.example.financacelular.ia.llm.GerenciadorDeModelo
 import com.example.financacelular.ui.theme.RoxoHero
 import com.example.financacelular.ui.theme.Tamanho
 import com.example.financacelular.ui.theme.cores
@@ -78,6 +82,7 @@ private sealed interface FolhaDoAssistente {
     data class DoAtipico(val atipico: AtipicoParaTela) : FolhaDoAssistente
     data class Editar(val transacaoId: Long) : FolhaDoAssistente
     data object Perguntas : FolhaDoAssistente
+    data object IaAvancada : FolhaDoAssistente
 }
 
 /** Conteúdo sobre o violet, escolhido pela luminância como o `BotaoPrincipal` faz. */
@@ -106,6 +111,9 @@ fun AssistenteScreen(viewModel: AssistenteViewModel = viewModel()) {
     val categorias by viewModel.categorias.collectAsStateWithLifecycle()
     val cartoes by viewModel.cartoes.collectAsStateWithLifecycle()
     var folha by remember { mutableStateOf<FolhaDoAssistente?>(null) }
+    val context = LocalContext.current
+    val iaSuportada = remember { iaAvancadaSuportada(context) }
+    val estadoIa by GerenciadorDeModelo.estado.collectAsStateWithLifecycle()
     val formato = ValoresVisiveis.formato(remember { NumberFormat.getCurrencyInstance(LocalePtBr) })
 
     Column(
@@ -125,10 +133,14 @@ fun AssistenteScreen(viewModel: AssistenteViewModel = viewModel()) {
             is EstadoAssistente.Pronto -> Pronto(e, formato, aoAbrir = { folha = it })
         }
         if (estado !is EstadoAssistente.Carregando) {
-            SecaoPerguntas(aoAbrir = { pergunta ->
-                pergunta?.let(viewModel::perguntar)
-                folha = FolhaDoAssistente.Perguntas
-            })
+            SecaoPerguntas(
+                aoAbrir = { pergunta ->
+                    pergunta?.let(viewModel::perguntar)
+                    folha = FolhaDoAssistente.Perguntas
+                },
+                estadoIa = estadoIa.takeIf { iaSuportada },
+                aoAbrirIa = { folha = FolhaDoAssistente.IaAvancada },
+            )
         }
     }
 
@@ -163,6 +175,7 @@ fun AssistenteScreen(viewModel: AssistenteViewModel = viewModel()) {
             )
         }
         FolhaDoAssistente.Perguntas -> FolhaDePerguntas(viewModel) { folha = null }
+        FolhaDoAssistente.IaAvancada -> FolhaIaAvancada { folha = null }
     }
 }
 
@@ -274,8 +287,19 @@ private fun IconeEmQuadrado(icone: ImageVector, cor: Color) {
 /** Campo e chips da aba: tocar abre a folha "Perguntas" (com a pergunta já enviada, no caso do chip). */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SecaoPerguntas(aoAbrir: (String?) -> Unit) {
-    Titulo("Perguntas")
+private fun SecaoPerguntas(aoAbrir: (String?) -> Unit, estadoIa: EstadoModelo?, aoAbrirIa: () -> Unit) {
+    if (estadoIa == null) Titulo("Perguntas") else Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 2.dp)
+    ) {
+        Text(
+            "Perguntas",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f).padding(start = 2.dp).semantics { heading() }
+        )
+        PilulaIaAvancada(estadoIa, aoAbrirIa)
+    }
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surface,
@@ -307,7 +331,7 @@ private fun SecaoPerguntas(aoAbrir: (String?) -> Unit) {
 }
 
 @Composable
-private fun ChipDePergunta(texto: String, onClick: () -> Unit) {
+private fun ChipDePergunta(texto: String, habilitado: Boolean = true, onClick: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surface,
@@ -315,7 +339,8 @@ private fun ChipDePergunta(texto: String, onClick: () -> Unit) {
         modifier = Modifier
             .minimumInteractiveComponentSize()
             .height(36.dp)
-            .clickable(role = Role.Button, onClick = onClick)
+            .alpha(if (habilitado) 1f else 0.5f)
+            .clickable(enabled = habilitado, role = Role.Button, onClick = onClick)
     ) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp)) {
             Text(texto, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium, maxLines = 1)
@@ -331,8 +356,11 @@ private fun FolhaDePerguntas(viewModel: AssistenteViewModel, aoFechar: () -> Uni
     val pensando by viewModel.pensando.collectAsStateWithLifecycle()
     var texto by remember { mutableStateOf("") }
     val lista = rememberLazyListState()
-    LaunchedEffect(conversa.size) {
-        if (conversa.isNotEmpty()) lista.animateScrollToItem(conversa.lastIndex)
+    // Entre a pergunta e a primeira frase (ou a resposta do sistema atual) aparece o "pensando…"
+    val aPensar = pensando && conversa.lastOrNull()?.deUsuario == true
+    val itensDaLista = conversa.size + if (aPensar) 1 else 0
+    LaunchedEffect(itensDaLista, conversa.lastOrNull()?.texto) {
+        if (itensDaLista > 0) lista.animateScrollToItem(itensDaLista - 1)
     }
     fun enviar(pergunta: String) {
         viewModel.perguntar(pergunta)
@@ -349,11 +377,12 @@ private fun FolhaDePerguntas(viewModel: AssistenteViewModel, aoFechar: () -> Uni
                 modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp)
             ) {
                 items(conversa) { Balao(it) }
+                if (aPensar) item { BalaoPensando() }
             }
             Spacer(modifier = Modifier.height(10.dp))
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            sugestoes.forEach { ChipDePergunta(it) { if (!pensando) enviar(it) } }
+            sugestoes.forEach { ChipDePergunta(it, habilitado = !pensando) { if (!pensando) enviar(it) } }
         }
         Spacer(modifier = Modifier.height(8.dp))
         val podeEnviar = texto.isNotBlank() && !pensando
@@ -389,6 +418,26 @@ private fun Balao(m: Mensagem) {
                 if (m.deUsuario) m.texto else protegido(m.texto),
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (m.deUsuario) CorSobreRoxo else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+            )
+        }
+    }
+}
+
+/** "pensando…" no lugar da resposta, até a primeira frase chegar (ou a resposta do sistema atual). */
+@Composable
+private fun BalaoPensando() {
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
+        Surface(
+            shape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 6.dp),
+            color = MaterialTheme.colorScheme.background,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            modifier = Modifier.widthIn(max = 300.dp)
+        ) {
+            Text(
+                "pensando…",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
             )
         }

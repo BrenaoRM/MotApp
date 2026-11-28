@@ -42,7 +42,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Category
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.financacelular.ia.llm.GerenciadorDeModelo
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.CloudSync
@@ -139,6 +142,10 @@ fun ConfiguracoesScreen(
     var confirmarRestauracao by remember { mutableStateOf(false) }
     var confirmarDesconexao by remember { mutableStateOf(false) }
     var mostrarBancos by remember { mutableStateOf(false) }
+    var mostrarIa by remember { mutableStateOf(false) }
+    val iaSuportada = remember { iaAvancadaSuportada(context) }
+    val estadoIa by GerenciadorDeModelo.estado.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { GerenciadorDeModelo.restaurar(context) }
     var mostrarExportar by remember { mutableStateOf(false) }
     var bloquearApp by remember { mutableStateOf(BloqueioApp.ativo(context)) }
     if (mostrarExportar) FolhaExportar { mostrarExportar = false }
@@ -164,6 +171,7 @@ fun ConfiguracoesScreen(
     }
 
     if (mostrarBancos) FolhaBancosMonitorados(viewModel) { mostrarBancos = false }
+    if (mostrarIa) FolhaIaAvancada { mostrarIa = false }
 
     val authorizationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
@@ -260,6 +268,30 @@ fun ConfiguracoesScreen(
                         if (acessoLiberado) mostrarBancos = true
                         else abrirAcessoAsNotificacoes(context)
                     }
+                )
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+
+        // --- Seção: IA (só em aparelho com suporte) ---
+        if (iaSuportada) item {
+            Text("IA", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            CartaoUnicoDeLinhas {
+                LinhaDePagina(
+                    inicio = { IconeDeLinha(Icons.Outlined.AutoAwesome) },
+                    titulo = "IA avançada",
+                    valor = "",
+                    subtitulo = textoDoEstadoIa(estadoIa),
+                    fim = {
+                        Icon(
+                            Icons.Outlined.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(Tamanho.iconeGrande)
+                        )
+                    },
+                    onClick = { mostrarIa = true }
                 )
             }
             Spacer(modifier = Modifier.height(24.dp))
