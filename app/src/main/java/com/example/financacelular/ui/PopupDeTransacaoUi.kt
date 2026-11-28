@@ -89,8 +89,8 @@ import java.text.Normalizer
 
 private const val CATEGORIAS_NA_GRADE = 7
 private const val ETAPA_VALOR = 0
-private const val ETAPA_CATEGORIA = 1
-private const val ETAPA_DESCRICAO = 2
+private const val ETAPA_DESCRICAO = 1
+private const val ETAPA_CATEGORIA = 2
 private const val ETAPA_CARTAO = 3 // só no crédito com mais de um cartão
 private const val ETAPA_CONFIRMAR = 4
 private const val ETAPA_SALVO = 5
@@ -99,7 +99,7 @@ private const val TEMPO_SEM_RESPOSTA_MS = 30_000L
 
 /**
  * Conteúdo do popup de transação detectada (janela flutuante, ver `PopupDeTransacao`).
- * Etapas no mesmo cartão: valor, categoria, descrição, cartão (só no crédito com mais de um cartão) e confirmação;
+ * Etapas no mesmo cartão: valor, descrição, categoria, cartão (só no crédito com mais de um cartão) e confirmação;
  * depois um "Salvo" rápido.
  * Reaproveita a [NovaTransacaoViewModel] da tela Nova Transação, então salvar, a sugestão de categoria
  * e a memória "esta loja = esta categoria" funcionam igual.
@@ -145,7 +145,7 @@ fun PopupDeTransacaoConteudo(
             voltarAoResumo = false
             etapa = ETAPA_CONFIRMAR
         } else {
-            etapa = if (etapa == ETAPA_DESCRICAO && !temEtapaCartao) ETAPA_CONFIRMAR else etapa + 1
+            etapa = if (etapa == ETAPA_CATEGORIA && !temEtapaCartao) ETAPA_CONFIRMAR else etapa + 1
         }
     }
 
@@ -160,12 +160,12 @@ fun PopupDeTransacaoConteudo(
     }
 
     // Voltar uma etapa (seta do cabeçalho e botão voltar do sistema)
-    val voltarEtapa: (() -> Unit)? = if (etapa in ETAPA_CATEGORIA..ETAPA_CONFIRMAR) {
+    val voltarEtapa: (() -> Unit)? = if (etapa in ETAPA_DESCRICAO..ETAPA_CONFIRMAR) {
         {
             erro = null
             verTodas = false
             voltarAoResumo = false
-            etapa = if (etapa == ETAPA_CONFIRMAR && !temEtapaCartao) ETAPA_DESCRICAO else etapa - 1
+            etapa = if (etapa == ETAPA_CONFIRMAR && !temEtapaCartao) ETAPA_CATEGORIA else etapa - 1
         }
     } else null
 
@@ -560,7 +560,13 @@ private fun EtapaCategoria(
 @Composable
 private fun EtapaDescricao(descricao: String, aoMudar: (String) -> Unit, aoContinuar: () -> Unit) {
     CampoApp(valor = descricao, aoMudar = aoMudar, rotulo = "Descrição", modifier = Modifier.fillMaxWidth())
-    BotaoPrincipal("Continuar", aoContinuar, modifier = Modifier.fillMaxWidth(), cor = RoxoHero)
+    BotaoPrincipal(
+        "Continuar",
+        aoContinuar,
+        modifier = Modifier.fillMaxWidth(),
+        cor = RoxoHero,
+        enabled = descricao.isNotBlank()
+    )
 }
 
 /** Escolha do cartão do crédito: blocos de 2 por linha, como a forma de pagamento da Nova Transação. */
@@ -655,11 +661,11 @@ private fun EtapaConfirmar(
             (if (ehGasto) "− " else "+ ") + "R$ ${formatarValorDoPopup(viewModel.valor)}",
             if (ehGasto) MaterialTheme.cores.textoGasto else MaterialTheme.cores.textoGanho,
             subtitulo = pagamento
-        ) { aoEditar(0) }
+        ) { aoEditar(ETAPA_VALOR) }
         DivisorDoResumo()
-        LinhaDoResumo("Categoria", viewModel.categoriaSelecionada?.nome ?: "Escolher") { aoEditar(1) }
+        LinhaDoResumo("Descrição", viewModel.descricao) { aoEditar(ETAPA_DESCRICAO) }
         DivisorDoResumo()
-        LinhaDoResumo("Descrição", viewModel.descricao.ifBlank { "Sem descrição" }) { aoEditar(2) }
+        LinhaDoResumo("Categoria", viewModel.categoriaSelecionada?.nome ?: "Escolher") { aoEditar(ETAPA_CATEGORIA) }
         if (escolheuCartao) {
             DivisorDoResumo()
             LinhaDoResumo("Cartão", cartao ?: "Escolher") { aoEditar(ETAPA_CARTAO) }

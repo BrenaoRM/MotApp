@@ -73,6 +73,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -499,6 +500,7 @@ fun InvestimentoScreen(
             }
             val focoValor = rememberFocoValorAutomatico()
             FolhaApp(onDismiss = { mostrarSheetNovoAporte = false; mostrarDatePicker = false }) {
+              val focusManager = LocalFocusManager.current
               TrocaPorData(
                 escolhendo = mostrarDatePicker,
                 data = dataSelecionada,
@@ -508,6 +510,8 @@ fun InvestimentoScreen(
               Column(Modifier.fillMaxWidth()) {
                 CabecalhoDeFolha(titulo = "Novo aporte", aoFechar = { mostrarSheetNovoAporte = false; mostrarDatePicker = false })
                 Spacer(modifier = Modifier.height(Espaco.md))
+                CampoValor(valor = novoValor, aoMudar = { novoValor = it }, foco = focoValor)
+                Spacer(modifier = Modifier.height(Espaco.sm))
                 CampoApp(valor = novoNome, aoMudar = { novoNome = it }, rotulo = "Ativo")
                 Spacer(modifier = Modifier.height(Espaco.md))
                 Row(
@@ -534,8 +538,6 @@ fun InvestimentoScreen(
                     CampoApp(valor = novaCategoria, aoMudar = { novaCategoria = it }, rotulo = "Categoria")
                 }
                 Spacer(modifier = Modifier.height(Espaco.sm))
-                CampoValor(valor = novoValor, aoMudar = { novoValor = it }, foco = focoValor)
-                Spacer(modifier = Modifier.height(Espaco.sm))
                 Box {
                     CampoApp(
                         valor = dataSelecionada.format(FORMATO_DATA),
@@ -557,7 +559,14 @@ fun InvestimentoScreen(
                     texto = "Aportar",
                     onClick = {
                         val valorDouble = novoValor.replace(",", ".").toDoubleOrNull() ?: 0.0
-                        if (novoNome.isNotBlank() && valorDouble > 0) {
+                        if (valorDouble <= 0) {
+                            // Com o teclado aberto a folha cobre o aviso do topo
+                            focusManager.clearFocus()
+                            mensagem("Informe o valor", erro = true)
+                        } else if (novoNome.isBlank()) {
+                            focusManager.clearFocus()
+                            mensagem("Informe o ativo", erro = true)
+                        } else {
                             viewModel.inserirAporte(
                                 nome = novoNome,
                                 categoria = novaCategoria.ifBlank { "Geral" },

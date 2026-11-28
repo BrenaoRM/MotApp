@@ -122,6 +122,8 @@ android {
         unitTests.isIncludeAndroidResources = true
         // `-Dia.exportar=true` chega aos testes da JVM (ia/avaliar_atipicos.py grava as pontuações do Kotlin)
         unitTests.all { test ->
+            // A falha mostra a mensagem do assert no log (no CI não há como abrir o relatório)
+            test.testLogging.exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
             providers.systemProperty("ia.exportar").orNull?.let { test.systemProperty("ia.exportar", it) }
             // `-Dexportar.fatos=<saida.jsonl>` liga o ExportarFatosParaTreino (dados de treino do LLM)
             providers.systemProperty("exportar.fatos").orNull?.let { test.systemProperty("exportar.fatos", it) }

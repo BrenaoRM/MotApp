@@ -223,6 +223,12 @@ fun ConversaScreen(viewModel: AssistenteViewModel, aoVoltar: () -> Unit) {
     if (mostrarIa) FolhaIaAvancada { mostrarIa = false }
 }
 
+internal fun rotuloDaData(data: LocalDate, hoje: LocalDate): String = when {
+    data == hoje -> "hoje"
+    data == hoje.minusDays(1) -> "ontem"
+    else -> "%02d/%02d".format(data.dayOfMonth, data.monthValue) + if (data.year == hoje.year) "" else "/${data.year}"
+}
+
 /** Gasto anotado pelo chat: nada é gravado antes de "Registrar" (ou de salvar na folha). */
 @Composable
 private fun CartaoDoGasto(
@@ -235,10 +241,14 @@ private fun CartaoDoGasto(
 ) {
     val gasto = mensagem.gasto ?: return
     val centavos = gasto.valorCentavos ?: return
-    val categoria by produceState<Categoria?>(null, gasto.descricao, categorias) { value = sugerir(gasto.descricao) }
+    // A categoria dita no pedido vence a sugestão
+    val categoria by produceState<Categoria?>(null, gasto, categorias) {
+        value = categorias.firstOrNull { it.id == gasto.categoriaId } ?: sugerir(gasto.descricao)
+    }
+    val data = gasto.data ?: LocalDate.now()
     fun transacao() = Transacao(
         valorCentavos = centavos,
-        data = LocalDate.now(),
+        data = data,
         categoriaId = categoria?.id ?: 0L,
         tipo = TipoTransacao.DESPESA,
         descricao = gasto.descricao.ifEmpty { null },
@@ -252,7 +262,7 @@ private fun CartaoDoGasto(
         Column(modifier = Modifier.padding(14.dp)) {
             if (!mensagem.registrado) {
                 Text(
-                    (categoria?.nome ?: "Sem categoria") + " · hoje",
+                    (categoria?.nome ?: "Sem categoria") + " · " + rotuloDaData(data, LocalDate.now()),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -270,10 +280,10 @@ private fun CartaoDoGasto(
                 }
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Sem categoria sugerida, "Registrar" abre a folha para escolher
+                    // Sem categoria sugerida ou sem descrição, "Registrar" abre a folha para completar
                     BotaoPrincipal(
                         "Registrar",
-                        { if (categoria == null) aoEditar(transacao()) else aoRegistrar(transacao()) },
+                        { if (categoria == null || gasto.descricao.isBlank()) aoEditar(transacao()) else aoRegistrar(transacao()) },
                         Modifier.weight(1f),
                     )
                     BotaoSecundario("Editar", { aoEditar(transacao()) }, modifier = Modifier.weight(1f))

@@ -230,6 +230,10 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
             aoErro("Informe o valor")
             return
         }
+        if (descricao.isBlank()) {
+            aoErro("Informe a descrição")
+            return
+        }
         if (parcelasInvalidas) return
 
         val ehCredito = formaPagamento == FormaPagamento.CARTAO_CREDITO
@@ -250,19 +254,16 @@ class NovaTransacaoViewModel(application: Application) : AndroidViewModel(applic
                 }
 
                 var catId = categoriaSelecionada?.id
-                var nomeCategoriaFinal = categoriaSelecionada?.nome
                 if (catId == null && nomeCategoriaDigitada.isNotBlank()) {
                     val nomeTratado = nomeCategoriaDigitada.trim()
                     val novaCat = Categoria(nome = nomeTratado, tipo = tipo, icone = iconeNovaCategoria)
                     catId = repository.salvarCategoria(novaCat)
-                    nomeCategoriaFinal = nomeTratado
                 }
                 if (catId == null) {
                     aoErro("Escolha uma categoria")
                     return@launch
                 }
-                val fallbackTipo = if (tipo == TipoTransacao.RECEITA) "Ganho" else "Gasto"
-                val nomeFinal = descricao.ifBlank { nomeCategoriaFinal ?: fallbackTipo }
+                val nomeFinal = descricao.trim()
 
                 val mesFatura = if (ehCredito) {
                     mesDaFaturaDaCompra(data, cartao?.diaFechamento ?: 31)
