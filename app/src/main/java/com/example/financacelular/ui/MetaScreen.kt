@@ -268,8 +268,11 @@ fun MetaScreen(
                                     onClick = {
                                         val valorDouble = novoValorAlvo.replace(",", ".").toDoubleOrNull() ?: 0.0
                                         if (valorDouble <= 0) {
+                                            // Com o teclado aberto a folha cobre o aviso do topo
+                                            focusManager.clearFocus()
                                             mensagem("Informe o valor", erro = true)
                                         } else if (novoNome.isBlank()) {
+                                            focusManager.clearFocus()
                                             mensagem("Informe o nome", erro = true)
                                         } else {
                                             if (metaParaEditar == null) {

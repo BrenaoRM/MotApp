@@ -115,13 +115,14 @@ internal fun BottomSheetEditarTransacao(
     var mostrarDatePicker by rememberSaveable { mutableStateOf(false) }
     // Confirmação de exclusão troca o conteúdo deste mesmo sheet (um sheet por vez)
     var confirmando by rememberSaveable { mutableStateOf(false) }
-    val focusManager = LocalFocusManager.current
     val mensagem = LocalMensagem.current
 
     val categoriasDoTipo = categorias.filter { it.tipo == transacao.tipo }
     val corTipo = if (transacao.tipo == TipoTransacao.DESPESA) Coral else Verde
 
     FolhaApp(onDismiss = onDismiss) {
+        // Lido dentro da folha, que é uma janela própria: o de fora não tira o foco dos campos daqui
+        val focusManager = LocalFocusManager.current
         AnimatedContent(
             targetState = confirmando,
             transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) using SizeTransform() },
@@ -214,6 +215,8 @@ internal fun BottomSheetEditarTransacao(
                         val valorDouble = valor.replace(",", ".").toDoubleOrNull()
                         val categoria = categoriaSelecionada
                         if (descricao.isBlank()) {
+                            // Com o teclado aberto a folha cobre o aviso do topo
+                            focusManager.clearFocus()
                             mensagem("Informe a descrição", erro = true)
                         } else if (valorDouble != null && categoria != null) {
                             // anoMes de compra no cartão é o mês da fatura; sem mudar a data, mantém o original
